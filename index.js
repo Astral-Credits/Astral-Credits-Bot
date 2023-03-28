@@ -10,7 +10,7 @@ const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds]
 });
 
-const ADMINS = ["239770148305764352", "288612712680914954"];
+const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
 
 let historic_data_cache;
 let liqudity_cache;
@@ -144,14 +144,21 @@ client.on('interactionCreate', async interaction => {
         value: "$"+String(util.format_commas(Math.round(Number(price_info.base_token_price_usd)*1000000000)))
       },
     ]);
-    //create graph and add
-    let data_buffer = await chart.create_price_graph(historic_data_cache.ohlcv_list);
-    let file = new discord.AttachmentBuilder(data_buffer);
-    file.setName("chart.png");
-    price_embed.setImage("attachment://chart.png");
     price_embed.setFooter({ text: "Made by prussia.dev" });
-    return await interaction.editReply({ embeds: [price_embed], files: [file] });
+    //create graph and add
+    if (historic_data_cache) {
+      let data_buffer = await chart.create_price_graph(historic_data_cache.ohlcv_list);
+      let file = new discord.AttachmentBuilder(data_buffer);
+      file.setName("chart.png");
+      price_embed.setImage("attachment://chart.png");
+      return await interaction.editReply({ embeds: [price_embed], files: [file] });
+    } else {
+      return await interaction.editReply({ embeds: [price_embed] });
+    }
   } else if (command === "pools") {
+    if (!historic_data_cache) {
+      return interaction.reply("Failed, pool data currently unavaliable.");
+    }
     let pools_embed = new discord.EmbedBuilder();
     pools_embed.setTitle("Pools");
     pools_embed.setColor("#3cb707");
