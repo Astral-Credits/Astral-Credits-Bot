@@ -55,7 +55,7 @@ let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet
 //send stuff, but also price queries and whatnot
 
 async function send_astral(address, amount) {
-	amount = ethers.utils.parseUnits(amount, 18);
+  amount = ethers.utils.parseUnits(amount, 18);
   try {
     return (await astral_token.transfer(address, amount)).hash;
   } catch (e) {
@@ -75,30 +75,30 @@ async function get_liquidity_blaze(astral_price, sgb_price) {
 }
 
 async function get_price() {
-	let resp = await fetch("https://api.geckoterminal.com/api/v2/networks/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0");
-	resp = await resp.json();
-	return resp.data.attributes;
+  let resp = await fetch("https://api.geckoterminal.com/api/v2/networks/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0");
+  resp = await resp.json();
+  return resp.data.attributes;
 }
 
 async function get_coin_price(coin) {
   let resp = await fetch(`https://api.coingecko.com/api/v3/coins/${coin}`);
-	resp = await resp.json();
+  resp = await resp.json();
   return resp.market_data.current_price.usd;
 }
 
 async function get_historic() {
-	//historic price data
-	let resp = await fetch("https://api.geckoterminal.com/api/v2/networks/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0/ohlcv/day");
-	resp = await resp.json();
-	return resp.data.attributes;
+  //historic price data
+  let resp = await fetch("https://api.geckoterminal.com/api/v2/networks/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0/ohlcv/day");
+  resp = await resp.json();
+  return resp.data.attributes;
 }
 
 module.exports = {
   get_liquidity_blaze: get_liquidity_blaze,
-	send_astral: send_astral,
-	get_price: get_price,
+  send_astral: send_astral,
+  get_price: get_price,
   get_coin_price: get_coin_price,
-	get_historic: get_historic,
+  get_historic: get_historic,
   is_valid: ethers.utils.isAddress
-	//
+  //
 };
