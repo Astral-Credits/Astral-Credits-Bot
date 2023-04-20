@@ -48,6 +48,10 @@ const commands = [
     ]
   },
   {
+    name: 'faucet',
+    description: 'Use the XAC faucet!'
+  },
+  {
     name: 'send',
     //admin only
     default_member_permissions: String(268435456),
@@ -70,6 +74,26 @@ const commands = [
         name: "target",
         description: "@ mention of user to send to",
         required: false
+      }
+    ]
+  },
+  {
+    name: 'change_register',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'Change the registered address of an user (admin only)',
+    options: [
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to change address of",
+        required: true
+      },
+      {
+        type: 3,
+        name: "address",
+        description: "New address of user",
+        required: true
       }
     ]
   }
