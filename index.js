@@ -5,6 +5,7 @@ const songbird = require("./songbird.js");
 const chart = require("./chart.js");
 const util = require("./util.js");
 const keep_alive = require("./keep_alive.js");
+const { fetch } = require('cross-fetch');
 
 const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds]
@@ -15,6 +16,7 @@ const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066"
 //23 1/2 hours
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;
+const HOLDING_REQUIREMENT = 2000;
 
 let historic_data_cache;
 let liqudity_cache;
@@ -291,6 +293,10 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
     await interaction.deferReply();
+    //make sure they are older than 20 minutes old in server
+    if (interaction.member.joinedTimestamp*1000+(20*60*1000) > Date.now()) {
+      return await interaction.reply("You joined the server in the last 20 minutes, try again after you've been in the server for 20 minutes. Check out the announcements or talk or something.");
+    }
     //make sure they are registered
     let user_info = await db.get_user(target.id);
     if (!user_info) {
@@ -301,7 +307,21 @@ client.on('interactionCreate', async interaction => {
     if (!captcha_info) {
       return await interaction.editReply("Error, captcha probably currently down. Wait a bit and/or notify admins.");
     }
-    //
+    //embed
+    let captcha_embed = new discord.EmbedBuilder();
+    captcha_embed.setTitle("One more step...");
+    captcha_embed.setColor("#2c16f7");
+    captcha_embed.setDescription("Please answer the captcha before you claim your XAC!")
+    captcha_embed.setImage(captcha_info.challenge_url);
+    captcha_embed.setFooter({ text: "Almost there!" });
+    //send button that opens modal
+    let captcha_button = new discord.ButtonBuilder()
+      .setCustomId("capbtn-"+captcha_info.challenge_code+"-"+captcha_info.challenge_nonce+"-"+user.id+"-"+String(Date.now()))
+      .setLabel("Claim Faucet")
+      .setStyle('PRIMARY');
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(captcha_button);
+    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row] })
   }
 
   //admin command
@@ -387,12 +407,35 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isModalSubmit()) return;
+  if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
   let customId = interaction.customId;
   let user = interaction.user;
-
-  if (customId.startsWith("captcha-")) {
+  if (customId.startsWith("capbtn-")) {
+    let og_user = customId.split("-")[3];
+    if (user.id !== og_user) {
+      return await interaction.reply({ ephemeral: true, content: "You cannot claim for someone else! Run the `/faucet` command yourself to claim." })
+    }
+    let created_date = Number(customId.split("-")[4]);
+    //if they take more than 2 minutes to respond
+    if (created_date+(2*60*1000) < Date.now()) {
+      return await interaction.reply("Failed, took too long to answer captcha. Run `/faucet` again.");
+    }
+    //button that should open modal
+    let modal = new discord.ModalBuilder()
+      .setCustomId(customId.replace("capbtn-", "capmod-"))
+      .setTitle('Faucet Captcha');
+    let captcha_answer_input = new discord.TextInputBuilder()
+      .setCustomId("answer")
+      .setMaxLength(10)
+      .setLabel("What are the characters in the captcha?")
+      .setRequired(true);
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(captcha_answer_input);
+    modal.addComponents(action_row);
+    return await interaction.showModal(modal);
+  } else if (customId.startsWith("capmod-")) {
+    //modal
     await interaction.deferReply();
     //make sure they are registered
     let user_info = await db.get_user(target.id);
@@ -419,6 +462,21 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply("Error, your last claim was too soon! Run `/next_claim` to see when your next claim will be.");
       }
     }
+    //songbird enough balance
+    let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
+    if (enough_balance.success) {
+      return await interaction.editReply("Error, you do not hold enough SGB or WSGB.");
+    }
+    let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
+    token_tx_resp = await token_tx_resp.json();
+    let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    if (!aged_enough) {
+      let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
+      //provide exemption if they hold aged nft
+      if (!holds_aged_nft) {
+        return await interaction.editReply(`Error, your SGB or WSGB need to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+      }
+    }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
@@ -430,9 +488,13 @@ client.on('interactionCreate', async interaction => {
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     let month = db.get_month();
+    faucet_embed.setColor("#15d30e");
     faucet_embed.setTitle("Faucet Claim");
-    //"https://songbird-explorer.flare.network/tx/"+tx
-    //
+    faucet_embed.setURL("https://songbird-explorer.flare.network/tx/"+tx);
+    faucet_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1098738804904431686/XAC_check.gif");
+    faucet_embed.setDescription(`${send_amount} XAC has been sent to your address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.`);
+    faucet_embed.setTimestamp();
+    faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" })
     return await interaction.editReply({ embeds: [faucet_embed] });
   }
 });
