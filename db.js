@@ -180,7 +180,7 @@ async function get_user(user_id) {
 }
 
 //also handle changing addresses
-async function register_user(user_id, address) {
+async function register_user(user_id, address, change=false) {
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
@@ -189,19 +189,59 @@ async function register_user(user_id, address) {
       user: user_id
     }, user_info);
   } else {
-    //insert
-    await users.insertOne({
-      user: user_id,
-      address: address
+    if (change) {
+      //insert
+      await users.insertOne({
+        user: user_id,
+        address: address
+      });
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+//todo: copy faucet functions from https://github.com/HelloMokuzai/AstralCredits
+async function find_claim(address) {
+  return await claims.findOne({"address": address});
+}
+
+//insert or replace
+async function add_claim(address, amount) {
+  let claim_exists = await find_claim(address);
+  if (claim_exists) {
+		let current_month = get_month();
+		if (claim_exists.month !== current_month) {
+			claim_exists.claims_this_month = 0;
+		}
+		claim_exists.claims_this_month += 1;
+    claim_exists.claims += 1;
+    claim_exists.amount = amount;
+    claim_exists.month = current_month;
+		claim_exists.last_claim = Date.now();
+    await claims.replaceOne({ address: address }, claim_exists);
+  } else {
+    await claims.insertOne({
+      address: address,
+      amount: amount,
+			last_claim: Date.now(),
+      month: get_month(),
+			claims_this_month: 1,
+      claims: 1
     });
   }
 }
 
 module.exports = {
+  get_month: get_month,
+  get_amount: get_amount,
   milestone_check: milestone_check,
   get_faucet_stats: get_faucet_stats,
+  get_claims_this_month: get_claims_this_month,
   get_next_claim_time: get_next_claim_time,
   get_user: get_user,
-  register_user: register_user
-  //
+  register_user: register_user,
+  find_claim: find_claim,
+  add_claim: add_claim
 };

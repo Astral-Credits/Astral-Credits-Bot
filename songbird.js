@@ -8,6 +8,11 @@ const provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flar
 let wallet = new ethers.Wallet(process.env.privkey);
 wallet = wallet.connect(provider);
 
+let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
+faucet_wallet = wallet.connect(provider);
+
+//faucet wallet:
+
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 
 const erc20_abi = [
@@ -51,6 +56,7 @@ const erc20_abi = [
 ];
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
+let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
 //send stuff, but also price queries and whatnot
 
@@ -58,6 +64,16 @@ async function send_astral(address, amount) {
   amount = ethers.utils.parseUnits(amount, 18);
   try {
     return (await astral_token.transfer(address, amount)).hash;
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
+}
+
+async function faucet_send_astral(address, amount) {
+  amount = ethers.utils.parseUnits(amount, 18);
+  try {
+    return (await faucet_astral_token.transfer(address, amount)).hash;
   } catch (e) {
     console.log(e);
     return false;
@@ -96,6 +112,7 @@ async function get_historic() {
 module.exports = {
   get_liquidity_blaze: get_liquidity_blaze,
   send_astral: send_astral,
+  faucet_send_astral: faucet_send_astral,
   get_price: get_price,
   get_coin_price: get_coin_price,
   get_historic: get_historic,

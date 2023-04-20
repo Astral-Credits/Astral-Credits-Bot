@@ -12,6 +12,10 @@ const client = new discord.Client({
 
 const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
 
+//23 1/2 hours
+const CLAIM_FREQ = 23.5*60*60*1000;
+const MAX_CLAIMS_PER_MONTH = 11111;
+
 let historic_data_cache;
 let liqudity_cache;
 let sgb_price_cache;
@@ -23,7 +27,7 @@ client.once('ready', async (info) => {
     let price;
     try {
       historic_data_cache = await songbird.get_historic();
-      price = String(historic_data_cache.ohlcv_list.slice(-1)[0][4]).slice(0, 10);
+      price = (await songbird.get_price()).base_token_price_usd.slice(0, 10);
       //also get sgb price
       sgb_price_cache = await songbird.get_coin_price("songbird");
       //liquidity
@@ -59,7 +63,7 @@ client.once('ready', async (info) => {
   }
   setTimeout(async () => {
     await db.milestone_check(send_announcement);
-  }, 2500);
+  }, 7500);
   setInterval(async () => {
     await db.milestone_check(send_announcement);
   }, 30*60*1000);
@@ -81,6 +85,10 @@ client.on('interactionCreate', async interaction => {
       {
         name: "/help",
         value: "Get a list of commands."
+      },
+      {
+        name: "/faucet",
+        value: "Use the monthly XAC faucet, and participate in the XAC distribution!"
       },
       {
         name: "/price",
@@ -110,7 +118,11 @@ client.on('interactionCreate', async interaction => {
       admin_embed.addFields([
         {
           name: "/send",
-          value: "Admins can send XAC to discord users or addresses"
+          value: "Admins can send XAC to discord users or addresses."
+        },
+        {
+          name: "/change_register",
+          value: "Admins can change a registered user's address."
         }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
@@ -174,7 +186,11 @@ client.on('interactionCreate', async interaction => {
       {
         name: "BlazeSwap Liquidity",
         value: "$"+util.format_commas(String(liqudity_cache))+"~"
-      }
+      },
+      {
+        name: "Pangolin",
+        value: "[Pool](https://app.pangolin.exchange/#/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xdd06d19b1217423ba474783a16e4a9798b794225)"
+      },
     ]);
     pools_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.reply({ embeds: [pools_embed] });
@@ -263,13 +279,29 @@ client.on('interactionCreate', async interaction => {
     if (!address_valid) {
       return await interaction.editReply(`Invalid address \`${address}\` provided`);
     }
-    await db.register_user(interaction.user.id, address);
+    let register = await db.register_user(interaction.user.id, address, false);
+    if (!register) {
+      return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed.");
+    }
     let register_embed = new discord.EmbedBuilder();
     register_embed.setTitle("Successfully Registered!");
     register_embed.setColor("#7ed11f");
     register_embed.setDescription("Thanks for registering! Now admins can send XAC to you if you win a prize, or tip you.");
     register_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.editReply({ embeds: [register_embed] });
+  } else if (command === "faucet") {
+    await interaction.deferReply();
+    //make sure they are registered
+    let user_info = await db.get_user(target.id);
+    if (!user_info) {
+      return await interaction.editReply("Failed, please `/register` your address with the bot before using faucet.");
+    }
+    //send captcha and modal thing with id set to code and nonce
+    let captcha_info = await util.get_text_captcha();
+    if (!captcha_info) {
+      return await interaction.editReply("Error, captcha probably currently down. Wait a bit and/or notify admins.");
+    }
+    //
   }
 
   //admin command
@@ -327,7 +359,81 @@ client.on('interactionCreate', async interaction => {
       send_embed.setDescription(`${String(amount)} XAC sent to ${receiver}. [View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
       send_embed.setFooter({ text: "Made by prussia.dev" });
       return await interaction.editReply({ embeds: [send_embed] });
+    } else if (command === "change_register") {
+      await interaction.deferReply();
+      let address = (await params.get("address")).value;
+      let target = (await params.get("target")).user;
+      //validate address
+      let address_valid;
+      try {
+        address_valid = songbird.is_valid(address);
+      } catch (e) {
+        address_valid = false;
+      }
+      if (!address_valid) {
+        return interaction.editReply("Failed, invalid address");
+      }
+      //make sure target is registered
+      let user_info = await db.get_user(target.id);
+      if (!user_info) {
+        return await interaction.editReply("Failed, target user has not registered with bot.");
+      }
+      //change
+      await db.register_user(target.id, address, true);
+      //success
+      return await interaction.editReply("Successfully changed user's address (admin only action).");
     }
+  }
+});
+
+client.on('interactionCreate', async interaction => {
+  if (!interaction.isModalSubmit()) return;
+
+  let customId = interaction.customId;
+  let user = interaction.user;
+
+  if (customId.startsWith("captcha-")) {
+    await interaction.deferReply();
+    //make sure they are registered
+    let user_info = await db.get_user(target.id);
+    if (!user_info) return interaction.editReply("Failed, user not found.");
+    //get all needed info
+    let address = user_info.address
+    let code = customId.split("-")[1];
+    let nonce = customId.split("-")[2];
+    let answer = interaction.fields.getTextInputValue("answer");
+    //verify captcha
+    let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
+    if (!passed_captcha) {
+      return await interaction.editReply("Error, you failed captcha. Try again.");
+    }
+    //make sure claim limit not already exceeded
+    let claims_month = await db.get_claims_this_month();
+    if (claims_month >= MAX_CLAIMS_PER_MONTH) {
+      return await interaction.editReply(`We already reached this month's max claim limit (${claims_month})!`);
+    }
+    //make sure they aren't claiming too soon
+    let db_result = await db.find_claim(address);
+    if (db_result) {
+      if (Number(db_result.last_claim)+CLAIM_FREQ > Date.now()) {
+        return await interaction.editReply("Error, your last claim was too soon! Run `/next_claim` to see when your next claim will be.");
+      }
+    }
+    //send XAC, check for send error
+    let send_amount = db.get_amount();
+    let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
+    if (!tx) {
+      return await interaction.editReply("Error, send failed! Probably gas issue or faucet is out of funds.");
+    }
+    //add to db
+    await db.add_claim(user_info.address, amount);
+    //reply with embed that includes tx link
+    let faucet_embed = new discord.EmbedBuilder();
+    let month = db.get_month();
+    faucet_embed.setTitle("Faucet Claim");
+    //"https://songbird-explorer.flare.network/tx/"+tx
+    //
+    return await interaction.editReply({ embeds: [faucet_embed] });
   }
 });
 
