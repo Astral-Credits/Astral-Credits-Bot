@@ -184,20 +184,20 @@ async function register_user(user_id, address, change=false) {
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
-    user_info.address = address;
-    await users.replaceOne({
-      user: user_id
-    }, user_info);
-  } else {
     if (change) {
       //insert
-      await users.insertOne({
-        user: user_id,
-        address: address
-      });
+      user_info.address = address;
+      await users.replaceOne({
+        user: user_id
+      }, user_info);
     } else {
       return false;
     }
+  } else {
+    await users.insertOne({
+      user: user_id,
+      address: address
+    });
   }
   return true;
 }
