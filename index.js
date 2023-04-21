@@ -6,6 +6,7 @@ const chart = require("./chart.js");
 const util = require("./util.js");
 const keep_alive = require("./keep_alive.js");
 const { fetch } = require('cross-fetch');
+const fs = require('fs');
 
 //why do we have 3 http request libraries? why, good question!
 //todo: switch to one and remove the others
@@ -296,6 +297,9 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
     await interaction.deferReply();
+    if (interaction.channel?.id !== "1087903395962179646") {
+      return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
+    }
     //make sure they are older than 20 minutes old in server
     if (interaction.member.joinedTimestamp+(20*60*1000) > Date.now()) {
       return await interaction.editReply("You joined the server in the last 20 minutes, try again after you've been in the server for 20 minutes. Check out the announcements or talk or something.");
@@ -444,9 +448,23 @@ client.on('interactionCreate', async interaction => {
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) return interaction.editReply("Failed, you are not registered.");
+    //edit prev message to disable button
+    try {
+      let captcha_button = new discord.ButtonBuilder()
+        .setCustomId("capbtn-disabled")
+        .setLabel("Claim Faucet")
+        .setDisabled(true)
+        .setStyle('Primary');
+      let action_row = new discord.ActionRowBuilder();
+      action_row.addComponents(captcha_button);
+      await interaction.channel.fetch();
+      await interaction.message.edit({ embeds: interaction.message.embeds, components: [action_row] });
+    } catch (e) {
+      console.log(e);
+    }
     //get all needed info
     //since address is taken from registered address, that means one address per discord user
-    let address = user_info.address
+    let address = user_info.address;
     let code = customId.split("-")[1];
     let nonce = customId.split("-")[2];
     let answer = interaction.fields.getTextInputValue("answer");
@@ -459,6 +477,16 @@ client.on('interactionCreate', async interaction => {
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
       return await interaction.editReply(`We already reached this month's max claim limit (${claims_month})!`);
+    }
+    //make sure not blacklisted
+    try {
+      let blacklist = fs.readFileSync("blacklist.txt", "utf-8").split("\n").map((item) => item.trim().toLowerCase());
+      if (blacklist.includes(address)) {
+        return await interaction.editReply("Your address has been blacklisted. Contact the admins if you think this is a mistake. If this isn't a mistake, contact us anyways! We'd love to talk with you ;)");
+      }
+    } catch (e) {
+      //probably blacklist.txt does not exist
+      console.log(e);
     }
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
@@ -479,7 +507,7 @@ client.on('interactionCreate', async interaction => {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
       if (!holds_aged_nft) {
-        return await interaction.editReply(`Error, your SGB or WSGB need to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+        return await interaction.editReply(`Error, your SGB or WSGB needs to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
       }
     }
     //send XAC, check for send error

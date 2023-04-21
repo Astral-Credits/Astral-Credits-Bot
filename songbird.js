@@ -85,6 +85,7 @@ const erc1155_abi = [
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
+let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
 //faucet requirements
