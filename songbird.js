@@ -14,6 +14,7 @@ faucet_wallet = wallet.connect(provider);
 //faucet wallet:
 
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
+const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 
 const erc20_abi = [
   {
@@ -53,6 +54,33 @@ const erc20_abi = [
     "stateMutability": "view",
     "type": "function"
   }
+];
+
+const erc1155_abi = [
+  {
+		"inputs": [
+			{
+				"internalType": "address[]",
+				"name": "accounts",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "ids",
+				"type": "uint256[]"
+			}
+		],
+		"name": "balanceOfBatch",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
 ];
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);

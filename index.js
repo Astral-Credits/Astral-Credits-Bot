@@ -7,6 +7,9 @@ const util = require("./util.js");
 const keep_alive = require("./keep_alive.js");
 const { fetch } = require('cross-fetch');
 
+//why do we have 3 http request libraries? why, good question!
+//todo: switch to one and remove the others
+
 const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds]
 });
@@ -294,11 +297,11 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "faucet") {
     await interaction.deferReply();
     //make sure they are older than 20 minutes old in server
-    if (interaction.member.joinedTimestamp*1000+(20*60*1000) > Date.now()) {
-      return await interaction.reply("You joined the server in the last 20 minutes, try again after you've been in the server for 20 minutes. Check out the announcements or talk or something.");
+    if (interaction.member.joinedTimestamp+(20*60*1000) > Date.now()) {
+      return await interaction.editReply("You joined the server in the last 20 minutes, try again after you've been in the server for 20 minutes. Check out the announcements or talk or something.");
     }
     //make sure they are registered
-    let user_info = await db.get_user(target.id);
+    let user_info = await db.get_user(user.id);
     if (!user_info) {
       return await interaction.editReply("Failed, please `/register` your address with the bot before using faucet.");
     }
@@ -318,7 +321,7 @@ client.on('interactionCreate', async interaction => {
     let captcha_button = new discord.ButtonBuilder()
       .setCustomId("capbtn-"+captcha_info.challenge_code+"-"+captcha_info.challenge_nonce+"-"+user.id+"-"+String(Date.now()))
       .setLabel("Claim Faucet")
-      .setStyle('PRIMARY');
+      .setStyle('Primary');
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
     return await interaction.editReply({ embeds: [captcha_embed], components: [action_row] })
@@ -427,6 +430,7 @@ client.on('interactionCreate', async interaction => {
       .setTitle('Faucet Captcha');
     let captcha_answer_input = new discord.TextInputBuilder()
       .setCustomId("answer")
+      .setStyle(discord.TextInputStyle.Short)
       .setMaxLength(10)
       .setLabel("What are the characters in the captcha?")
       .setRequired(true);
@@ -438,9 +442,10 @@ client.on('interactionCreate', async interaction => {
     //modal
     await interaction.deferReply();
     //make sure they are registered
-    let user_info = await db.get_user(target.id);
-    if (!user_info) return interaction.editReply("Failed, user not found.");
+    let user_info = await db.get_user(user.id);
+    if (!user_info) return interaction.editReply("Failed, you are not registered.");
     //get all needed info
+    //since address is taken from registered address, that means one address per discord user
     let address = user_info.address
     let code = customId.split("-")[1];
     let nonce = customId.split("-")[2];
