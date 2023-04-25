@@ -300,9 +300,9 @@ client.on('interactionCreate', async interaction => {
     if (interaction.channel?.id !== "1087903395962179646") {
       return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
     }
-    //make sure they are older than 20 minutes old in server
-    if (interaction.member.joinedTimestamp+(20*60*1000) > Date.now()) {
-      return await interaction.editReply("You joined the server in the last 20 minutes, try again after you've been in the server for 20 minutes. Check out the announcements or talk or something.");
+    //make sure they are older than 1 hour old in server
+    if (interaction.member.joinedTimestamp+(60*60*1000) > Date.now()) {
+      return await interaction.editReply("You joined the server in the last hour, try again after you've been in the server for 1 hour. Check out the announcements or talk or something.");
     }
     //make sure they are registered
     let user_info = await db.get_user(user.id);
@@ -486,7 +486,7 @@ client.on('interactionCreate', async interaction => {
       }
     } catch (e) {
       //probably blacklist.txt does not exist
-      console.log(e);
+      //console.log(e);
     }
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
@@ -497,7 +497,7 @@ client.on('interactionCreate', async interaction => {
     }
     //songbird enough balance
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    if (enough_balance.success) {
+    if (!enough_balance.success) {
       return await interaction.editReply("Error, you do not hold enough SGB or WSGB.");
     }
     let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
@@ -514,10 +514,10 @@ client.on('interactionCreate', async interaction => {
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
-      return await interaction.editReply("Error, send failed! Probably gas issue or faucet is out of funds.");
+      return await interaction.editReply("Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.");
     }
     //add to db
-    await db.add_claim(user_info.address, amount);
+    await db.add_claim(user_info.address, send_amount);
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     let month = db.get_month();
@@ -527,7 +527,11 @@ client.on('interactionCreate', async interaction => {
     faucet_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1098738804904431686/XAC_check.gif");
     faucet_embed.setDescription(`${send_amount} XAC has been sent to your address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.`);
     faucet_embed.setTimestamp();
-    faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" })
+    if (!db_result) {
+      faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
+    } else {
+      faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
+    }
     return await interaction.editReply({ embeds: [faucet_embed] });
   }
 });

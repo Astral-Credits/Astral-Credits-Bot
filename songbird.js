@@ -9,7 +9,7 @@ let wallet = new ethers.Wallet(process.env.privkey);
 wallet = wallet.connect(provider);
 
 let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
-faucet_wallet = wallet.connect(provider);
+faucet_wallet = faucet_wallet.connect(provider);
 
 //faucet wallet:
 
@@ -192,7 +192,7 @@ async function holds_aged_nfts(address, nft_resp) {
 //send stuff, but also price queries and whatnot
 
 async function send_astral(address, amount) {
-  amount = ethers.utils.parseUnits(amount, 18);
+  amount = ethers.utils.parseUnits(String(amount), 18);
   try {
     return (await astral_token.transfer(address, amount)).hash;
   } catch (e) {
@@ -202,9 +202,12 @@ async function send_astral(address, amount) {
 }
 
 async function faucet_send_astral(address, amount) {
-  amount = ethers.utils.parseUnits(amount, 18);
+  amount = ethers.utils.parseUnits(String(amount), 18);
   try {
-    return (await faucet_astral_token.transfer(address, amount)).hash;
+    return (await faucet_astral_token.transfer(address, amount, {
+      gasPrice: ethers.utils.parseUnits('70', 'gwei'),
+      gasLimit: 45000
+    })).hash;
   } catch (e) {
     console.log(e);
     return false;

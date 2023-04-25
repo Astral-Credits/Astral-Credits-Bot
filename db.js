@@ -124,10 +124,11 @@ async function get_unique_claimers() {
 }
 
 async function find_claim(address) {
+  address = address.trim().toLowerCase();
   return await claims.findOne({"address": address});
 }
 
-async function get_faucet_stats(address) {
+async function get_faucet_stats(_address) {
   /*
     - total claims this month
     - month #
@@ -181,6 +182,7 @@ async function get_user(user_id) {
 
 //also handle changing addresses
 async function register_user(user_id, address, change=false) {
+  address = address.trim().toLowerCase();
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
@@ -202,13 +204,9 @@ async function register_user(user_id, address, change=false) {
   return true;
 }
 
-//todo: copy faucet functions from https://github.com/HelloMokuzai/AstralCredits
-async function find_claim(address) {
-  return await claims.findOne({"address": address});
-}
-
 //insert or replace
 async function add_claim(address, amount) {
+  address = address.trim().toLowerCase();
   let claim_exists = await find_claim(address);
   if (claim_exists) {
 		let current_month = get_month();
