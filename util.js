@@ -1,4 +1,34 @@
+const axios = require('axios');
 
+const CAPTCHA_BASE_URL = "https://captcha.astralcredits.repl.co";
+
+async function get_text_captcha() {
+  let resp;
+  try {
+    resp = await axios.get(CAPTCHA_BASE_URL+"/captcha");
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
+  resp = resp.data;
+  return {
+    challenge_url: CAPTCHA_BASE_URL+"/challenge/"+resp.image+"?nonce="+resp.nonce,
+    challenge_code: resp.code,
+    challenge_nonce: resp.nonce
+  };
+}
+
+async function verify_text_captcha(code, nonce, answer) {
+  const params = new URLSearchParams({ code: code, nonce: nonce, guess: answer });
+  let resp;
+  try {
+    resp = await axios.post(CAPTCHA_BASE_URL+"/captcha", params);
+  } catch (e) {
+    console.log(e);
+    return false;
+  }
+  return resp.data.success;
+}
 
 function format_commas(amount) {
   if (isNaN(Number(amount))) {
@@ -18,5 +48,7 @@ function format_commas(amount) {
 }
 
 module.exports = {
+  get_text_captcha: get_text_captcha,
+  verify_text_captcha: verify_text_captcha,
   format_commas: format_commas
 };

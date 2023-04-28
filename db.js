@@ -124,10 +124,11 @@ async function get_unique_claimers() {
 }
 
 async function find_claim(address) {
+  address = address.trim().toLowerCase();
   return await claims.findOne({"address": address});
 }
 
-async function get_faucet_stats(address) {
+async function get_faucet_stats(_address) {
   /*
     - total claims this month
     - month #
@@ -180,28 +181,65 @@ async function get_user(user_id) {
 }
 
 //also handle changing addresses
-async function register_user(user_id, address) {
+async function register_user(user_id, address, change=false) {
+  address = address.trim().toLowerCase();
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
-    user_info.address = address;
-    await users.replaceOne({
-      user: user_id
-    }, user_info);
+    if (change) {
+      //insert
+      user_info.address = address;
+      await users.replaceOne({
+        user: user_id
+      }, user_info);
+    } else {
+      return false;
+    }
   } else {
-    //insert
     await users.insertOne({
       user: user_id,
       address: address
     });
   }
+  return true;
+}
+
+//insert or replace
+async function add_claim(address, amount) {
+  address = address.trim().toLowerCase();
+  let claim_exists = await find_claim(address);
+  if (claim_exists) {
+		let current_month = get_month();
+		if (claim_exists.month !== current_month) {
+			claim_exists.claims_this_month = 0;
+		}
+		claim_exists.claims_this_month += 1;
+    claim_exists.claims += 1;
+    claim_exists.amount = amount;
+    claim_exists.month = current_month;
+		claim_exists.last_claim = Date.now();
+    await claims.replaceOne({ address: address }, claim_exists);
+  } else {
+    await claims.insertOne({
+      address: address,
+      amount: amount,
+			last_claim: Date.now(),
+      month: get_month(),
+			claims_this_month: 1,
+      claims: 1
+    });
+  }
 }
 
 module.exports = {
+  get_month: get_month,
+  get_amount: get_amount,
   milestone_check: milestone_check,
   get_faucet_stats: get_faucet_stats,
+  get_claims_this_month: get_claims_this_month,
   get_next_claim_time: get_next_claim_time,
   get_user: get_user,
-  register_user: register_user
-  //
+  register_user: register_user,
+  find_claim: find_claim,
+  add_claim: add_claim
 };
