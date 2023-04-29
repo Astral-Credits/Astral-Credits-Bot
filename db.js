@@ -1,4 +1,5 @@
 const mongo = require('./mongo.js');
+const { exec } = require('child_process');
 
 let db = mongo.getDb();
 
@@ -6,12 +7,21 @@ let claims;
 let milestones;
 let users;
 
+let ready = false;
+
 db.then((db) => {
+  ready = true;
   console.log("Connected to db")
   claims = db.collection("claims");
   milestones = db.collection("milestones");
   users = db.collection("users");
 });
+
+setTimeout(function() {
+  if (!ready) {
+    exec("kill 1");
+  }
+}, 5000);
 
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;

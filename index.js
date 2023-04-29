@@ -197,6 +197,10 @@ client.on('interactionCreate', async interaction => {
         name: "Pangolin",
         value: "[Pool](https://app.pangolin.exchange/#/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xdd06d19b1217423ba474783a16e4a9798b794225)"
       },
+      {
+        name: "OracleSwap",
+        value: "[Pool](https://dex.oracleswap.io/en/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xc60d3d14a13739dba0fb6013a3530b975e21b1e5)"
+      }
     ]);
     pools_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.reply({ embeds: [pools_embed] });
@@ -297,7 +301,7 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
     await interaction.deferReply();
-    if (interaction.channel?.id !== "1087903395962179646") {
+    if (interaction.channel?.id !== "1098797717775462501") {
       return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
     }
     //make sure they are older than 1 hour old in server
@@ -525,7 +529,7 @@ client.on('interactionCreate', async interaction => {
     faucet_embed.setTitle("Faucet Claim");
     faucet_embed.setURL("https://songbird-explorer.flare.network/tx/"+tx);
     faucet_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1098738804904431686/XAC_check.gif");
-    faucet_embed.setDescription(`${send_amount} XAC has been sent to your address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.`);
+    faucet_embed.setDescription(`${send_amount} XAC has been sent to <@${user.id}> address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.\n[View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
     faucet_embed.setTimestamp();
     if (!db_result) {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
