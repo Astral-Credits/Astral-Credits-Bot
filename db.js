@@ -37,8 +37,8 @@ const START_PAYOUT = 6000;
 //starts at month 0
 function get_month() {
   let date = new Date();
-  let years = date.getFullYear()-START_YEAR;
-  let months = date.getMonth()-START_MONTH;
+  let years = date.getUTCFullYear()-START_YEAR;
+  let months = date.getUTCMonth()-START_MONTH;
   return years*12+months;
 }
 

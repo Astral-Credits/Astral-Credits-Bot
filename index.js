@@ -323,7 +323,8 @@ client.on('interactionCreate', async interaction => {
     captcha_embed.setTitle("One more step...");
     captcha_embed.setColor("#2c16f7");
     captcha_embed.setDescription("Please answer the captcha before you claim your XAC!")
-    captcha_embed.setImage(captcha_info.challenge_url);
+    const attachment = new discord.AttachmentBuilder(captcha_info.challenge_url, { name: "captcha.png" });
+    captcha_embed.setImage(`attachment://captcha.png`);
     captcha_embed.setFooter({ text: "Almost there!" });
     //send button that opens modal
     let captcha_button = new discord.ButtonBuilder()
@@ -332,7 +333,7 @@ client.on('interactionCreate', async interaction => {
       .setStyle('Primary');
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
-    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row] })
+    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
   }
 
   //admin command
