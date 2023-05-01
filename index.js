@@ -304,10 +304,11 @@ client.on('interactionCreate', async interaction => {
     if (interaction.channel?.id !== "1098797717775462501") {
       return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
     }
-    //make sure they are older than 1 hour old in server
+    /*
     if (interaction.member.joinedTimestamp+(60*60*1000) > Date.now()) {
       return await interaction.editReply("You joined the server in the last hour, try again after you've been in the server for 1 hour. Check out the announcements or talk or something.");
     }
+    */
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) {
@@ -329,7 +330,7 @@ client.on('interactionCreate', async interaction => {
     //send button that opens modal
     let captcha_button = new discord.ButtonBuilder()
       .setCustomId("capbtn-"+captcha_info.challenge_code+"-"+captcha_info.challenge_nonce+"-"+user.id+"-"+String(Date.now()))
-      .setLabel("Claim Faucet")
+      .setLabel("Solve Captcha")
       .setStyle('Primary');
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
@@ -476,12 +477,12 @@ client.on('interactionCreate', async interaction => {
     //verify captcha
     let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
     if (!passed_captcha) {
-      return await interaction.editReply("Error, you failed captcha. Try again.");
+      return await interaction.editReply(`<@${user.id}> Error, you failed captcha. Run \`/faucet\` to try again.`);
     }
     //make sure claim limit not already exceeded
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
-      return await interaction.editReply(`We already reached this month's max claim limit (${claims_month})!`);
+      return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
     }
     //make sure not blacklisted
     try {
@@ -497,29 +498,30 @@ client.on('interactionCreate', async interaction => {
     let db_result = await db.find_claim(address);
     if (db_result) {
       if (Number(db_result.last_claim)+CLAIM_FREQ > Date.now()) {
-        return await interaction.editReply("Error, your last claim was too soon! Run `/next_claim` to see when your next claim will be.");
+        return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
     //songbird enough balance
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    if (!enough_balance.success) {
-      return await interaction.editReply("Error, you do not hold enough SGB or WSGB.");
-    }
     let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
     token_tx_resp = await token_tx_resp.json();
     let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
-    if (!aged_enough) {
+    if (!aged_enough || !enough_balance.success) {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
       if (!holds_aged_nft) {
-        return await interaction.editReply(`Error, your SGB or WSGB needs to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+        if (!enough_balance.success) {
+          return await interaction.editReply(`<@${user.id}> Error, you do not hold enough SGB or WSGB.`);
+        } else if (!aged_enough) {
+          return await interaction.editReply(`<@${user.id}> Error, your SGB or WSGB needs to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+        }
       }
     }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
-      return await interaction.editReply("Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.");
+      return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
     }
     //add to db
     await db.add_claim(user_info.address, send_amount);

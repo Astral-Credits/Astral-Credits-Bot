@@ -205,8 +205,8 @@ async function faucet_send_astral(address, amount) {
   amount = ethers.utils.parseUnits(String(amount), 18);
   try {
     return (await faucet_astral_token.transfer(address, amount, {
-      gasPrice: ethers.utils.parseUnits('70', 'gwei'),
-      gasLimit: 45000
+      gasPrice: ethers.utils.parseUnits('90', 'gwei'),
+      gasLimit: 75000
     })).hash;
   } catch (e) {
     console.log(e);
