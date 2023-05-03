@@ -183,6 +183,13 @@ async function get_next_claim_time(address) {
   };
 }
 
+async function get_user_by_address(address) {
+  //return address
+  return await users.findOne({
+    address: address
+  });
+}
+
 async function get_user(user_id) {
   //return address
   return await users.findOne({
@@ -193,6 +200,10 @@ async function get_user(user_id) {
 //also handle changing addresses
 async function register_user(user_id, address, change=false) {
   address = address.trim().toLowerCase();
+  let address_used = await get_user_by_address(address);
+  if (address_used) {
+    return false;
+  }
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
@@ -248,6 +259,7 @@ module.exports = {
   get_faucet_stats: get_faucet_stats,
   get_claims_this_month: get_claims_this_month,
   get_next_claim_time: get_next_claim_time,
+  get_user_by_address: get_user_by_address,
   get_user: get_user,
   register_user: register_user,
   find_claim: find_claim,

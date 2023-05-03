@@ -229,7 +229,7 @@ client.on('interactionCreate', async interaction => {
       if (!next_claim_info.enough_time) {
         fail_descrip += " Not enough time has lapsed since your last claim.";
       }
-      if (!next_claim_info.under_claim_info) {
+      if (!next_claim_info.under_claim_limit) {
         fail_descrip += " The faucet has reached the max claims for this month (11111 claims), wait until next month to claim again.";
       }
       claim_embed.setDescription(fail_descrip);
@@ -291,12 +291,12 @@ client.on('interactionCreate', async interaction => {
     }
     let register = await db.register_user(interaction.user.id, address, false);
     if (!register) {
-      return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed.");
+      return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed. Or this address has already been registered.");
     }
     let register_embed = new discord.EmbedBuilder();
     register_embed.setTitle("Successfully Registered!");
     register_embed.setColor("#7ed11f");
-    register_embed.setDescription("Thanks for registering! Now admins can send XAC to you if you win a prize, or tip you.");
+    register_embed.setDescription("Thanks for registering! You can now receive $XAC tips, prizes and giveaways.\n**PLEASE NOTE**: As a security measure, a team member must verify you before you can begin using the faucet. Thank you for your patience.");
     register_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
@@ -505,7 +505,8 @@ client.on('interactionCreate', async interaction => {
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
     let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
     token_tx_resp = await token_tx_resp.json();
-    let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    //let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    let aged_enough = true;
     if (!aged_enough || !enough_balance.success) {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
