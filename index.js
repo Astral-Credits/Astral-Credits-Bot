@@ -116,6 +116,10 @@ client.on('interactionCreate', async interaction => {
         name: "/register",
         value: "Register your address with the bot so admins can send you XAC more easily."
       },
+      {
+        name: "/add_website",
+        value: "Link a website to your address, which will show up in any pixels you place in the XAC pixel billboard."
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     if (ADMINS.includes(user.id)) {
@@ -129,7 +133,11 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/change_register",
           value: "Admins can change a registered user's address."
-        }
+        },
+        {
+          name: "/remove_linked_website",
+          value: "Admins can remove a registered user's linked website, if they linked."
+        },
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
       return await interaction.reply({ embeds: [help_embed, admin_embed] });
@@ -243,7 +251,7 @@ client.on('interactionCreate', async interaction => {
     claim_embed.setFooter({ text: "Made by prussia.dev" });
     return interaction.editReply({ embeds: [claim_embed] });
   } else if (command === "faucet_stats") {
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
     let faucet_stats = await db.get_faucet_stats();
     let stats_embed = new discord.EmbedBuilder();
     stats_embed.setTitle("Faucet Stats");
@@ -267,6 +275,11 @@ client.on('interactionCreate', async interaction => {
       {
         name: "Total Claims",
         value: String(faucet_stats.total_claims),
+        inline: true
+      },
+      {
+        name: "Claims Last 24h",
+        value: String(faucet_stats.claims_last_day),
         inline: true
       },
       {
@@ -335,6 +348,27 @@ client.on('interactionCreate', async interaction => {
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
     return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
+  } else if (command === "add_website") {
+    await interaction.deferReply();
+    let website_url = (await params.get("website_url")).value.trim();
+    if (!website_url.startsWith("https://")) {
+      return await interaction.editReply("Error, url must start with `https://`");
+    } else if (website_url.includes("<") || website_url.includes(">")) {
+      return await interaction.editReply("Error, url cannot contain `<` or `>`");
+    }
+    //make sure user exists
+    let user_info = await db.get_user(user.id);
+    if (!user_info) {
+      return await interaction.editReply("Failed, please `/register` your address with the bot first.");
+    }
+    //add to db
+    await db.add_linked_website(user_info.address, website_url);
+    //embed
+    let website_embed = new discord.EmbedBuilder();
+    website_embed.setColor("#2dc4b5");
+    website_embed.setTitle("Website Linked!");
+    website_embed.setDescription("Website linked to your address. Now the website will show up on any pixels you place in the Astral Credits pixel placer site (todo: add url link to the site and change name).\nA reminder that linked websites are not allowed to contain illicit, offensive, NSFW, or virus content.");
+    return interaction.editReply({embeds: [website_embed]});
   }
 
   //admin command
@@ -415,6 +449,17 @@ client.on('interactionCreate', async interaction => {
       await db.register_user(target.id, address, true);
       //success
       return await interaction.editReply("Successfully changed user's address (admin only action).");
+    } else if (command === "remove_linked_website") {
+      await interaction.deferReply();
+      let target = await params.get("target");
+      target = target.user;
+      //get address
+      let user_info = await db.get_user(target.id);
+      if (!user_info) {
+        return interaction.editReply("This user has not registered with the bot.");
+      }
+      await db.remove_linked_website(user_info.address);
+      return interaction.editReply("Removed user's linked website, if they linked one.");
     }
   }
 });
