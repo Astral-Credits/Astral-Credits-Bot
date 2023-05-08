@@ -116,6 +116,10 @@ client.on('interactionCreate', async interaction => {
         name: "/register",
         value: "Register your address with the bot so admins can send you XAC more easily."
       },
+      {
+        name: "/add_website",
+        value: "Link a website to your address, which will show up in any pixels you place in the XAC pixel billboard."
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     if (ADMINS.includes(user.id)) {
@@ -129,7 +133,11 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/change_register",
           value: "Admins can change a registered user's address."
-        }
+        },
+        {
+          name: "/remove_linked_website",
+          value: "Admins can remove a registered user's linked website, if they linked."
+        },
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
       return await interaction.reply({ embeds: [help_embed, admin_embed] });
@@ -197,6 +205,10 @@ client.on('interactionCreate', async interaction => {
         name: "Pangolin",
         value: "[Pool](https://app.pangolin.exchange/#/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xdd06d19b1217423ba474783a16e4a9798b794225)"
       },
+      {
+        name: "OracleSwap",
+        value: "[Pool](https://dex.oracleswap.io/en/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xc60d3d14a13739dba0fb6013a3530b975e21b1e5)"
+      }
     ]);
     pools_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.reply({ embeds: [pools_embed] });
@@ -225,7 +237,7 @@ client.on('interactionCreate', async interaction => {
       if (!next_claim_info.enough_time) {
         fail_descrip += " Not enough time has lapsed since your last claim.";
       }
-      if (!next_claim_info.under_claim_info) {
+      if (!next_claim_info.under_claim_limit) {
         fail_descrip += " The faucet has reached the max claims for this month (11111 claims), wait until next month to claim again.";
       }
       claim_embed.setDescription(fail_descrip);
@@ -239,7 +251,7 @@ client.on('interactionCreate', async interaction => {
     claim_embed.setFooter({ text: "Made by prussia.dev" });
     return interaction.editReply({ embeds: [claim_embed] });
   } else if (command === "faucet_stats") {
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
     let faucet_stats = await db.get_faucet_stats();
     let stats_embed = new discord.EmbedBuilder();
     stats_embed.setTitle("Faucet Stats");
@@ -266,6 +278,11 @@ client.on('interactionCreate', async interaction => {
         inline: true
       },
       {
+        name: "Claims Last 24h",
+        value: String(faucet_stats.claims_last_day),
+        inline: true
+      },
+      {
         name: "Total Unique Claimers",
         value: String(faucet_stats.unique_claimers),
         inline: true
@@ -287,23 +304,24 @@ client.on('interactionCreate', async interaction => {
     }
     let register = await db.register_user(interaction.user.id, address, false);
     if (!register) {
-      return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed.");
+      return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed. Or this address has already been registered.");
     }
     let register_embed = new discord.EmbedBuilder();
     register_embed.setTitle("Successfully Registered!");
     register_embed.setColor("#7ed11f");
-    register_embed.setDescription("Thanks for registering! Now admins can send XAC to you if you win a prize, or tip you.");
+    register_embed.setDescription("Thanks for registering! You can now receive $XAC tips, prizes and giveaways.\n**PLEASE NOTE**: As a security measure, a team member must verify you before you can begin using the faucet. Thank you for your patience.");
     register_embed.setFooter({ text: "Made by prussia.dev" });
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
     await interaction.deferReply();
-    if (interaction.channel?.id !== "1087903395962179646") {
+    if (interaction.channel?.id !== "1098797717775462501") {
       return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
     }
-    //make sure they are older than 1 hour old in server
+    /*
     if (interaction.member.joinedTimestamp+(60*60*1000) > Date.now()) {
       return await interaction.editReply("You joined the server in the last hour, try again after you've been in the server for 1 hour. Check out the announcements or talk or something.");
     }
+    */
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) {
@@ -319,16 +337,38 @@ client.on('interactionCreate', async interaction => {
     captcha_embed.setTitle("One more step...");
     captcha_embed.setColor("#2c16f7");
     captcha_embed.setDescription("Please answer the captcha before you claim your XAC!")
-    captcha_embed.setImage(captcha_info.challenge_url);
+    const attachment = new discord.AttachmentBuilder(captcha_info.challenge_url, { name: "captcha.png" });
+    captcha_embed.setImage(`attachment://captcha.png`);
     captcha_embed.setFooter({ text: "Almost there!" });
     //send button that opens modal
     let captcha_button = new discord.ButtonBuilder()
       .setCustomId("capbtn-"+captcha_info.challenge_code+"-"+captcha_info.challenge_nonce+"-"+user.id+"-"+String(Date.now()))
-      .setLabel("Claim Faucet")
+      .setLabel("Solve Captcha")
       .setStyle('Primary');
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
-    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row] })
+    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
+  } else if (command === "add_website") {
+    await interaction.deferReply();
+    let website_url = (await params.get("website_url")).value.trim();
+    if (!website_url.startsWith("https://")) {
+      return await interaction.editReply("Error, url must start with `https://`");
+    } else if (website_url.includes("<") || website_url.includes(">")) {
+      return await interaction.editReply("Error, url cannot contain `<` or `>`");
+    }
+    //make sure user exists
+    let user_info = await db.get_user(user.id);
+    if (!user_info) {
+      return await interaction.editReply("Failed, please `/register` your address with the bot first.");
+    }
+    //add to db
+    await db.add_linked_website(user_info.address, website_url);
+    //embed
+    let website_embed = new discord.EmbedBuilder();
+    website_embed.setColor("#2dc4b5");
+    website_embed.setTitle("Website Linked!");
+    website_embed.setDescription("Website linked to your address. Now the website will show up on any pixels you place in the Astral Credits pixel placer site (todo: add url link to the site and change name).\nA reminder that linked websites are not allowed to contain illicit, offensive, NSFW, or virus content.");
+    return interaction.editReply({embeds: [website_embed]});
   }
 
   //admin command
@@ -409,6 +449,17 @@ client.on('interactionCreate', async interaction => {
       await db.register_user(target.id, address, true);
       //success
       return await interaction.editReply("Successfully changed user's address (admin only action).");
+    } else if (command === "remove_linked_website") {
+      await interaction.deferReply();
+      let target = await params.get("target");
+      target = target.user;
+      //get address
+      let user_info = await db.get_user(target.id);
+      if (!user_info) {
+        return interaction.editReply("This user has not registered with the bot.");
+      }
+      await db.remove_linked_website(user_info.address);
+      return interaction.editReply("Removed user's linked website, if they linked one.");
     }
   }
 });
@@ -471,12 +522,12 @@ client.on('interactionCreate', async interaction => {
     //verify captcha
     let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
     if (!passed_captcha) {
-      return await interaction.editReply("Error, you failed captcha. Try again.");
+      return await interaction.editReply(`<@${user.id}> Error, you failed captcha. Run \`/faucet\` to try again.`);
     }
     //make sure claim limit not already exceeded
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
-      return await interaction.editReply(`We already reached this month's max claim limit (${claims_month})!`);
+      return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
     }
     //make sure not blacklisted
     try {
@@ -492,29 +543,31 @@ client.on('interactionCreate', async interaction => {
     let db_result = await db.find_claim(address);
     if (db_result) {
       if (Number(db_result.last_claim)+CLAIM_FREQ > Date.now()) {
-        return await interaction.editReply("Error, your last claim was too soon! Run `/next_claim` to see when your next claim will be.");
+        return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
     //songbird enough balance
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    if (!enough_balance.success) {
-      return await interaction.editReply("Error, you do not hold enough SGB or WSGB.");
-    }
     let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
     token_tx_resp = await token_tx_resp.json();
-    let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
-    if (!aged_enough) {
+    //let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    let aged_enough = true;
+    if (!aged_enough || !enough_balance.success) {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
       if (!holds_aged_nft) {
-        return await interaction.editReply(`Error, your SGB or WSGB needs to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+        if (!enough_balance.success) {
+          return await interaction.editReply(`<@${user.id}> Error, you do not hold enough SGB or WSGB.`);
+        } else if (!aged_enough) {
+          return await interaction.editReply(`<@${user.id}> Error, your SGB or WSGB needs to be held for at least 1 day (${songbird.HOLDING_BLOCK_TIME} blocks).`);
+        }
       }
     }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
-      return await interaction.editReply("Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.");
+      return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
     }
     //add to db
     await db.add_claim(user_info.address, send_amount);
@@ -525,7 +578,7 @@ client.on('interactionCreate', async interaction => {
     faucet_embed.setTitle("Faucet Claim");
     faucet_embed.setURL("https://songbird-explorer.flare.network/tx/"+tx);
     faucet_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1098738804904431686/XAC_check.gif");
-    faucet_embed.setDescription(`${send_amount} XAC has been sent to your address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.`);
+    faucet_embed.setDescription(`${send_amount} XAC has been sent to <@${user.id}> address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.\n[View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
     faucet_embed.setTimestamp();
     if (!db_result) {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });

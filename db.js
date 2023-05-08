@@ -1,17 +1,29 @@
 const mongo = require('./mongo.js');
+const { exec } = require('child_process');
 
 let db = mongo.getDb();
 
 let claims;
 let milestones;
 let users;
+let linked_websites;
+
+let ready = false;
 
 db.then((db) => {
+  ready = true;
   console.log("Connected to db")
   claims = db.collection("claims");
   milestones = db.collection("milestones");
   users = db.collection("users");
+  linked_websites = db.collection("linked_websites");
 });
+
+setTimeout(function() {
+  if (!ready) {
+    exec("kill 1");
+  }
+}, 5000);
 
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;
@@ -27,8 +39,8 @@ const START_PAYOUT = 6000;
 //starts at month 0
 function get_month() {
   let date = new Date();
-  let years = date.getFullYear()-START_YEAR;
-  let months = date.getMonth()-START_MONTH;
+  let years = date.getUTCFullYear()-START_YEAR;
+  let months = date.getUTCMonth()-START_MONTH;
   return years*12+months;
 }
 
@@ -117,6 +129,16 @@ async function get_claims_all_time() {
   return claims_num;
 }
 
+async function get_claims_last_day() {
+  let claims_array = await claims.find({
+    last_claim: {
+      "$gt": Date.now()-24*60*60*1000
+    }
+  });
+	claims_array = await claims_array.toArray();
+  return claims_array.length;
+}
+
 async function get_unique_claimers() {
   let claims_array = await claims.find({});
   claims_array = await claims_array.toArray();
@@ -142,7 +164,8 @@ async function get_faucet_stats(_address) {
     amount: get_amount(),
     claims_this_month: await get_claims_this_month(),
     unique_claimers: await get_unique_claimers(),
-    total_claims: await get_claims_all_time()
+    total_claims: await get_claims_all_time(),
+    claims_last_day: await get_claims_last_day()
   };
 }
 
@@ -173,6 +196,13 @@ async function get_next_claim_time(address) {
   };
 }
 
+async function get_user_by_address(address) {
+  //return address
+  return await users.findOne({
+    address: address
+  });
+}
+
 async function get_user(user_id) {
   //return address
   return await users.findOne({
@@ -183,6 +213,10 @@ async function get_user(user_id) {
 //also handle changing addresses
 async function register_user(user_id, address, change=false) {
   address = address.trim().toLowerCase();
+  let address_used = await get_user_by_address(address);
+  if (address_used) {
+    return false;
+  }
   let user_info = await get_user(user_id);
   if (user_info) {
     //replace
@@ -231,6 +265,37 @@ async function add_claim(address, amount) {
   }
 }
 
+//linked websites stuff
+
+async function get_linked_website(address) {
+  return await linked_websites.findOne({
+    address
+  });
+}
+
+async function add_linked_website(address, url) {
+  let current_linked = await get_linked_website(address);
+  if (!current_linked) {
+    await linked_websites.insertOne({
+      address,
+      url
+    });
+  } else {
+    await linked_websites.replaceOne({
+      address
+    }, {
+      address,
+      url
+    });
+  }
+}
+
+async function remove_linked_website(address) {
+  await linked_websites.deleteOne({
+    address
+  });
+}
+
 module.exports = {
   get_month: get_month,
   get_amount: get_amount,
@@ -238,8 +303,12 @@ module.exports = {
   get_faucet_stats: get_faucet_stats,
   get_claims_this_month: get_claims_this_month,
   get_next_claim_time: get_next_claim_time,
+  get_user_by_address: get_user_by_address,
   get_user: get_user,
   register_user: register_user,
   find_claim: find_claim,
-  add_claim: add_claim
+  add_claim: add_claim,
+  get_linked_website: get_linked_website,
+  add_linked_website: add_linked_website,
+  remove_linked_website: remove_linked_website
 };

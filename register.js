@@ -96,6 +96,32 @@ const commands = [
         required: true
       }
     ]
+  },
+  {
+    name: 'add_website',
+    description: 'Link a website to your address, for the XAC pixel billboard',
+    options: [
+      {
+        type: 3,
+        name: "website_url",
+        description: "Website url (https://...). Must be SFW!",
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'remove_linked_website',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'Remove linked website of user (admin only)',
+    options: [
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to remove linked website of",
+        required: true
+      }
+    ]
   }
 ];
 
