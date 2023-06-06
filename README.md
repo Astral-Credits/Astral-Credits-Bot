@@ -21,6 +21,12 @@ See some neat faucet metrics.
 `/register`
 Register your address with the bot so admins can send you XAC for tips, giveaways and prizes more easily.
 
+`/add_website`
+Link a website to your address, which will show up in any pixels you place in the XAC pixel billboard.
+
+`/pixels`
+Get the link to the Pixel Planet dApp
+
 **ADMIN ONLY COMMANDS:**
 
 `/send`
