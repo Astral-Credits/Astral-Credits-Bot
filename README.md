@@ -31,3 +31,9 @@ Get the link to the Pixel Planet dApp
 
 `/send`
 Admins can send XAC to discord users or addresses
+
+`/change_register`
+Admins can change a registered user's address.
+
+`/remove_linked_website`
+Admins can remove a registered user's linked website, if they linked.
