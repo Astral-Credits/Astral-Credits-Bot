@@ -120,6 +120,10 @@ client.on('interactionCreate', async interaction => {
         name: "/add_website",
         value: "Link a website to your address, which will show up in any pixels you place in the XAC pixel billboard."
       },
+      {
+        name: "/pixels",
+        value: "Get the link to the Pixel Planet dApp"
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     if (ADMINS.includes(user.id)) {
@@ -327,6 +331,11 @@ client.on('interactionCreate', async interaction => {
     if (!user_info) {
       return await interaction.editReply("Failed, please `/register` your address with the bot before using faucet.");
     }
+    //make sure not too many claims this month
+    let claims_month = await db.get_claims_this_month();
+    if (claims_month >= MAX_CLAIMS_PER_MONTH) {
+      return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
+    }
     //send captcha and modal thing with id set to code and nonce
     let captcha_info = await util.get_text_captcha();
     if (!captcha_info) {
@@ -369,6 +378,8 @@ client.on('interactionCreate', async interaction => {
     website_embed.setTitle("Website Linked!");
     website_embed.setDescription("Website linked to your address. Now the website will show up on any pixels you place in the Astral Credits pixel placer site (todo: add url link to the site and change name).\nA reminder that linked websites are not allowed to contain illicit, offensive, NSFW, or virus content.");
     return interaction.editReply({embeds: [website_embed]});
+  } else if (command === "pixels") {
+    return interaction.reply({ content: "https://astralcredits.xyz/pixels", ephemeral: true });
   }
 
   //admin command
