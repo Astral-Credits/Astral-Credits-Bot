@@ -2,7 +2,7 @@ const discord = require("discord.js");
 
 const db = require("./db.js");
 const songbird = require("./songbird.js");
-const chart = require("./chart.js");
+//const chart = require("./chart.js");
 const util = require("./util.js");
 const keep_alive = require("./keep_alive.js");
 const { fetch } = require('cross-fetch');
@@ -176,15 +176,16 @@ client.on('interactionCreate', async interaction => {
     ]);
     price_embed.setFooter({ text: "Made by prussia.dev" });
     //create graph and add
-    if (historic_data_cache) {
-      let data_buffer = await chart.create_price_graph(historic_data_cache.ohlcv_list);
-      let file = new discord.AttachmentBuilder(data_buffer);
-      file.setName("chart.png");
-      price_embed.setImage("attachment://chart.png");
-      return await interaction.editReply({ embeds: [price_embed], files: [file] });
-    } else {
-      return await interaction.editReply({ embeds: [price_embed] });
-    }
+    //if (historic_data_cache) {
+      //let data_buffer = await chart.create_price_graph(historic_data_cache.ohlcv_list);
+      //let file = new discord.AttachmentBuilder(data_buffer);
+      //file.setName("chart.png");
+      //price_embed.setImage("attachment://chart.png");
+      //return await interaction.editReply({ embeds: [price_embed], files: [file] });
+    //} else {
+      //return await interaction.editReply({ embeds: [price_embed] });
+    //}
+    return await interaction.editReply({ embeds: [price_embed] });
   } else if (command === "pools") {
     if (!historic_data_cache) {
       return interaction.reply("Failed, pool data currently unavaliable.");
@@ -233,7 +234,7 @@ client.on('interactionCreate', async interaction => {
     if (next_claim_info.enough_time && next_claim_info.under_claim_limit) {
       claim_embed.setTitle("Claim Ready!");
       claim_embed.setColor("#18ba7c");
-      claim_embed.setDescription(`The claim for \`${address}\` is ready! Click [here](https://astralcredits.xyz/#astral-faucet) to the faucet. Remember - you will not be able to claim the faucet if you do not meet the holding (NFT or SGB) requirements.`);
+      claim_embed.setDescription(`The claim for \`${address}\` is ready! Remember - you will not be able to claim the faucet if you do not meet the holding (NFT or SGB) requirements.`);
     } else {
       claim_embed.setColor("#d1170a");
       claim_embed.setTitle("Claim Not Ready!");
@@ -359,6 +360,9 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
   } else if (command === "add_website") {
     await interaction.deferReply();
+    if (interaction.member.roles.cache.has("1071917333372739584")) {
+      return await interaction.editReply("Error, you must be citizen to set a linked URL.");
+    }
     let website_url = (await params.get("website_url")).value.trim();
     if (!website_url.startsWith("https://")) {
       return await interaction.editReply("Error, url must start with `https://`");
@@ -376,7 +380,7 @@ client.on('interactionCreate', async interaction => {
     let website_embed = new discord.EmbedBuilder();
     website_embed.setColor("#2dc4b5");
     website_embed.setTitle("Website Linked!");
-    website_embed.setDescription("Website linked to your address. Now the website will show up on any pixels you place in the Astral Credits pixel placer site (todo: add url link to the site and change name).\nA reminder that linked websites are not allowed to contain illicit, offensive, NSFW, or virus content.");
+    website_embed.setDescription("Website linked to your address. Now the website will show up on any pixels you place in the [Pixel Planet dApp](https://astralcredits.xyz/pixels).\nA reminder that linked websites are not allowed to contain illicit, offensive, NSFW, or virus content.");
     return interaction.editReply({embeds: [website_embed]});
   } else if (command === "pixels") {
     return interaction.reply({ content: "https://astralcredits.xyz/pixels", ephemeral: true });
