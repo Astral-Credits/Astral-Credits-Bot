@@ -360,7 +360,9 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
   } else if (command === "add_website") {
     await interaction.deferReply();
-    if (interaction.member.roles.cache.has("1071917333372739584")) {
+    await interaction.member.fetch();
+    //does not have citizen role
+    if (!interaction.member.roles.cache.has("1071917333372739584")) {
       return await interaction.editReply("Error, you must be citizen to set a linked URL.");
     }
     let website_url = (await params.get("website_url")).value.trim();
