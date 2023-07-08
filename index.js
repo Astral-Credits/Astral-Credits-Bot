@@ -595,7 +595,7 @@ client.on('interactionCreate', async interaction => {
     faucet_embed.setTitle("Faucet Claim");
     faucet_embed.setURL("https://songbird-explorer.flare.network/tx/"+tx);
     faucet_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1098738804904431686/XAC_check.gif");
-    faucet_embed.setDescription(`${send_amount} XAC has been sent to <@${user.id}> address (\`${address}\`). You should receive it shortly! Come back in 24 hours to claim again.\n[View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
+    faucet_embed.setDescription(`${send_amount} XAC has been sent to <@${user.id}>. You should receive it shortly! Come back in 24 hours to claim again.\n[View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
     faucet_embed.setTimestamp();
     if (!db_result) {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
