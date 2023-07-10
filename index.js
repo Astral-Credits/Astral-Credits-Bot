@@ -389,7 +389,8 @@ client.on('interactionCreate', async interaction => {
   }
 
   //admin command
-  if (ADMINS.includes(user.id)) {
+  await interaction.member.fetch();
+  if (ADMINS.includes(user.id) || interaction.member.roles.cache.has("1001004354981077032") || interaction.member.roles.cache.has("1127728118006829136")) {
     if (command === "send") {
       await interaction.deferReply();
       //two optional args: address or discord user, can only choose one
