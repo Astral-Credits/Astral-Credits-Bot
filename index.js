@@ -198,10 +198,10 @@ client.on('interactionCreate', async interaction => {
         name: "BlazeSwap",
         value: "[Pool](https://app.blazeswap.xyz/swap/?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0)"
       },
-      {
+      /*{
         name: "BlazeSwap Volume (last 7 days)",
         value: "$"+util.format_commas(String(Math.floor(historic_data_cache.ohlcv_list.slice(-7).map((item) => item[5]).reduce((total, num) => total+num))))+"~"
-      },
+      },*/
       {
         name: "BlazeSwap Liquidity",
         value: "$"+util.format_commas(String(liqudity_cache))+"~"
