@@ -1,16 +1,16 @@
-const axios = require('axios');
+const { fetch } = require('cross-fetch');
 
 const CAPTCHA_BASE_URL = "https://captcha.astralcredits.repl.co";
 
 async function get_text_captcha() {
   let resp;
   try {
-    resp = await axios.get(CAPTCHA_BASE_URL+"/captcha");
+    resp = await fetch(CAPTCHA_BASE_URL+"/captcha");
   } catch (e) {
     console.log(e);
     return false;
   }
-  resp = resp.data;
+  resp = await resp.json();
   return {
     challenge_url: CAPTCHA_BASE_URL+"/challenge/"+resp.image+"?nonce="+resp.nonce,
     challenge_code: resp.code,
@@ -22,12 +22,12 @@ async function verify_text_captcha(code, nonce, answer) {
   const params = new URLSearchParams({ code: code, nonce: nonce, guess: answer });
   let resp;
   try {
-    resp = await axios.post(CAPTCHA_BASE_URL+"/captcha", params);
+    resp = await fetch(CAPTCHA_BASE_URL+"/captcha", { method: 'POST', body: params });
   } catch (e) {
     console.log(e);
     return false;
   }
-  return resp.data.success;
+  return (await resp.json()).success;
 }
 
 function format_commas(amount) {

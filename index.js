@@ -1,10 +1,12 @@
+const dotenv = require('dotenv');
+dotenv.config();
+
 const discord = require("discord.js");
 
 const db = require("./db.js");
 const songbird = require("./songbird.js");
-//const chart = require("./chart.js");
 const util = require("./util.js");
-const keep_alive = require("./keep_alive.js");
+const _keep_alive = require("./keep_alive.js");
 const { fetch } = require('cross-fetch');
 const fs = require('fs');
 
@@ -12,7 +14,7 @@ const fs = require('fs');
 //todo: switch to one and remove the others
 
 const client = new discord.Client({
-  intents: [discord.GatewayIntentBits.Guilds]
+  intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers]
 });
 
 const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
@@ -141,6 +143,10 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/remove_linked_website",
           value: "Admins can remove a registered user's linked website, if they linked."
+        },
+        {
+          name: "/list_role",
+          value: "Utility function to get all the users of a role"
         },
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
@@ -319,14 +325,12 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [register_embed] });
   } else if (command === "faucet") {
     await interaction.deferReply();
-    if (interaction.channel?.id !== "1098797717775462501") {
+    /*if (interaction.channel?.id !== "1098797717775462501") {
       return await interaction.editReply("Failed, cannot use this command outside of the faucet claims channel.");
-    }
-    /*
+    }*/
     if (interaction.member.joinedTimestamp+(60*60*1000) > Date.now()) {
       return await interaction.editReply("You joined the server in the last hour, try again after you've been in the server for 1 hour. Check out the announcements or talk or something.");
     }
-    */
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) {
@@ -478,6 +482,25 @@ client.on('interactionCreate', async interaction => {
       }
       await db.remove_linked_website(user_info.address);
       return interaction.editReply("Removed user's linked website, if they linked one.");
+    } else if (command === "list_role") {
+      await interaction.deferReply({ ephemeral: true });
+      let mentions = (await params.get("mentions")).value;
+      let role = (await params.get("role")).role;
+      await interaction.guild.members.fetch();
+      let members;
+      if (mentions) {
+        members = role.members.map((member) => "<@"+member.user.id+">");
+      } else {
+        members = role.members.map((member) => member.user.tag.endsWith("#0") ? member.user.tag.slice(0, member.user.tag.length-2) : member.user.tag);
+      }
+      members = members.join(",");
+      if (members.length > 2000-6) {
+        //send as file instead
+        const attachment = new discord.AttachmentBuilder(Buffer.from(members), { name: `${role.id}.txt` });
+        return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+      } else {
+        return interaction.editReply("```\n"+members+"\n```");
+      }
     }
   }
 });

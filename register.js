@@ -1,5 +1,8 @@
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 //3: STRING
 const commands = [
@@ -119,6 +122,26 @@ const commands = [
         type: 6,
         name: "target",
         description: "@ mention of user to remove linked website of",
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'list_role',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'List all users with a role',
+    options: [
+      {
+        type: 8,
+        name: "role",
+        description: "Role to get users of",
+        required: true
+      },
+      {
+        type: 5,
+        name: "mentions",
+        description: "If true, ouputs as mentions, if false, outputs as text tags",
         required: true
       }
     ]

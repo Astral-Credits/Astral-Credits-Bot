@@ -1,6 +1,5 @@
 const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
-const fs = require('fs')
 
 const provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
 
