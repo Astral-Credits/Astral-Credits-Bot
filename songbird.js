@@ -1,16 +1,21 @@
 const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
 
+const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
+
 const provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
 
-//0x37987397aC240f0cbCaA10a669bC2C90A91C0d51
+//0x37987397aC240f0cbCaA10a669bC2C90A91C0d51 - tipping
 let wallet = new ethers.Wallet(process.env.privkey);
 wallet = wallet.connect(provider);
 
+//0xb1Db39De1d4DaEAFeAD4267E1CC5d30651b27833
 let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
 faucet_wallet = faucet_wallet.connect(provider);
 
-//faucet wallet:
+//0xd8317572Cac6F10CD1933BB59082EC1bB3a4458D
+let coinflip_wallet = new ethers.Wallet(process.env.coinflip_privkey);
+coinflip_wallet = faucet_wallet.connect(provider);
 
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
@@ -86,14 +91,71 @@ let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
+let coinflip_astral_token = new ethers.Contract(token_contract_address, erc20_abi, coinflip_wallet);
 
 //faucet requirements
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
 const HOLDING_BLOCK_TIME = 43200;
 
-//get songbird coin balance
+//do a sanity check to make sure the tipbot derive privkey can never exceed 32 bytes (this would be bad :tm:), as priv key would be invalid
+//priv keys are 32 bytes, meaning 256**32-1 is the max
+//discord snowflakes are 64 bits (8 bytes), meaning 256**8 is the max. source: https://discord.com/developers/docs/reference#snowflakes
+//for it to overflow, the first 48 characters of the private key needs to be "f" (basically impossible to be generated naturally)
+//this does mean that we can do this sanity check by doing
+//`if (process.env.tipbot_derive_privkey.toLowerCase().startsWith("0x"+"f".repeat(48)))`
+//but that's way less fun
+//-prussia
+if (hex_to_bigint(process.env.tipbot_derive_privkey)+BigInt(256)**BigInt(8) > BigInt(256)**BigInt(32)-BigInt(1)) {
+  throw Error("Tipbot derive private key may overflow!! Generate a new one, please. This is incredibly improbable to happen.");
+}
+
+//get songbird balance
 async function get_bal(address) {
   return ethers.utils.formatEther(await provider.getBalance(address));
+}
+
+async function get_bal_astral(address) {
+  let astral_bal = await astral_token.balanceOf(address);
+  return Number(ethers.utils.formatUnits(astral_bal.toString(), 18));
+}
+
+//tipbot/coinflip functions
+async function derive_wallet(user_id) {
+  let derived_priv_key = "0x"+await hash(pad_hex(bigint_to_hex(hex_to_bigint(process.env.tipbot_derive_privkey)+BigInt(user_id))));
+  let derived_wallet = new ethers.Wallet(derived_priv_key);
+  derived_wallet = derived_wallet.connect(provider);
+  return derived_wallet;
+}
+
+async function get_tipbot_address(user_id) {
+  let derived_wallet = await derive_wallet(user_id);
+  return derived_wallet.address;
+}
+
+async function user_withdraw_songbird(user_id, address, amount) {
+  amount = ethers.utils.parseEther(String(amount));
+  let derived_wallet = await derive_wallet(user_id);
+  try {
+    return await derived_wallet.sendTransaction({
+      to: address.toLowerCase(),
+      value: amount,
+    });
+  } catch (e) {
+    //console.log(e);
+    return false;
+  }
+}
+
+async function user_withdraw_astral(user_id, address, amount) {
+  amount = ethers.utils.parseUnits(String(amount), 18);
+  let derived_wallet = await derive_wallet(user_id);
+  let derived_astral_token = new ethers.Contract(token_contract_address, erc20_abi, derived_wallet);
+  try {
+    return await derived_astral_token.transfer(address, amount);
+  } catch (e) {
+    //console.log(e);
+    return false;
+  }
 }
 
 //check if they hold enough wrapped songbird or songbird to use the faucet
@@ -243,17 +305,21 @@ async function get_historic() {
 }
 
 module.exports = {
-  HOLDING_BLOCK_TIME: HOLDING_BLOCK_TIME,
-  get_liquidity_blaze: get_liquidity_blaze,
-  enough_balance: enough_balance,
-  get_bal: get_bal,
-  aged_enough: aged_enough,
-  holds_aged_nfts: holds_aged_nfts,
-  send_astral: send_astral,
-  faucet_send_astral: faucet_send_astral,
-  get_price: get_price,
-  get_coin_price: get_coin_price,
-  get_historic: get_historic,
+  HOLDING_BLOCK_TIME,
+  get_liquidity_blaze,
+  enough_balance,
+  get_bal,
+  get_bal_astral,
+  aged_enough,
+  holds_aged_nfts,
+  send_astral,
+  faucet_send_astral,
+  get_price,
+  get_coin_price,
+  get_historic,
+  get_tipbot_address,
+  user_withdraw_songbird,
+  user_withdraw_astral,
   is_valid: ethers.utils.isAddress
   //
 };

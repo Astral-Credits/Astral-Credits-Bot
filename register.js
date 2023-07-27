@@ -101,6 +101,20 @@ const commands = [
     ]
   },
   {
+    name: 'view_addresses',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'View addresses of an user (admin only)',
+    options: [
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to view addressses of",
+        required: true
+      },
+    ]
+  },
+  {
     name: 'add_website',
     description: 'Link a website to your address, for the XAC pixel billboard',
     options: [
@@ -145,7 +159,57 @@ const commands = [
         required: true
       }
     ]
-  }
+  },
+  {
+    name: 'deposit',
+    description: 'Shows your tipbot/coinflip deposit address'
+  },
+  {
+    name: 'balance',
+    description: 'Shows your tipbot/coinflip balance'
+  },
+  {
+    name: 'withdraw',
+    description: 'Withdraw your tipbot/coinflip balance',
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "XAC address (0x...) to withdraw to",
+        required: true
+      },
+      {
+        type: 4,
+        name: "amount",
+        description: "Amount of XAC to withdraw",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Either 'XAC' or 'SGB'",
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'tip',
+    description: 'Tip XAC from your tipbot/coinflip address to another user',
+    options: [
+      {
+        type: 4,
+        name: "amount",
+        description: "Amount of XAC to tip",
+        required: true
+      },
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to give tip to",
+        required: true
+      }
+    ]
+  },
 ];
 
 const rest = new REST({ version: '9' }).setToken(process.env.token);

@@ -126,6 +126,22 @@ client.on('interactionCreate', async interaction => {
         name: "/pixels",
         value: "Get the link to the Pixel Planet dApp"
       },
+      {
+        name: "/deposit",
+        value: "Deposit to your custodial tipbot/coinflip address"
+      },
+      {
+        name: "/balance",
+        value: "See the balance of your custodial tipbot/coinflip address"
+      },
+      {
+        name: "/withdraw",
+        value: "Withdraw your tipbot/coinflip balance"
+      },
+      {
+        name: "/tip",
+        value: "Tip other users XAC from your tipbot/coinflip balance"
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     if (ADMINS.includes(user.id)) {
@@ -139,6 +155,10 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/change_register",
           value: "Admins can change a registered user's address."
+        },
+        {
+          name: "/view_addresses",
+          value: "View addresses of an user"
         },
         {
           name: "/remove_linked_website",
@@ -313,7 +333,7 @@ client.on('interactionCreate', async interaction => {
     if (!address_valid) {
       return await interaction.editReply(`Invalid address \`${address}\` provided`);
     }
-    let register = await db.register_user(interaction.user.id, address, false);
+    let register = await db.register_user(user.id, address, false);
     if (!register) {
       return await interaction.editReply("You have already registered an address! Contact an admin if it needs to be changed. Or this address has already been registered.");
     }
@@ -390,6 +410,157 @@ client.on('interactionCreate', async interaction => {
     return interaction.editReply({embeds: [website_embed]});
   } else if (command === "pixels") {
     return interaction.reply({ content: "https://astralcredits.xyz/pixels", ephemeral: true });
+  } else if (command === "deposit") {
+    await interaction.deferReply({ ephemeral: true });
+    let user_address = await songbird.get_tipbot_address(user.id);
+    //todo: add qr code 
+    let deposit_embed = new discord.EmbedBuilder();
+    deposit_embed.setColor("#1dd3f7");
+    deposit_embed.setTitle("Deposit");
+    deposit_embed.setDescription(
+      "This address is only for the tipbot/coinflip. Please deposit only SGB or XAC. If you want to tip or do coinflip, please remember to deposit some SGB to pay for gas.\n\n`"
+      + user_address
+      + "`\n\nThis bot is beta software and is not responsible for any lost or stolen funds. As always **not your keys, not your coins**, so we do not recommended you to deposit large amounts of funds."
+    );
+    let user_info = await db.get_user(user.id);
+    if (!user_info) {
+      return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet." });
+    } else {
+      return interaction.editReply({ embeds: [deposit_embed], content: user_address });
+    }
+  } else if (command === "balance") {
+    await interaction.deferReply({ ephemeral: true });
+    let user_address = await songbird.get_tipbot_address(user.id);
+    let sgb_bal = await songbird.get_bal(user_address);
+    let astral_bal = await songbird.get_bal_astral(user_address);
+    let bal_embed = new discord.EmbedBuilder();
+    bal_embed.setColor("#7ad831");
+    bal_embed.setTitle("Your Balance");
+    //todo: change to link to disclaimer?
+    //todo: add warning if they have exceed some thereshold in funds?
+    bal_embed.setDescription("This is your deposited balance for the tipbot/coinflip. As this is a custodial wallet, please do not keep large amounts of funds here.");
+    bal_embed.addFields([
+      {
+        name: "Songbird",
+        value: String(sgb_bal)+" <:SGB:1130360963636408350>",
+      },
+      {
+        name: "Astral Credits",
+        value: String(astral_bal)+" <:astral_creds:1000992673341120592>",
+      },
+    ]);
+    bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
+    return interaction.editReply({ embeds: [bal_embed] });
+  } else if (command === "withdraw") {
+    await interaction.deferReply({ ephemeral: true });
+    //withdraw address
+    let withdraw_address = (await params.get("address")).value.toLowerCase().trim();
+    let address_valid;
+    try {
+      address_valid = songbird.is_valid(withdraw_address);
+    } catch (e) {
+      address_valid = false;
+    }
+    if (!address_valid) {
+      return await interaction.editReply(`Invalid address \`${withdraw_address}\` provided`);
+    }
+    //check options to see user withdraw amount
+    let withdraw_amount = (await params.get("amount")).value;
+    if (withdraw_amount <= 0) {
+      return await interaction.editReply("Amount cannot be equal to or less than 0");
+    }
+    //check options to see if user withdrawing sgb or xac
+    let withdraw_currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (withdraw_currency !== "sgb" && withdraw_currency !== "xac") {
+      return await interaction.editReply("Currency must be either `SGB` or `XAC`");
+    }
+    let send;
+    try {
+      if (withdraw_currency === "sgb") {
+        send = await songbird.user_withdraw_songbird(user.id, withdraw_address, withdraw_amount);
+      } else if (withdraw_currency === "xac") {
+        send = await songbird.user_withdraw_astral(user.id, withdraw_address, withdraw_amount);
+      }
+    } catch (e) {
+      //shouldn't happen
+      console.log(e);
+      return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
+    }
+    if (!send) {
+      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+    }
+    //send tx embed
+    let withdraw_embed = new discord.EmbedBuilder();
+    withdraw_embed.setURL("https://songbird-explorer.flare.network/tx/"+send.hash);
+    withdraw_embed.setTitle("Withdraw");
+    withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! Let an admin know if there are any issues with your withdraw.");
+    withdraw_embed.addFields([
+      {
+        name: "Tx link",
+        value: "[Click here](https://songbird-explorer.flare.network/tx/"+send.hash+")",
+      },
+      {
+        name: "Withdrawal Amount",
+        value: `${String(withdraw_amount)} ${withdraw_currency.toLowerCase() === "sgb" ? "<:SGB:1130360963636408350>" : "<:astral_creds:1000992673341120592>"}`,
+      },
+    ]);
+    await interaction.editReply({ embeds: [withdraw_embed] });
+    //send followup once confirmed
+    try {
+      let receipt = await send.wait();
+      if (!receipt || receipt?.status === 0) {
+        return interaction.followUp({
+          ephemeral: true,
+          content: "Transaction seems to have failed? Check the block explorer.",
+        });
+      } else {
+        return interaction.followUp({
+          ephemeral: true,
+          content: "Transaction seems to have confirmed!",
+        });
+      }
+    } catch (e) {
+      console.log(e);
+      return interaction.followUp({
+        ephemeral: true,
+        content: "Transaction seems to have failed? Check the block explorer.",
+      });
+    }
+  } else if (command === "tip") {
+    await interaction.deferReply();
+    let target = (await params.get("target")).user;
+    let amount = (await params.get("amount")).value;
+    if (amount <= 0) {
+      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+    }
+    let target_address = await songbird.get_tipbot_address(target.id);
+    //send
+    let send;
+    try {
+      send = await songbird.user_withdraw_astral(user.id, target_address, amount);
+    } catch (e) {
+      //shouldn't happen
+      console.log(e);
+      return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
+    }
+    if (!send) {
+      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+    }
+    await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
+    try {
+      let receipt = await send.wait();
+      if (!receipt || receipt?.status === 0) {
+        return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
+      } else {
+        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\nTx: ${send.hash}`)
+      }
+    } catch (e) {
+      console.log(e);
+      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
+    }
+  } else if (command === "coinflip") {
+    //unregistered
+    //
   }
 
   //admin command
@@ -399,7 +570,7 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply();
       //two optional args: address or discord user, can only choose one
       let amount = (await params.get("amount")).value;
-      amount = String(Math.floor(amount));
+      amount = Math.floor(amount);
       if (amount <= 0) {
         return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
       }
@@ -501,6 +672,25 @@ client.on('interactionCreate', async interaction => {
       } else {
         return interaction.editReply("```\n"+members+"\n```");
       }
+    } else if (command === "view_addresses") {
+      await interaction.deferReply({ ephemeral: true });
+      let target = await params.get("target");
+      target = target.user;
+      let user_info = await db.get_user(target.id);
+      let tipbot_address = await songbird.get_tipbot_address(target.id);
+      let add_embed = new discord.EmbedBuilder();
+      add_embed.setTitle(`Addresses of ${target.username}`);
+      add_embed.addFields([
+        {
+          name: "Registered Address",
+          value: `${user_info ? `[${user_info.address}](https://songbird-explorer.flare.network/address/${user_info.address})` : "Unregistered"}`,
+        },
+        {
+          name: "Tipbot Address",
+          value: `[${tipbot_address}](https://songbird-explorer.flare.network/address/${tipbot_address})`,
+        },
+      ]);
+      return interaction.editReply({ embeds: [add_embed] });
     }
   }
 });
