@@ -1,6 +1,8 @@
 const dotenv = require('dotenv');
 dotenv.config();
 
+const QRCode = require('qrcode');
+
 const discord = require("discord.js");
 
 const db = require("./db.js");
@@ -9,9 +11,6 @@ const util = require("./util.js");
 const _keep_alive = require("./keep_alive.js");
 const { fetch } = require('cross-fetch');
 const fs = require('fs');
-
-//why do we have 3 http request libraries? why, good question!
-//todo: switch to one and remove the others
 
 const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers]
@@ -128,19 +127,19 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "/deposit",
-        value: "Deposit to your custodial tipbot/coinflip address"
+        value: "Deposit to your custodial tipbot/game address"
       },
       {
         name: "/balance",
-        value: "See the balance of your custodial tipbot/coinflip address"
+        value: "See the balance of your custodial tipbot/game address"
       },
       {
         name: "/withdraw",
-        value: "Withdraw your tipbot/coinflip balance"
+        value: "Withdraw your tipbot/game balance"
       },
       {
         name: "/tip",
-        value: "Tip other users XAC from your tipbot/coinflip balance"
+        value: "Tip other users XAC from your tipbot/game balance"
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
@@ -413,20 +412,21 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "deposit") {
     await interaction.deferReply({ ephemeral: true });
     let user_address = await songbird.get_tipbot_address(user.id);
-    //todo: add qr code 
+    //todo: add qr code
     let deposit_embed = new discord.EmbedBuilder();
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      "This address is only for the tipbot/coinflip. Please deposit only SGB or XAC. If you want to tip or do coinflip, please remember to deposit some SGB to pay for gas.\n\n`"
-      + user_address
-      + "`\n\nThis bot is beta software and is not responsible for any lost or stolen funds. As always **not your keys, not your coins**, so we do not recommended you to deposit large amounts of funds."
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit SGB or XAC. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
+    let data_buffer = await QRCode.toBuffer(user_address);
+    const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
+    deposit_embed.setImage(`attachment://deposit_qr_code.png`);
     let user_info = await db.get_user(user.id);
     if (!user_info) {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet." });
     } else {
-      return interaction.editReply({ embeds: [deposit_embed], content: user_address });
+      return interaction.editReply({ embeds: [deposit_embed], content: user_address, files: [attachment] });
     }
   } else if (command === "balance") {
     await interaction.deferReply({ ephemeral: true });
@@ -435,10 +435,8 @@ client.on('interactionCreate', async interaction => {
     let astral_bal = await songbird.get_bal_astral(user_address);
     let bal_embed = new discord.EmbedBuilder();
     bal_embed.setColor("#7ad831");
-    bal_embed.setTitle("Your Balance");
-    //todo: change to link to disclaimer?
-    //todo: add warning if they have exceed some thereshold in funds?
-    bal_embed.setDescription("This is your deposited balance for the tipbot/coinflip. As this is a custodial wallet, please do not keep large amounts of funds here.");
+    bal_embed.setTitle("View Balance");
+    bal_embed.setDescription("This is your current balance for the Astral Credits Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.");
     bal_embed.addFields([
       {
         name: "Songbird",
@@ -450,7 +448,15 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
-    return interaction.editReply({ embeds: [bal_embed] });
+    if (astral_bal > 500000 || sgb_bal > 2000) {
+      let warning_embed = new discord.EmbedBuilder();
+      warning_embed.setColor("#ff0000");
+      warning_embed.setTitle("⚠️ WARNING - High balance detected!");
+      warning_embed.setDescription("Your balance exceeds 500k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!")
+      return interaction.editReply({ embeds: [bal_embed, warning_embed] });
+    } else {
+      return interaction.editReply({ embeds: [bal_embed] });
+    }
   } else if (command === "withdraw") {
     await interaction.deferReply({ ephemeral: true });
     //withdraw address
@@ -492,11 +498,11 @@ client.on('interactionCreate', async interaction => {
     //send tx embed
     let withdraw_embed = new discord.EmbedBuilder();
     withdraw_embed.setURL("https://songbird-explorer.flare.network/tx/"+send.hash);
-    withdraw_embed.setTitle("Withdraw");
-    withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! Let an admin know if there are any issues with your withdraw.");
+    withdraw_embed.setTitle("Withdraw Requested");
+    withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! If you have any issues, please contact an admin immediately.");
     withdraw_embed.addFields([
       {
-        name: "Tx link",
+        name: "Transaction",
         value: "[Click here](https://songbird-explorer.flare.network/tx/"+send.hash+")",
       },
       {
@@ -516,7 +522,7 @@ client.on('interactionCreate', async interaction => {
       } else {
         return interaction.followUp({
           ephemeral: true,
-          content: "Transaction seems to have confirmed!",
+          content: "Transaction has been confirmed!",
         });
       }
     } catch (e) {
@@ -552,7 +558,7 @@ client.on('interactionCreate', async interaction => {
       if (!receipt || receipt?.status === 0) {
         return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
       } else {
-        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\nTx: ${send.hash}`)
+        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\n\`${send.hash}\``)
       }
     } catch (e) {
       console.log(e);
