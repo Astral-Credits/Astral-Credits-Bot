@@ -1,7 +1,7 @@
 # Astral-Credits-Bot
 Bot made for and commissioned by the Astral Credits Discord server by [Prussia](https://github.com/jetstream0)
 
-**COMMANDS:**
+**GENERAL COMMANDS:**
 
 `/help`
 Get a list of commands.
@@ -27,6 +27,20 @@ Link a website to your address, which will show up in any pixels you place in th
 `/pixels`
 Get the link to the Pixel Planet dApp
 
+**TIPBOT COMMANDS:**
+
+`/deposit`
+View your Tipbot Wallet deposit address.
+
+`/withdraw`
+Withdraw SGB or XAC from your Tipbot Wallet.
+
+`/balance`
+Check the current balance of your Tipbot Wallet.
+
+`/tip`
+Send XAC to another community member.
+
 **ADMIN ONLY COMMANDS:**
 
 `/send`
@@ -34,6 +48,9 @@ Admins can send XAC to discord users or addresses
 
 `/change_register`
 Admins can change a registered user's address.
+
+`/view_addresses`
+View a targeted users registered and tipbot addresses.
 
 `/remove_linked_website`
 Admins can remove a registered user's linked website, if they linked.
