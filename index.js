@@ -493,7 +493,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
     }
     if (!send) {
-      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
     }
     //send tx embed
     let withdraw_embed = new discord.EmbedBuilder();
@@ -550,7 +550,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
     }
     if (!send) {
-      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
     }
     await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
     try {
@@ -558,7 +558,7 @@ client.on('interactionCreate', async interaction => {
       if (!receipt || receipt?.status === 0) {
         return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
       } else {
-        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\n\`${send.hash}\``)
+        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\n\`txID:${send.hash}\``)
       }
     } catch (e) {
       console.log(e);
