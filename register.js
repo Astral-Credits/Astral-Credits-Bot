@@ -101,6 +101,18 @@ const commands = [
     ]
   },
   {
+    name: 'domain',
+    description: 'Get a free Songbird Domain name! (a .sgb)',
+    options: [
+      {
+        type: 3,
+        name: "domain",
+        description: "5 character or more domain name",
+        required: true
+      }
+    ]
+  },
+  {
     name: 'view_addresses',
     //admin only
     default_member_permissions: String(268435456),
@@ -159,6 +171,12 @@ const commands = [
         required: true
       }
     ]
+  },
+  {
+    name: 'export_domains',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'Export the airdrop snapshot domains as a JSON file'
   },
   {
     name: 'deposit',

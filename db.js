@@ -7,6 +7,7 @@ let claims;
 let milestones;
 let users;
 let linked_websites;
+let domains;
 
 let ready = false;
 
@@ -17,6 +18,7 @@ db.then((db) => {
   milestones = db.collection("milestones");
   users = db.collection("users");
   linked_websites = db.collection("linked_websites");
+  domains = db.collection("domains");
 });
 
 setTimeout(function() {
@@ -296,19 +298,57 @@ async function remove_linked_website(address) {
   });
 }
 
+async function check_domain_by_domain(domain) {
+  return domains.findOne({
+    domain,
+  });
+}
+
+async function check_domain_by_user(user) {
+  return domains.findOne({
+    user,
+  });
+}
+
+async function add_domain(user, domain, address, replace=false) {
+  if (replace) {
+    await domains.replaceOne({
+      user,
+    }, {
+      user,
+      domain,
+      address,
+    });
+  } else {
+    await domains.insertOne({
+      user,
+      domain,
+      address,
+    });
+  }
+}
+
+async function get_all_domains() {
+  return (await domains.find({}, { projection: { _id: 0 } })).toArray();
+}
+
 module.exports = {
-  get_month: get_month,
-  get_amount: get_amount,
-  milestone_check: milestone_check,
-  get_faucet_stats: get_faucet_stats,
-  get_claims_this_month: get_claims_this_month,
-  get_next_claim_time: get_next_claim_time,
-  get_user_by_address: get_user_by_address,
-  get_user: get_user,
-  register_user: register_user,
-  find_claim: find_claim,
-  add_claim: add_claim,
-  get_linked_website: get_linked_website,
-  add_linked_website: add_linked_website,
-  remove_linked_website: remove_linked_website
+  get_month,
+  get_amount,
+  milestone_check,
+  get_faucet_stats,
+  get_claims_this_month,
+  get_next_claim_time,
+  get_user_by_address,
+  get_user,
+  register_user,
+  find_claim,
+  add_claim,
+  get_linked_website,
+  add_linked_website,
+  remove_linked_website,
+  check_domain_by_domain,
+  check_domain_by_user,
+  add_domain,
+  get_all_domains,
 };

@@ -87,11 +87,50 @@ const erc1155_abi = [
 	}
 ];
 
+const domains_abi = [
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "name",
+        "internalType": "string"
+      },
+      {
+        "type": "uint256",
+        "name": "tokenId",
+        "internalType": "uint256"
+      },
+      {
+        "type": "address",
+        "name": "holder",
+        "internalType": "address"
+      },
+      {
+        "type": "string",
+        "name": "data",
+        "internalType": "string"
+      }
+    ],
+    "name": "domains",
+    "inputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ]
+  }
+];
+
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 let coinflip_astral_token = new ethers.Contract(token_contract_address, erc20_abi, coinflip_wallet);
+
+let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);
 
 //faucet requirements
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
@@ -320,6 +359,15 @@ async function get_historic() {
   return resp.data.attributes;
 }
 
+async function check_domain_owned(domain) {
+  let ownership_info = await domains_contract.domains(domain);
+  if (ownership_info.holder === "0x0000000000000000000000000000000000000000") {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 module.exports = {
   HOLDING_BLOCK_TIME,
   get_liquidity_blaze,
@@ -336,6 +384,6 @@ module.exports = {
   get_tipbot_address,
   user_withdraw_songbird,
   user_withdraw_astral,
+  check_domain_owned,
   is_valid: ethers.utils.isAddress
-  //
 };
