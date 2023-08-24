@@ -117,6 +117,85 @@ async function hash(hex) {
   return hash.digest("hex");
 }
 
+function valid_domain_name(domain) {
+  if (
+    domain.includes(".") ||
+    domain.includes(" ") ||
+    domain.includes("%") ||
+    domain.includes("&") ||
+    domain.includes("?") ||
+    domain.includes("#") ||
+    domain.includes("/") ||
+    domain.includes(",") ||
+    domain.includes("\\") || 
+    domain.includes("­") || 
+    domain.includes("	") || 
+    domain.includes("͏") || 
+    domain.includes("؜") || 
+    domain.includes("܏") || 
+    domain.includes("ᅟ") || 
+    domain.includes("ᅠ") || 
+    domain.includes(" ") || 
+    domain.includes("឴") || 
+    domain.includes("឵") || 
+    domain.includes("᠎") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes("​") || 
+    domain.includes("‌") || 
+    domain.includes("‍") || 
+    domain.includes("‎") || 
+    domain.includes("‏") || 
+    domain.includes(" ") || 
+    domain.includes(" ") || 
+    domain.includes("⁠") || 
+    domain.includes("⁡") || 
+    domain.includes("⁢") || 
+    domain.includes("⁣") || 
+    domain.includes("⁤") || 
+    domain.includes("⁪") || 
+    domain.includes("⁫") || 
+    domain.includes("⁬") || 
+    domain.includes("⁭") || 
+    domain.includes("⁮") || 
+    domain.includes("⁯") || 
+    domain.includes("　") || 
+    domain.includes("⠀") || 
+    domain.includes("ㅤ") || 
+    domain.includes("ﾠ") || 
+    domain.includes("𑂱") || 
+    domain.includes("𛲠") || 
+    domain.includes("𛲡") || 
+    domain.includes("𛲢") || 
+    domain.includes("𛲣") || 
+    domain.includes("𝅙") || 
+    domain.includes("𝅳") || 
+    domain.includes("𝅴") || 
+    domain.includes("𝅵") || 
+    domain.includes("𝅶") || 
+    domain.includes("𝅷") || 
+    domain.includes("𝅸") || 
+    domain.includes("𝅹") || 
+    domain.includes("𝅺") || 
+    domain.includes("") || 
+    domain.includes("") || 
+    domain.includes("")
+  ) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 module.exports = {
   get_text_captcha,
   verify_text_captcha,
@@ -127,4 +206,5 @@ module.exports = {
   hex_to_uint8,
   pad_hex,
   hash,
+  valid_domain_name,
 };

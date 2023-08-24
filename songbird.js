@@ -87,11 +87,50 @@ const erc1155_abi = [
 	}
 ];
 
+const domains_abi = [
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "name",
+        "internalType": "string"
+      },
+      {
+        "type": "uint256",
+        "name": "tokenId",
+        "internalType": "uint256"
+      },
+      {
+        "type": "address",
+        "name": "holder",
+        "internalType": "address"
+      },
+      {
+        "type": "string",
+        "name": "data",
+        "internalType": "string"
+      }
+    ],
+    "name": "domains",
+    "inputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ]
+  }
+];
+
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 let coinflip_astral_token = new ethers.Contract(token_contract_address, erc20_abi, coinflip_wallet);
+
+let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);
 
 //faucet requirements
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
@@ -197,6 +236,8 @@ async function aged_enough(address, holding_requirement, wrapped_songbird_resp, 
         wrapped_songbird_snapshot -= Number(ethers.utils.formatUnits(wrapped_songbird_resp[i].value, 18));
       }
     }
+    //if user sent out more than they received, it should not be added to their wrapped sgb bal obviously
+    wrapped_songbird_snapshot = wrapped_songbird_snapshot > 0 ? wrapped_songbird_snapshot : 0;
     if ((wrapped_sgb_bal-wrapped_songbird_snapshot) >= holding_requirement) {
       holding_enough = true;
     }
@@ -210,39 +251,53 @@ async function aged_enough(address, holding_requirement, wrapped_songbird_resp, 
 
 //checks if user has the right nfts, and has held them for at least 
 async function holds_aged_nfts(address, nft_resp) {
-  //genesis token id: 1
-  //hologram token id: 5
-  let nft_balances = await astral_nft.balanceOfBatch([address, address], [1, 5]);
-  let genesis_num = Number(nft_balances[0]);
-  let hologram_num = Number(nft_balances[1]);
-  if (genesis_num === 0 && hologram_num === 0) return false;
+  //genesis token id: 1 (1000 sgb)
+  //galactic token id: 2 (100 sgb)
+  //hyperdrive token id: 3 (350 sgb)
+  //cosmic token id: 4 (700 sgb)
+  //hologram token id: 5 (3000 sgb)
+  const nft_values = {
+    "1": 1000,
+    "2": 100,
+    "3": 350,
+    "4": 700,
+    "5": 3000,
+  };
+  let nft_balances = await astral_nft.balanceOfBatch([address, address, address, address, address], [1, 2, 3, 4, 5]);
   if (nft_resp.result) {
     nft_resp = nft_resp.result;
+    let current_block = await provider.getBlockNumber();
     //timestamp attribute can also be used but whatever
     //get token transfers within the hour and see if the (balance)-(total received)=(balance 24 hours ago) is above the holding req or not
     nft_resp = nft_resp.filter(function(item) {
-      return item.contractAddress.toLowerCase() === token_contract_address.toLowerCase() && (item.tokenID == "1" || item.tokenID == "2") && item.blockNumber >= current_block-HOLDING_BLOCK_TIME;
+      return item.contractAddress.toLowerCase() === nft_contract_address.toLowerCase() && Object.keys(nft_values).includes(String(item.tokenID)) && item.blockNumber >= current_block-HOLDING_BLOCK_TIME;
     });
     //net received genesis and hologram nfts during the period
-    let genesis_snapshot = 0;
-    let hologram_snapshot = 0;
+    //tokenids: genesis, galactic, hyperdrive, cosmic, hologram
+    //why not do `nft_snapshots = nft_balances`? good question I felt like deconstructing
+    let nft_snapshots = [0, 0, 0, 0, 0];
     for (let i=0; i < nft_resp.length; i++) {
+      let token_id = Number(nft_resp[i].tokenID);
       if (nft_resp[i].to.toLowerCase() === address.toLowerCase()) {
-        if (nft_resp[i].tokenID == "1") {
-          genesis_snapshot += 1;
-        } else if (nft_resp[i].tokenID == "5") {
-          hologram_snapshot += 1;
-        }
-        wrapped_songbird_snapshot += Number(ethers.utils.formatUnits(nft_resp[i].value, 18));
+        nft_snapshots[token_id-1] += 1;
       } else {
-        if (nft_resp[i].tokenID == "1") {
-          genesis_snapshot -= 1;
-        } else if (nft_resp[i].tokenID == "5") {
-          hologram_snapshot -= 1;
-        }
+        nft_snapshots[token_id-1] -= 1;
       }
     }
-    if ((genesis_num-genesis_snapshot) >= 1 || (hologram_num-hologram_snapshot) >= 1) {
+    nft_snapshots = nft_balances.map((num, index) => {
+      //if the user sold/sent more nfts than they bought, it should not be added to their total
+      let index_snapshot = nft_snapshots[index] > 0 ? nft_snapshots[index] : 0;
+      return num - index_snapshot;
+    });
+    let total_nft_value = 0;
+    for (let j=0; j < nft_snapshots.length; j++) {
+      let held = nft_snapshots[j];
+      //prevent adding negative amounts if user sends nfts out
+      if (held > 0) {
+        total_nft_value += nft_values[String(j+1)] * held;
+      }
+    }
+    if (total_nft_value >= 2000) {
       return true;
     } else {
       return false;
@@ -304,6 +359,15 @@ async function get_historic() {
   return resp.data.attributes;
 }
 
+async function check_domain_owned(domain) {
+  let ownership_info = await domains_contract.domains(domain);
+  if (ownership_info.holder === "0x0000000000000000000000000000000000000000") {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 module.exports = {
   HOLDING_BLOCK_TIME,
   get_liquidity_blaze,
@@ -320,6 +384,6 @@ module.exports = {
   get_tipbot_address,
   user_withdraw_songbird,
   user_withdraw_astral,
+  check_domain_owned,
   is_valid: ethers.utils.isAddress
-  //
 };
