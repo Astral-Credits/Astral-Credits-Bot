@@ -18,7 +18,7 @@ const client = new discord.Client({
 
 const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
 
-const DOMAIN_END = 1694029371; //september 6th, 2023 00:00 UTC
+const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
 //23 1/2 hours
 const CLAIM_FREQ = 23.5*60*60*1000;
@@ -593,17 +593,16 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("That domain already exists - please try `/domain` again, selecting a different domain name.");
     }
     let already_domained = await db.check_domain_by_user(user.id);
+    if (already_domained) {
+      return await interaction.editReply("Sorry, you can't change your choice of domain, or get a second free domain.");
+    }
     await db.add_domain(user.id, domain, user_info.address, already_domained);
     let domain_embed = new discord.EmbedBuilder();
     domain_embed.setTitle("Domain registered!");
     domain_embed.setColor("#2d38d8");
     domain_embed.setImage("https://cdn.discordapp.com/attachments/975616285075439636/1143434220417589310/ZQKKt6mI_400x400.jpg");
     domain_embed.setFooter({ text: "Thanks to our partners at Songbird Domains!" });
-    if (already_domained) {
-      domain_embed.setDescription("Your FREE domain has been submitted! Keep a look out for your .sgb NFT after this round of giveaways has been completed! The round will end <t:"+String(DOMAIN_END)+":R>\nBecause you can **only get one free domain, the last free domain you registered for has been replaced**.\n- You can mint additional domains at [Songbird.Domains](https://songbird.domains/)\n- You can used your domain to join [sgb.chat](https://sgb.chat/)\n- Songbird's first Web3 social media platform!");
-    } else {
-      domain_embed.setDescription("Your FREE domain has been submitted! Keep a look out for your .sgb NFT after this round of giveaways has been completed! The round will end <t:"+String(DOMAIN_END)+":R>\n- You can mint additional domains at [Songbird.Domains](https://songbird.domains/)\n- You can used your domain to join [sgb.chat](https://sgb.chat/)\n- Songbird's first Web3 social media platform!");
-    }
+    domain_embed.setDescription("Your FREE domain has been submitted! Keep a look out for your .sgb NFT after this round of giveaways has been completed! The round will end <t:"+String(DOMAIN_END)+":R>\n- You can mint additional domains at [Songbird.Domains](https://songbird.domains/)\n- You can used your domain to join [sgb.chat](https://sgb.chat/)\n- Songbird's first Web3 social media platform!");
     await interaction.editReply({ embeds: [domain_embed] });
     let announce_embed = new discord.EmbedBuilder();
     announce_embed.setColor("#2d38d8");
