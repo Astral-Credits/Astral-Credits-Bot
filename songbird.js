@@ -368,6 +368,43 @@ async function check_domain_owned(domain) {
   }
 }
 
+async function find_associated(address) {
+  const resp = await (await fetch(`https://songbird-explorer.flare.network/api?module=account&action=txlist&address=${address}`)).json();
+  let associates = {};
+  for (let i=0; i < resp.result.length; i++) {
+    let tx = resp.result[i];
+    if (tx.to === address) {
+      if (associates[tx.from]) {
+        associates[tx.from] += 1;
+      } else {
+        associates[tx.from] = 1;
+      }
+    } else {
+      if (associates[tx.to]) {
+        associates[tx.to] += 1;
+      } else {
+        associates[tx.to] = 1;
+      }
+    }
+  }
+  if (associates[""]) {
+    delete associates[""];
+  }
+  return associates;
+}
+
+async function find_shared_txs(address1, address2) {
+  const resp = await (await fetch(`https://songbird-explorer.flare.network/api?module=account&action=txlist&address=${address1}`)).json();
+  let txs = [];
+  for (let i=0; i < resp.result.length; i++) {
+    let tx = resp.result[i];
+    if (tx.to === address2 || tx.from === address2) {
+      txs.push(tx.hash);
+    }
+  }
+  return txs;
+}
+
 module.exports = {
   HOLDING_BLOCK_TIME,
   get_liquidity_blaze,
@@ -385,5 +422,7 @@ module.exports = {
   user_withdraw_songbird,
   user_withdraw_astral,
   check_domain_owned,
+  find_associated,
+  find_shared_txs,
   is_valid: ethers.utils.isAddress
 };

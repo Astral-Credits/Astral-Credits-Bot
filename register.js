@@ -228,6 +228,46 @@ const commands = [
       }
     ]
   },
+  {
+    name: 'crawl',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'See connections between addresses',
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "Address to crawl",
+        required: true
+      },
+      {
+        type: 5,
+        name: "known_only",
+        description: "If true, do not show any non-registered addresses",
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'crawl_shared_txs',
+    //admin only
+    default_member_permissions: String(268435456),
+    description: 'Find txs between two addresses',
+    options: [
+      {
+        type: 3,
+        name: "address1",
+        description: "First address",
+        required: true
+      },
+      {
+        type: 3,
+        name: "address2",
+        description: "Second address",
+        required: true
+      }
+    ]
+  },
 ];
 
 const rest = new REST({ version: '9' }).setToken(process.env.token);
