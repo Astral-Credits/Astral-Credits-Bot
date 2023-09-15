@@ -169,6 +169,14 @@ client.on('interactionCreate', async interaction => {
           name: "/list_role",
           value: "Utility function to get all the users of a role"
         },
+        {
+          name: "/crawl",
+          value: "See connections between addresses"
+        },
+        {
+          name: "/crawl_shared_txs",
+          value: "See txs between addresses"
+        },
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
       return await interaction.reply({ embeds: [help_embed, admin_embed] });
@@ -748,6 +756,71 @@ client.on('interactionCreate', async interaction => {
       let all_domains = await db.get_all_domains();
       const domains_attachment = new discord.AttachmentBuilder(Buffer.from(JSON.stringify(all_domains)), { name: "domains_airdrop.json" });
       return await interaction.editReply({ files: [ domains_attachment ] })
+    } else if (command === "crawl") {
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        let address = (await params.get("address")).value.toLowerCase().trim();
+        let known_only = (await params.get("known_only")).value;
+        let address_valid;
+        try {
+          address_valid = songbird.is_valid(address);
+        } catch (e) {
+          address_valid = false;
+        }
+        if (!address_valid) {
+          return await interaction.editReply(`Invalid address \`${address}\` provided`);
+        }
+        let associates = await songbird.find_associated(address);
+        //sort associates
+        //probably, not everything needs to be sorted
+        let sorted_associates = Object.entries(associates).sort((a, b) => b[1] - a[1]);
+        let content = "**Crawl Results (Top 25):**\n";
+        let current_count = 0;
+        let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
+        for (let i=0; i < sorted_associates.length; i++) {
+          if (current_count === 25) break;
+          let found_user = await db.get_user_by_address(sorted_associates[i][0]);
+          if (found_user && !ignore_list.includes(sorted_associates[i][0])) {
+            content += `<@${found_user.user}> (${sorted_associates[i][0]}): ${sorted_associates[i][1]} transactions\n`;
+          } else if (known_only) {
+            //skip
+            continue;
+          } else {
+            content += `${sorted_associates[i][0]}: ${sorted_associates[i][1]} transactions\n`;
+          }
+          current_count++;
+        }
+        return await interaction.editReply(content);
+      } catch (e) {
+        return await interaction.editReply("Encountered error");
+      }
+    } else if (command === "crawl_shared_txs") {
+      await interaction.deferReply({ ephemeral: true });
+      try {
+        let address1 = (await params.get("address1")).value.toLowerCase().trim();
+        let address2 = (await params.get("address2")).value.toLowerCase().trim();
+        let address_valid;
+        try {
+          address_valid = songbird.is_valid(address1) && songbird.is_valid(address2);
+        } catch (e) {
+          address_valid = false;
+        }
+        if (!address_valid) {
+          return await interaction.editReply("Invalid address provided");
+        }
+        let shared_txs = await songbird.find_shared_txs(address1, address2);
+        if (shared_txs.length === 0) {
+          return await interaction.editReply("Did not find any");
+        } else {
+          let content = "**Shared TXs**\n";
+          for (let i=0; i < shared_txs.length; i++) {
+            content += `- [${shared_txs[i]}](<https://songbird-explorer.flare.network/tx/${shared_txs[i]}>)\n`;
+          }
+          return await interaction.editReply(content);
+        }
+      } catch (e) {
+        return await interaction.editReply("Encountered error");
+      }
     }
   }
 });
