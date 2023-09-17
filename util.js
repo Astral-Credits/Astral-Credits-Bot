@@ -117,6 +117,11 @@ async function hash(hex) {
   return hash.digest("hex");
 }
 
+//16 bytes random nonce for coinflip
+function gen_server_nonce() {
+  return uint8_to_hex(new Uint8Array(randomBytes(16).buffer));
+}
+
 function valid_domain_name(domain) {
   if (
     domain.includes(".") ||
@@ -206,5 +211,6 @@ module.exports = {
   hex_to_uint8,
   pad_hex,
   hash,
+  gen_server_nonce,
   valid_domain_name,
 };

@@ -8,6 +8,7 @@ let milestones;
 let users;
 let linked_websites;
 let domains;
+let coinflip_pvp;
 
 let ready = false;
 
@@ -19,6 +20,7 @@ db.then((db) => {
   users = db.collection("users");
   linked_websites = db.collection("linked_websites");
   domains = db.collection("domains");
+  coinflip_pvp = db.collection("coinflip_pvp");
 });
 
 setTimeout(function() {
@@ -332,6 +334,41 @@ async function get_all_domains() {
   return (await domains.find({}, { projection: { _id: 0 } })).toArray();
 }
 
+async function add_coinflip_pvp(interaction_id, player1_id, wager, server_nonce) {
+  await coinflip_pvp.insertOne({
+    bet_id: interaction_id,
+    player1: {
+      player_id: player1_id,
+    },
+    wager,
+    server_nonce,
+  });
+}
+
+async function get_coinflip_pvp(bet_id) {
+  return await coinflip_pvp.findOne({
+    bet_id,
+  });
+}
+
+async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
+  let coinflip_info = await get_coinflip_pvp(bet_id);
+  if (coinflip_info.player1.player_id === player_id) {
+    coinflip_info.player1.random = player_random;
+  } else {
+    if (coinflip_info.player2) return false;
+    //Create player2
+    coinflip_info.player2 = {
+      player_id: player_id,
+      random: player_random
+    };
+  }
+  await coinflip_pvp.replaceOne({
+    bet_id,
+  }, coinflip_info);
+  return true;
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -351,4 +388,7 @@ module.exports = {
   check_domain_by_user,
   add_domain,
   get_all_domains,
+  add_coinflip_pvp,
+  add_coinflip_pvp_random,
+  get_coinflip_pvp,
 };
