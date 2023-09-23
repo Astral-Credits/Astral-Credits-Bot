@@ -268,6 +268,18 @@ const commands = [
       }
     ]
   },
+  {
+    name: 'coinflip_pvp',
+    description: 'Wager some XAC in a game of chance against other members!',
+    options: [
+      {
+        type: 4,
+        name: "wager",
+        description: "Amount of XAC to bet",
+        required: true
+      }
+    ]
+  }
 ];
 
 const rest = new REST({ version: '9' }).setToken(process.env.token);

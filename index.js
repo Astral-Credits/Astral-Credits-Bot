@@ -630,11 +630,11 @@ client.on('interactionCreate', async interaction => {
     }
     //check tipbot sgb and xac balance
     let player1_address = await songbird.get_tipbot_address(user.id);
-    let player1_sgb_bal = await get_bal(player1_address);
+    let player1_sgb_bal = await songbird.get_bal(player1_address);
     if (player1_sgb_bal < 0.5) {
       return await interaction.editReply("Please deposit a bit more SGB (**into your tipbot wallet**) to cover any gas fees.");
     }
-    let player1_astral_bal = await get_bal_astral(player1_address);
+    let player1_astral_bal = await songbird.get_bal_astral(player1_address);
     if (player1_astral_bal < wager) {
       return await interaction.editReply("You do not have enough XAC **in your tipbot wallet** to cover the wager.");
     }
@@ -1009,14 +1009,14 @@ client.on('interactionCreate', async interaction => {
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
   } else if (customId.startsWith("cfpvpbtn-")) {
-    await interaction.deferReply();
+    //await interaction.deferReply();
     //check balance
     //check bet info
     let bet_id = customId.split("-")[1];
     let coinflip_info = await db.get_coinflip_pvp(bet_id);
     if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
       return await interaction.reply({ ephemeral: true, content: "You have already submitted your random input." });
-    } else {
+    } else if (coinflip_info.player1.player_id !== user.id) {
       if (coinflip_info.player2) {
         return await interaction.reply({ ephemeral: true, content: "There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one." });
       }
@@ -1027,8 +1027,9 @@ client.on('interactionCreate', async interaction => {
     let random_input = new discord.TextInputBuilder()
       .setCustomId("random")
       .setStyle(discord.TextInputStyle.Short)
-      .setMaxLength(16)
-      .setLabel("Mash your keyboard! Put in some random characters to ensure the result is random and fair.")
+      .setMaxLength(42)
+      .setLabel("Mash your keyboard, write some random stuff")
+      .setPlaceholder("This ensures the result is random and fair")
       .setRequired(true);
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(random_input);
@@ -1050,7 +1051,7 @@ client.on('interactionCreate', async interaction => {
         console.log(e);
       }
     }
-    await interaction.deferReply();
+    await interaction.deferReply({ ephemeral: true });
     //get bet info
     let bet_id = customId.split("-")[1];
     let coinflip_info = await db.get_coinflip_pvp(bet_id);
@@ -1061,28 +1062,28 @@ client.on('interactionCreate', async interaction => {
     }
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
-    let player1_sgb_bal = await get_bal(player1_address);
+    let player1_sgb_bal = await songbird.get_bal(player1_address);
     if (player1_sgb_bal < 0.5) {
       disable_button_cfpvp();
       await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
       return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
     }
-    let player1_astral_bal = await get_bal_astral(player1_address);
+    let player1_astral_bal = await songbird.get_bal_astral(player1_address);
     if (player1_astral_bal < coinflip_info.wager) {
       disable_button_cfpvp();
       await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
       return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
     }
-    if (coinflip_info.player2.player_id) {
+    if (coinflip_info.player2?.player_id) {
       //is player 1 and player 2 exists
       let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
-      let player2_sgb_bal = await get_bal(player2_address);
+      let player2_sgb_bal = await songbird.get_bal(player2_address);
       if (player2_sgb_bal < 0.5) {
         disable_button_cfpvp();
         await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
         return await interaction.followUp(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
       }
-      let player2_astral_bal = await get_bal_astral(player2_address);
+      let player2_astral_bal = await songbird.get_bal_astral(player2_address);
       if (player2_astral_bal < coinflip_info.wager) {
         disable_button_cfpvp();
         await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
@@ -1091,13 +1092,13 @@ client.on('interactionCreate', async interaction => {
     } else if (coinflip_info.player1.player_id !== user.id) {
       //is player 2, check self
       let player2_address = await songbird.get_tipbot_address(user.id);
-      let player2_sgb_bal = await get_bal(player2_address);
+      let player2_sgb_bal = await songbird.get_bal(player2_address);
       if (player2_sgb_bal < 0.5) {
-        return await interaction.editReply(`You should deposit more SGB **into your tipbot wallet** to cover any gas fees.`);
+        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees.");
       }
-      let player2_astral_bal = await get_bal_astral(player2_address);
+      let player2_astral_bal = await songbird.get_bal_astral(player2_address);
       if (player2_astral_bal < coinflip_info.wager) {
-        return await interaction.editReply(`You don't have enough XAC **in your tipbot wallet** to cover the wager.`);
+        return await interaction.editReply("You don't have enough XAC **in your tipbot wallet** to cover the wager.");
       }
     }
     //we know balances are enough, so go add player random (if player2, it will create automatically)
@@ -1105,16 +1106,18 @@ client.on('interactionCreate', async interaction => {
     //if both player 1 and player 2's randoms exist
     coinflip_info = await db.get_coinflip_pvp(bet_id);
     await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
-    if (coinflip_info.player1.random && coinflip_info.player2.random) {
+    await interaction.followUp(`<@${user.id}> submitted their random input and joined the bet!`);
+    if (coinflip_info.player1.random && coinflip_info.player2?.random) {
       //possible that player sends their funds away right after they make the bet? hopefully not, I will add extra check before. if fails anyways, display big error message, admins will sort it out
       //disable button
       disable_button_cfpvp();
       //calculate result: hash, convert hash to number and calculate winner
       //hash should be 32 bytes
-      const cfpvp_hash = await util.hash(coinflip_info.player1.random+coinflip_info.player2.random+coinflip_info.server_nonce);
-      const cfpvp_number = util.hex_to_bigint(cfpvp_hash)
+      const cfpvp_hash = util.hash(coinflip_info.player1.random+coinflip_info.player2.random+coinflip_info.server_nonce);
+      const cfpvp_number = util.hex_to_bigint(cfpvp_hash);
       //determine winner.
-      const decimal_two_places = Number(cfpvp_number*BigInt(100))/(BigInt(2)**BigInt(256))/100;
+      const decimal_two_places = Number((cfpvp_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
+      //console.log(cfpvp_hash, cfpvp_number, decimal_two_places)
       //2**255 is half of 2**256
       let tx;
       let winner;
@@ -1131,11 +1134,11 @@ client.on('interactionCreate', async interaction => {
         };
         //do last check
         let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
-        let player2_sgb_bal = await get_bal(player2_address);
+        let player2_sgb_bal = await songbird.get_bal(player2_address);
         if (player2_sgb_bal < 0.5) {
           return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
         }
-        let player2_astral_bal = await get_bal_astral(player2_address);
+        let player2_astral_bal = await songbird.get_bal_astral(player2_address);
         if (player2_astral_bal < coinflip_info.wager) {
           return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
         }
@@ -1159,11 +1162,11 @@ client.on('interactionCreate', async interaction => {
         };
         //do last check
         let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
-        let player1_sgb_bal = await get_bal(player1_address);
+        let player1_sgb_bal = await songbird.get_bal(player1_address);
         if (player1_sgb_bal < 0.5) {
           return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
         }
-        let player1_astral_bal = await get_bal_astral(player1_address);
+        let player1_astral_bal = await songbird.get_bal_astral(player1_address);
         if (player1_astral_bal < coinflip_info.wager) {
           return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
         }
@@ -1183,7 +1186,7 @@ client.on('interactionCreate', async interaction => {
       coinflip_result_embed.addFields([
         {
           name: "Flip Result",
-          value: decimal_two_places,
+          value: `${decimal_two_places}`,
         },
         {
           name: "Server Nonce",
@@ -1199,7 +1202,7 @@ client.on('interactionCreate', async interaction => {
         },
         {
           name: "Tx",
-          value: `[Click here](https://songbird-explorer.flare.network/tx/${tx}`,
+          value: `[Click here](https://songbird-explorer.flare.network/tx/${tx.hash})`,
         },
       ]);
       coinflip_result_embed.setFooter({ text: "Run `/provably_fair` to see info. Contact if any concerns." });
