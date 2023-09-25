@@ -86,7 +86,6 @@ function bigint_to_hex(int) {
 }
 
 function uint8_to_hex(uint8) {
-  uint8 = new Array(uint8);
   let chars = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"];
   let hex = "";
   //each uint8 element is a byte, and two hex chars is one byte, so...
@@ -111,10 +110,15 @@ function hex_to_uint8(hex) {
   return uint;
 }
 
-async function hash(hex) {
+function hash(hex) {
   let hash = crypto.createHash("sha256");
   hash.update(hex_to_uint8(hex));
-  return hash.digest("hex");
+  return hash.digest("hex").toUpperCase();
+}
+
+//16 bytes random nonce for coinflip
+function gen_server_nonce() {
+  return uint8_to_hex(new Uint8Array(crypto.randomBytes(16).buffer));
 }
 
 function valid_domain_name(domain) {
@@ -206,5 +210,6 @@ module.exports = {
   hex_to_uint8,
   pad_hex,
   hash,
+  gen_server_nonce,
   valid_domain_name,
 };

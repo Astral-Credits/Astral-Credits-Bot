@@ -390,7 +390,7 @@ client.on('interactionCreate', async interaction => {
       .setStyle('Primary');
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(captcha_button);
-    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] })
+    return await interaction.editReply({ embeds: [captcha_embed], components: [action_row], files: [attachment] });
   } else if (command === "add_website") {
     await interaction.deferReply();
     await interaction.member.fetch();
@@ -618,8 +618,58 @@ client.on('interactionCreate', async interaction => {
     announce_embed.setDescription(`<@${user.id}> just registered their free Songbird Domain! Citizens can get one free (over 5 characters) by running \`/domain\`.\n\nMake sure to check out [Songbird Domains](https://songbird.domains) and [SGB Chat](https://sgb.chat/)!`);
     announce_embed.setFooter({ text: "Thanks to our partners at Songbird Domains!" });
     return interaction.channel.send({ embeds: [ announce_embed ] });
-  } else if (command === "coinflip") {
+  } else if (command === "coinflip_pvp") {
     //unregistered
+    await interaction.deferReply();
+    let wager = (await params.get("wager")).value;
+    wager = Math.floor(wager);
+    if (wager <= 0) {
+      return await interaction.editReply("Failed, cannot wager 0 or negative XAC.");
+    } else if (wager > 10000) {
+      return await interaction.editReply("For now, wagers cannot be over ten thousand XAC.");
+    }
+    //check tipbot sgb and xac balance
+    let player1_address = await songbird.get_tipbot_address(user.id);
+    let player1_sgb_bal = await songbird.get_bal(player1_address);
+    if (player1_sgb_bal < 0.5) {
+      return await interaction.editReply("Please deposit a bit more SGB (**into your tipbot wallet**) to cover any gas fees.");
+    }
+    let player1_astral_bal = await songbird.get_bal_astral(player1_address);
+    if (player1_astral_bal < wager) {
+      return await interaction.editReply("You do not have enough XAC **in your tipbot wallet** to cover the wager.");
+    }
+    const server_nonce = util.gen_server_nonce();
+    const hashed_server_nonce = util.hash(server_nonce);
+    await db.add_coinflip_pvp(interaction.id, user.id, wager, server_nonce);
+    //send embed where people can enter their random thing
+    let coinflip_start_embed = new discord.EmbedBuilder();
+    coinflip_start_embed.setTitle("Coinflip PVP!");
+    coinflip_start_embed.setColor("#2ae519");
+    coinflip_start_embed.setDescription("If you want to join the coinflip game, click the button below! **If you started this coinflip game, you must also click the button.**");
+    coinflip_start_embed.addFields([
+      {
+        name: "Wager Amount",
+        value: `${wager} XAC`,
+      },
+      {
+        name: "Server Nonce Hash",
+        value: hashed_server_nonce,
+      }
+    ]);
+    coinflip_start_embed.setFooter({ text: "Provably fair!" });
+    //send button that opens modal to enter in random string
+    let bet_button = new discord.ButtonBuilder()
+      .setCustomId("cfpvpbtn-"+interaction.id)
+      .setLabel("Bet!")
+      .setStyle('Primary');
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(bet_button);
+    return await interaction.editReply({ embeds: [coinflip_start_embed], components: [action_row] });
+  } else if (command === "coinflip_house") {
+    //unregistered
+    //
+  } else if (command === "provably_fair") {
+    //explain why the game is provably fair
     //
   }
 
@@ -774,11 +824,12 @@ client.on('interactionCreate', async interaction => {
         //sort associates
         //probably, not everything needs to be sorted
         let sorted_associates = Object.entries(associates).sort((a, b) => b[1] - a[1]);
-        let content = "**Crawl Results (Top 25):**\n";
+        let content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
         let current_count = 0;
         let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
         for (let i=0; i < sorted_associates.length; i++) {
-          if (current_count === 25) break;
+          //if known_only is true, more than 25 can be displayed
+          if (current_count === 25 && !known_only) break;
           let found_user = await db.get_user_by_address(sorted_associates[i][0]);
           if (found_user && !ignore_list.includes(sorted_associates[i][0])) {
             content += `<@${found_user.user}> (${sorted_associates[i][0]}): ${sorted_associates[i][1]} transactions\n`;
@@ -790,8 +841,13 @@ client.on('interactionCreate', async interaction => {
           }
           current_count++;
         }
+        if (content.length > 2000) {
+          const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address}.txt` });
+          return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+        }
         return await interaction.editReply(content);
       } catch (e) {
+        console.log(e);
         return await interaction.editReply("Encountered error");
       }
     } else if (command === "crawl_shared_txs") {
@@ -816,9 +872,14 @@ client.on('interactionCreate', async interaction => {
           for (let i=0; i < shared_txs.length; i++) {
             content += `- [${shared_txs[i]}](<https://songbird-explorer.flare.network/tx/${shared_txs[i]}>)\n`;
           }
+          if (content.length > 2000) {
+            const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address1}_${address2}.txt` });
+            return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+          }
           return await interaction.editReply(content);
         }
       } catch (e) {
+        console.log(e);
         return await interaction.editReply("Encountered error");
       }
     }
@@ -833,7 +894,7 @@ client.on('interactionCreate', async interaction => {
   if (customId.startsWith("capbtn-")) {
     let og_user = customId.split("-")[3];
     if (user.id !== og_user) {
-      return await interaction.reply({ ephemeral: true, content: "You cannot claim for someone else! Run the `/faucet` command yourself to claim." })
+      return await interaction.reply({ ephemeral: true, content: "You cannot claim for someone else! Run the `/faucet` command yourself to claim." });
     }
     let created_date = Number(customId.split("-")[4]);
     //if they take more than 2 minutes to respond
@@ -934,7 +995,7 @@ client.on('interactionCreate', async interaction => {
     await db.add_claim(user_info.address, send_amount);
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
-    let month = db.get_month();
+    //let month = db.get_month();
     faucet_embed.setColor("#15d30e");
     faucet_embed.setTitle("Faucet Claim");
     faucet_embed.setURL("https://songbird-explorer.flare.network/tx/"+tx);
@@ -947,6 +1008,206 @@ client.on('interactionCreate', async interaction => {
       faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
+  } else if (customId.startsWith("cfpvpbtn-")) {
+    //await interaction.deferReply();
+    //check balance
+    //check bet info
+    let bet_id = customId.split("-")[1];
+    let coinflip_info = await db.get_coinflip_pvp(bet_id);
+    if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
+      return await interaction.reply({ ephemeral: true, content: "You have already submitted your random input." });
+    } else if (coinflip_info.player1.player_id !== user.id) {
+      if (coinflip_info.player2) {
+        return await interaction.reply({ ephemeral: true, content: "There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one." });
+      }
+    }
+    let modal = new discord.ModalBuilder()
+      .setCustomId(customId.replace("cfpvpbtn-", "cfpvpmod-"))
+      .setTitle('Join Coinflip');
+    let random_input = new discord.TextInputBuilder()
+      .setCustomId("random")
+      .setStyle(discord.TextInputStyle.Short)
+      .setMaxLength(42)
+      .setLabel("Mash your keyboard, write some random stuff")
+      .setPlaceholder("This ensures the result is random and fair")
+      .setRequired(true);
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(random_input);
+    modal.addComponents(action_row);
+    return await interaction.showModal(modal);
+  } else if (customId.startsWith("cfpvpmod-")) {
+    async function disable_button_cfpvp() {
+      try {
+        let bet_button = new discord.ButtonBuilder()
+          .setCustomId("cfpvpbtn-"+interaction.id)
+          .setLabel("Bet!")
+          .setDisabled(true)
+          .setStyle('Primary');
+        let action_row = new discord.ActionRowBuilder();
+        action_row.addComponents(bet_button);
+        await interaction.channel.fetch();
+        await interaction.message.edit({ embeds: interaction.message.embeds, components: [action_row] });
+      } catch (e) {
+        console.log(e);
+      }
+    }
+    await interaction.deferReply({ ephemeral: true });
+    //get bet info
+    let bet_id = customId.split("-")[1];
+    let coinflip_info = await db.get_coinflip_pvp(bet_id);
+    let player_random = interaction.fields.getTextInputValue("random");
+    //if player 2, make sure player 2 doesn't exist yet
+    if (coinflip_info.player1.player_id !== user.id && coinflip_info.player2) {
+      return await interaction.reply({ ephemeral: true, content: "There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one." });
+    }
+    //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
+    let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
+    let player1_sgb_bal = await songbird.get_bal(player1_address);
+    if (player1_sgb_bal < 0.5) {
+      disable_button_cfpvp();
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+    }
+    let player1_astral_bal = await songbird.get_bal_astral(player1_address);
+    if (player1_astral_bal < coinflip_info.wager) {
+      disable_button_cfpvp();
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+      return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+    }
+    if (coinflip_info.player2?.player_id) {
+      //is player 1 and player 2 exists
+      let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
+      let player2_sgb_bal = await songbird.get_bal(player2_address);
+      if (player2_sgb_bal < 0.5) {
+        disable_button_cfpvp();
+        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+        return await interaction.followUp(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      }
+      let player2_astral_bal = await songbird.get_bal_astral(player2_address);
+      if (player2_astral_bal < coinflip_info.wager) {
+        disable_button_cfpvp();
+        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+        return await interaction.followUp(`Player 2 (<@${coinflip_info.player2.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+      }
+    } else if (coinflip_info.player1.player_id !== user.id) {
+      //is player 2, check self
+      let player2_address = await songbird.get_tipbot_address(user.id);
+      let player2_sgb_bal = await songbird.get_bal(player2_address);
+      if (player2_sgb_bal < 0.5) {
+        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees.");
+      }
+      let player2_astral_bal = await songbird.get_bal_astral(player2_address);
+      if (player2_astral_bal < coinflip_info.wager) {
+        return await interaction.editReply("You don't have enough XAC **in your tipbot wallet** to cover the wager.");
+      }
+    }
+    //we know balances are enough, so go add player random (if player2, it will create automatically)
+    await db.add_coinflip_pvp_random(bet_id, user.id, player_random);
+    //if both player 1 and player 2's randoms exist
+    coinflip_info = await db.get_coinflip_pvp(bet_id);
+    await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
+    await interaction.followUp(`<@${user.id}> submitted their random input and joined the bet!`);
+    if (coinflip_info.player1.random && coinflip_info.player2?.random) {
+      //possible that player sends their funds away right after they make the bet? hopefully not, I will add extra check before. if fails anyways, display big error message, admins will sort it out
+      //disable button
+      disable_button_cfpvp();
+      //calculate result: hash, convert hash to number and calculate winner
+      //hash should be 32 bytes
+      const cfpvp_hash = util.hash(coinflip_info.player1.random+coinflip_info.player2.random+coinflip_info.server_nonce);
+      const cfpvp_number = util.hex_to_bigint(cfpvp_hash);
+      //determine winner.
+      const decimal_two_places = Number((cfpvp_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
+      //console.log(cfpvp_hash, cfpvp_number, decimal_two_places)
+      //2**255 is half of 2**256
+      let tx;
+      let winner;
+      let loser;
+      if (cfpvp_number < BigInt(2)**BigInt(255)) {
+        //player 2 wins
+        winner = {
+          num: "2",
+          id: coinflip_info.player2.player_id,
+        };
+        loser = {
+          num: "1",
+          id: coinflip_info.player1.player_id,
+        };
+        //do last check
+        let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
+        let player2_sgb_bal = await songbird.get_bal(player2_address);
+        if (player2_sgb_bal < 0.5) {
+          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
+        }
+        let player2_astral_bal = await songbird.get_bal_astral(player2_address);
+        if (player2_astral_bal < coinflip_info.wager) {
+          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
+        }
+        //send tx
+        try {
+          tx = await songbird.user_withdraw_astral(coinflip_info.player1.player_id, await songbird.get_tipbot_address(coinflip_info.player2.player_id), coinflip_info.wager);
+        } catch (e) {
+          console.log(e);
+          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> won, but send from <@${coinflip_info.player1.player_id}> to winner failed for some reason. This shouldn't happen. Contact admin.`);
+        }
+      } else {
+        //player 1 wins
+        //player 2 wins
+        winner = {
+          num: "1",
+          id: coinflip_info.player1.player_id,
+        };
+        loser = {
+          num: "2",
+          id: coinflip_info.player2.player_id,
+        };
+        //do last check
+        let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
+        let player1_sgb_bal = await songbird.get_bal(player1_address);
+        if (player1_sgb_bal < 0.5) {
+          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
+        }
+        let player1_astral_bal = await songbird.get_bal_astral(player1_address);
+        if (player1_astral_bal < coinflip_info.wager) {
+          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
+        }
+        //send tx
+        try {
+          tx = await songbird.user_withdraw_astral(coinflip_info.player2.player_id, await songbird.get_tipbot_address(coinflip_info.player1.player_id), coinflip_info.wager);
+        } catch (e) {
+          console.log(e);
+          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> won, but send from <@${coinflip_info.player2.player_id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
+        }
+      }
+      //send result: winner, players, each player's random input, reveal server nonce, tx
+      let coinflip_result_embed = new discord.EmbedBuilder();
+      coinflip_result_embed.setTitle("Coinflip Results!");
+      coinflip_result_embed.setColor("#e07c35");
+      coinflip_result_embed.setDescription(`**<@${winner.id}> (Player ${winner.num}) won ${coinflip_info.wager} XAC from <@${loser.id}> (Player ${loser.num})!**\n\nPlayer 1 wins when the flip result is at or above 0.5, and Player 2 wins when the flip result is under 0.5. Learn how to prove these results by running \`/provably_fair\`.`);
+      coinflip_result_embed.addFields([
+        {
+          name: "Flip Result",
+          value: `${decimal_two_places}`,
+        },
+        {
+          name: "Server Nonce",
+          value: coinflip_info.server_nonce,
+        },
+        {
+          name: "Player 1 Random",
+          value: coinflip_info.player1.random,
+        },
+        {
+          name: "Player 2 Random",
+          value: coinflip_info.player2.random,
+        },
+        {
+          name: "Tx",
+          value: `[Click here](https://songbird-explorer.flare.network/tx/${tx.hash})`,
+        },
+      ]);
+      coinflip_result_embed.setFooter({ text: "Run `/provably_fair` to see info. Contact if any concerns." });
+      return await interaction.followUp({ embeds: [coinflip_result_embed] });
+    }
   }
 });
 
