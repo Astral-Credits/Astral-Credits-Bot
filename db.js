@@ -334,9 +334,10 @@ async function get_all_domains() {
   return (await domains.find({}, { projection: { _id: 0 } })).toArray();
 }
 
-async function add_coinflip_pvp(interaction_id, player1_id, wager, server_nonce) {
+async function add_coinflip_pvp(interaction_id, player1_id, wager, server_nonce, pick) {
   await coinflip_pvp.insertOne({
     bet_id: interaction_id,
+    pick, //player 1's pick of 'heads' or 'tails'
     player1: {
       player_id: player1_id,
     },
