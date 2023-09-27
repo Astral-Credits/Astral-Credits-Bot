@@ -623,10 +623,14 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply();
     let wager = (await params.get("wager")).value;
     wager = Math.floor(wager);
-    if (wager <= 0) {
-      return await interaction.editReply("Failed, cannot wager 0 or negative XAC.");
+    if (wager < 1) {
+      return await interaction.editReply("Failed, cannot wager less than 1, 0, or negative XAC.");
     } else if (wager > 10000) {
       return await interaction.editReply("For now, wagers cannot be over ten thousand XAC.");
+    }
+    let pick = (await params.get("pick")).value.toLowerCase().trim();
+    if (pick !== "heads" && pick !== "tails") {
+      return await interaction.editReply("Must choose 'Heads' or 'Tails'.");
     }
     //check tipbot sgb and xac balance
     let player1_address = await songbird.get_tipbot_address(user.id);
@@ -640,12 +644,12 @@ client.on('interactionCreate', async interaction => {
     }
     const server_nonce = util.gen_server_nonce();
     const hashed_server_nonce = util.hash(server_nonce);
-    await db.add_coinflip_pvp(interaction.id, user.id, wager, server_nonce);
+    await db.add_coinflip_pvp(interaction.id, user.id, wager, server_nonce, pick);
     //send embed where people can enter their random thing
     let coinflip_start_embed = new discord.EmbedBuilder();
-    coinflip_start_embed.setTitle("Coinflip PVP!");
+    coinflip_start_embed.setTitle("Play Coinflip!");
     coinflip_start_embed.setColor("#2ae519");
-    coinflip_start_embed.setDescription("If you want to join the coinflip game, click the button below! **If you started this coinflip game, you must also click the button.**");
+    coinflip_start_embed.setDescription(`<@${user.id}> has selected **${pick.toUpperCase()}**!\n\nTo cover the bet and join the game as **${pick === "heads" ? "TAILS" : "HEADS"}** click the button below! (Note: Both players must click the button below to start the game)`);
     coinflip_start_embed.addFields([
       {
         name: "Wager Amount",
@@ -653,10 +657,11 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "Server Nonce Hash",
-        value: hashed_server_nonce,
+        value: "`"+hashed_server_nonce+"`",
       }
     ]);
-    coinflip_start_embed.setFooter({ text: "Provably fair!" });
+    coinflip_start_embed.setImage("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif");
+    coinflip_start_embed.setFooter({ text: "Provably fair! Run `/provably_fair_pvp`." });
     //send button that opens modal to enter in random string
     let bet_button = new discord.ButtonBuilder()
       .setCustomId("cfpvpbtn-"+interaction.id)
@@ -668,8 +673,8 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "coinflip_house") {
     //unregistered
     //
-  } else if (command === "provably_fair") {
-    //explain why the game is provably fair
+  } else if (command === "provably_fair_pvp") {
+    //explain why the pvp game is provably fair
     //
   }
 
@@ -1058,7 +1063,7 @@ client.on('interactionCreate', async interaction => {
     let player_random = interaction.fields.getTextInputValue("random");
     //if player 2, make sure player 2 doesn't exist yet
     if (coinflip_info.player1.player_id !== user.id && coinflip_info.player2) {
-      return await interaction.reply({ ephemeral: true, content: "There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one." });
+      return await interaction.editReply("There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one.");
     }
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
@@ -1119,93 +1124,109 @@ client.on('interactionCreate', async interaction => {
       const decimal_two_places = Number((cfpvp_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
       //console.log(cfpvp_hash, cfpvp_number, decimal_two_places)
       //2**255 is half of 2**256
-      let tx;
       let winner;
       let loser;
+      //0.5 and over means heads, under is tails
+      let result;
       if (cfpvp_number < BigInt(2)**BigInt(255)) {
-        //player 2 wins
-        winner = {
-          num: "2",
-          id: coinflip_info.player2.player_id,
-        };
-        loser = {
-          num: "1",
-          id: coinflip_info.player1.player_id,
-        };
-        //do last check
-        let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
-        let player2_sgb_bal = await songbird.get_bal(player2_address);
-        if (player2_sgb_bal < 0.5) {
-          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
-        }
-        let player2_astral_bal = await songbird.get_bal_astral(player2_address);
-        if (player2_astral_bal < coinflip_info.wager) {
-          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
-        }
-        //send tx
-        try {
-          tx = await songbird.user_withdraw_astral(coinflip_info.player1.player_id, await songbird.get_tipbot_address(coinflip_info.player2.player_id), coinflip_info.wager);
-        } catch (e) {
-          console.log(e);
-          return await interaction.followUp(`<@${coinflip_info.player2.player_id}> won, but send from <@${coinflip_info.player1.player_id}> to winner failed for some reason. This shouldn't happen. Contact admin.`);
+        result = "Tails";
+        if (coinflip_info.pick === "heads") {
+          //player 2 wins
+          winner = {
+            num: "2",
+            id: coinflip_info.player2.player_id,
+          };
+          loser = {
+            num: "1",
+            id: coinflip_info.player1.player_id,
+          };
+        } else if (coinflip_info.pick === "tails") {
+          //player 1 wins
+          winner = {
+            num: "1",
+            id: coinflip_info.player1.player_id,
+          };
+          loser = {
+            num: "2",
+            id: coinflip_info.player2.player_id,
+          };
         }
       } else {
-        //player 1 wins
-        //player 2 wins
-        winner = {
-          num: "1",
-          id: coinflip_info.player1.player_id,
-        };
-        loser = {
-          num: "2",
-          id: coinflip_info.player2.player_id,
-        };
-        //do last check
-        let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
-        let player1_sgb_bal = await songbird.get_bal(player1_address);
-        if (player1_sgb_bal < 0.5) {
-          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
+        result = "Heads";
+        if (coinflip_info.pick === "heads") {
+          //player 1 wins
+          winner = {
+            num: "1",
+            id: coinflip_info.player1.player_id,
+          };
+          loser = {
+            num: "2",
+            id: coinflip_info.player2.player_id,
+          };
+        } else if (coinflip_info.pick === "tails"){
+          //player 2 wins
+          winner = {
+            num: "2",
+            id: coinflip_info.player2.player_id,
+          };
+          loser = {
+            num: "1",
+            id: coinflip_info.player1.player_id,
+          };
         }
-        let player1_astral_bal = await songbird.get_bal_astral(player1_address);
-        if (player1_astral_bal < coinflip_info.wager) {
-          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
-        }
-        //send tx
-        try {
-          tx = await songbird.user_withdraw_astral(coinflip_info.player2.player_id, await songbird.get_tipbot_address(coinflip_info.player1.player_id), coinflip_info.wager);
-        } catch (e) {
-          console.log(e);
-          return await interaction.followUp(`<@${coinflip_info.player1.player_id}> won, but send from <@${coinflip_info.player2.player_id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
-        }
+      }
+      //do last check
+      let playerwin_address = await songbird.get_tipbot_address(winner.id);
+      let playerwin_sgb_bal = await songbird.get_bal(playerwin_address);
+      if (playerwin_sgb_bal < 0.5) {
+        return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
+      }
+      let playerwin_astral_bal = await songbird.get_bal_astral(playerwin_address);
+      if (playerwin_astral_bal < coinflip_info.wager) {
+        return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
+      }
+      //send tx
+      let tx;
+      try {
+        tx = await songbird.user_withdraw_astral(loser.id, playerwin_address, coinflip_info.wager);
+      } catch (e) {
+        console.log(e);
+        return await interaction.followUp(`<@${winner.id}> won, but send from <@${loser.id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
       }
       //send result: winner, players, each player's random input, reveal server nonce, tx
       let coinflip_result_embed = new discord.EmbedBuilder();
-      coinflip_result_embed.setTitle("Coinflip Results!");
+      coinflip_result_embed.setTitle("A coin has been flipped...");
       coinflip_result_embed.setColor("#e07c35");
-      coinflip_result_embed.setDescription(`**<@${winner.id}> (Player ${winner.num}) won ${coinflip_info.wager} XAC from <@${loser.id}> (Player ${loser.num})!**\n\nPlayer 1 wins when the flip result is at or above 0.5, and Player 2 wins when the flip result is under 0.5. Learn how to prove these results by running \`/provably_fair\`.`);
+      coinflip_result_embed.setDescription(`**It's ${result.toUpperCase()}!
+**\n**<@${winner.id}> (Player ${winner.num}) won ${coinflip_info.wager} XAC from <@${loser.id}> (Player ${loser.num})!** [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
       coinflip_result_embed.addFields([
         {
           name: "Flip Result",
-          value: `${decimal_two_places}`,
+          value: `${result} (${decimal_two_places})`,
+        },
+        {
+          name: "Picks",
+          value: `Player 1: ${coinflip_info.pick.toUpperCase()}, Player 2: ${coinflip_info.pick === "heads" ? "TAILS" : "HEADS"}`,
         },
         {
           name: "Server Nonce",
-          value: coinflip_info.server_nonce,
+          value: "`"+coinflip_info.server_nonce+"`",
         },
         {
           name: "Player 1 Random",
-          value: coinflip_info.player1.random,
+          value: "`"+coinflip_info.player1.random+"`",
         },
         {
           name: "Player 2 Random",
-          value: coinflip_info.player2.random,
-        },
-        {
-          name: "Tx",
-          value: `[Click here](https://songbird-explorer.flare.network/tx/${tx.hash})`,
+          value: "`"+coinflip_info.player2.random+"`",
         },
       ]);
-      coinflip_result_embed.setFooter({ text: "Run `/provably_fair` to see info. Contact if any concerns." });
+      if (result === "Heads") {
+        coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538417553408/Heads.gif");
+      } else {
+        coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
+      }
+      coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvp\`" });
       return await interaction.followUp({ embeds: [coinflip_result_embed] });
     }
   }

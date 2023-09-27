@@ -277,6 +277,12 @@ const commands = [
         name: "wager",
         description: "Amount of XAC to bet",
         required: true
+      },
+      {
+        type: 3,
+        name: "pick",
+        description: "'Heads' or 'Tails'",
+        required: true
       }
     ]
   }
