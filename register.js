@@ -13,12 +13,12 @@ const commands = [
   },
 	{
     name: 'price',
-    description: 'Get Astral Credit price data',
+    description: 'Get Astral Credits price data',
     options: []
   },
   {
     name: 'pools',
-    description: 'Get Astral Credit pools',
+    description: 'Get Astral Credits pools',
     options: []
   },
   {
@@ -180,15 +180,15 @@ const commands = [
   },
   {
     name: 'deposit',
-    description: 'Shows your tipbot/coinflip deposit address'
+    description: 'Shows your tipbot/gaming deposit address'
   },
   {
     name: 'balance',
-    description: 'Shows your tipbot/coinflip balance'
+    description: 'Shows your tipbot/gaming balance'
   },
   {
     name: 'withdraw',
-    description: 'Withdraw your tipbot/coinflip balance',
+    description: 'Withdraw your tipbot/gaming balance',
     options: [
       {
         type: 3,
@@ -212,7 +212,7 @@ const commands = [
   },
   {
     name: 'tip',
-    description: 'Tip XAC from your tipbot/coinflip address to another user',
+    description: 'Tip XAC from your tipbot/gaming address to another user',
     options: [
       {
         type: 4,
