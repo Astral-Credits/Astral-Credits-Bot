@@ -20,6 +20,8 @@ const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066"
 
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 //23 1/2 hours
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;
@@ -142,6 +144,14 @@ client.on('interactionCreate', async interaction => {
       {
         name: "/tip",
         value: "Tip other users XAC from your tipbot/game balance"
+      },
+      {
+        name: "/coinflip_pvp",
+        value: "Player vs player coinflip betting game"
+      },
+      {
+        name: "/provably_fair_pvp",
+        value: "Player vs player coinflip betting game explanation"
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
@@ -678,8 +688,8 @@ client.on('interactionCreate', async interaction => {
     //unregistered
     //
   } else if (command === "provably_fair_pvp") {
-    //explain why the pvp game is provably fair
-    //
+    //explain why the pvp game is provably fair. but for now...
+    return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvp.js");
   }
 
   //admin command
@@ -1018,33 +1028,6 @@ client.on('interactionCreate', async interaction => {
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
   } else if (customId.startsWith("cfpvpbtn-")) {
-    //await interaction.deferReply();
-    //check balance
-    //check bet info
-    let bet_id = customId.split("-")[1];
-    let coinflip_info = await db.get_coinflip_pvp(bet_id);
-    if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
-      return await interaction.reply({ ephemeral: true, content: "You have already submitted your random input." });
-    } else if (coinflip_info.player1.player_id !== user.id) {
-      if (coinflip_info.player2) {
-        return await interaction.reply({ ephemeral: true, content: "There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one." });
-      }
-    }
-    let modal = new discord.ModalBuilder()
-      .setCustomId(customId.replace("cfpvpbtn-", "cfpvpmod-"))
-      .setTitle('Join Coinflip');
-    let random_input = new discord.TextInputBuilder()
-      .setCustomId("random")
-      .setStyle(discord.TextInputStyle.Short)
-      .setMaxLength(42)
-      .setLabel("Mash your keyboard, write some random stuff")
-      .setPlaceholder("This ensures the result is random and fair")
-      .setRequired(true);
-    let action_row = new discord.ActionRowBuilder();
-    action_row.addComponents(random_input);
-    modal.addComponents(action_row);
-    return await interaction.showModal(modal);
-  } else if (customId.startsWith("cfpvpmod-")) {
     async function disable_button_cfpvp() {
       try {
         let bet_button = new discord.ButtonBuilder()
@@ -1064,7 +1047,9 @@ client.on('interactionCreate', async interaction => {
     //get bet info
     let bet_id = customId.split("-")[1];
     let coinflip_info = await db.get_coinflip_pvp(bet_id);
-    let player_random = interaction.fields.getTextInputValue("random");
+    if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
+      return await interaction.reply({ ephemeral: true, content: "You have already submitted your random input." });
+    }
     //if player 2, make sure player 2 doesn't exist yet
     if (coinflip_info.player1.player_id !== user.id && coinflip_info.player2) {
       return await interaction.editReply("There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one.");
@@ -1111,18 +1096,17 @@ client.on('interactionCreate', async interaction => {
       }
     }
     //we know balances are enough, so go add player random (if player2, it will create automatically)
-    await db.add_coinflip_pvp_random(bet_id, user.id, player_random);
+    await interaction.editReply("Successfully joined bet. Now just wait for the other player.");
+    let player_random = (await interaction.followUp(`<@${user.id}> joined the bet!`)).id;
+    await db.add_coinflip_pvp_random(bet_id, user.id, String(player_random));
     //if both player 1 and player 2's randoms exist
     coinflip_info = await db.get_coinflip_pvp(bet_id);
-    await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
-    await interaction.followUp(`<@${user.id}> submitted their random input and joined the bet!`);
     if (coinflip_info.player1.random && coinflip_info.player2?.random) {
-      //possible that player sends their funds away right after they make the bet? hopefully not, I will add extra check before. if fails anyways, display big error message, admins will sort it out
       //disable button
       disable_button_cfpvp();
       //calculate result: hash, convert hash to number and calculate winner
       //hash should be 32 bytes
-      const cfpvp_hash = util.hash(coinflip_info.player1.random+coinflip_info.player2.random+coinflip_info.server_nonce);
+      const cfpvp_hash = util.hash(BigInt(coinflip_info.player1.random).toString(16)+BigInt(coinflip_info.player2.random).toString(16)+coinflip_info.server_nonce);
       const cfpvp_number = util.hex_to_bigint(cfpvp_hash);
       //determine winner.
       const decimal_two_places = Number((cfpvp_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
@@ -1189,6 +1173,7 @@ client.on('interactionCreate', async interaction => {
       if (playerwin_astral_bal < coinflip_info.wager) {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
       }
+      await sleep(2500);
       //send tx
       let tx;
       try {
@@ -1217,11 +1202,11 @@ client.on('interactionCreate', async interaction => {
           value: "`"+coinflip_info.server_nonce+"`",
         },
         {
-          name: "Player 1 Random",
+          name: "Player 1 Message ID",
           value: "`"+coinflip_info.player1.random+"`",
         },
         {
-          name: "Player 2 Random",
+          name: "Player 2 Message ID",
           value: "`"+coinflip_info.player2.random+"`",
         },
       ]);
@@ -1233,6 +1218,146 @@ client.on('interactionCreate', async interaction => {
       coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvp\`" });
       return await interaction.followUp({ embeds: [coinflip_result_embed] });
     }
+  } else if (customId.startsWith("cfpvhbtn-")) {
+    //await interaction.deferReply();
+    //check balance
+    //check bet info
+    let bet_id = customId.split("-")[1];
+    let coinflip_info = await db.get_coinflip_pvh(bet_id);
+    if (coinflip_info.player_id !== user.id) {
+      return await interaction.reply({ ephemeral: true, content: "Create this coinflip game to play - this is someone else's!" });
+    }
+    let modal = new discord.ModalBuilder()
+      .setCustomId(customId.replace("cfpvhbtn-", "cfpvhmod-"))
+      .setTitle('Complete Coinflip');
+    let random_input = new discord.TextInputBuilder()
+      .setCustomId("random")
+      .setStyle(discord.TextInputStyle.Short)
+      .setMaxLength(42)
+      .setLabel("Mash your keyboard, write some random stuff")
+      .setPlaceholder("This ensures the result is random and fair")
+      .setRequired(true);
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(random_input);
+    modal.addComponents(action_row);
+    return await interaction.showModal(modal);
+  } else if (customId.startsWith("cfpvhmod-")) {
+    async function disable_button_cfpvh() {
+      try {
+        let bet_button = new discord.ButtonBuilder()
+          .setCustomId("cfpvhbtn-"+interaction.id)
+          .setLabel("Bet!")
+          .setDisabled(true)
+          .setStyle('Primary');
+        let action_row = new discord.ActionRowBuilder();
+        action_row.addComponents(bet_button);
+        await interaction.channel.fetch();
+        await interaction.message.edit({ embeds: interaction.message.embeds, components: [action_row] });
+      } catch (e) {
+        console.log(e);
+      }
+    }
+    await interaction.deferReply({ ephemeral: true });
+    //get bet info
+    let bet_id = customId.split("-")[1];
+    let coinflip_info = await db.get_coinflip_pvp(bet_id);
+    let player_random = interaction.fields.getTextInputValue("random");
+    //if player 2, make sure player 2 doesn't exist yet
+    if (coinflip_info.player1.player_id !== user.id) {
+      return await interaction.editReply("Error, only the creator of this game can play. Run the command yourself.");
+    }
+    //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
+    let player_address = await songbird.get_tipbot_address(coinflip_info.player_id);
+    let player_sgb_bal = await songbird.get_bal(player_address);
+    if (player_sgb_bal < 0.5) {
+      disable_button_cfpvh();
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      return await interaction.followUp(`Player 1 (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+    }
+    let player_astral_bal = await songbird.get_bal_astral(player_address);
+    if (player_astral_bal < coinflip_info.wager) {
+      disable_button_cfpvh();
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+      return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+    }
+    //check player and house balance
+    //
+    //we know balances are enough, so go add player random
+    await db.add_coinflip_pvh_random(bet_id, user.id, player_random);
+    coinflip_info = await db.get_coinflip_pvh(bet_id);
+    await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
+    await interaction.followUp(`<@${user.id}> submitted their random input, and the bet is being calculated!`);
+    await sleep(2500);
+    //disable button
+    disable_button_cfpvh();
+    //calculate result: hash, convert hash to number and calculate winner
+    //hash should be 32 bytes
+    const cfpvh_hash = util.hash(Buffer.from(coinflip_info.random).toString("hex")+coinflip_info.server_nonce);
+    const cfpvh_number = util.hex_to_bigint(cfpvh_hash);
+    //determine winner.
+    const decimal_two_places = Number((cfpvh_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
+    //2**255 is half of 2**256
+    let won;
+    //0.5 and over means heads, under is tails
+    let result;
+    if (cfpvh_number < BigInt(2)**BigInt(255)) {
+      result = "Tails";
+      if (coinflip_info.pick === "heads") {
+        //house wins
+        won = false;
+      } else if (coinflip_info.pick === "tails") {
+        //player 1 wins
+        won = true;
+      }
+    } else {
+      result = "Heads";
+      if (coinflip_info.pick === "heads") {
+        //player 1 wins
+        won = true;
+      } else if (coinflip_info.pick === "tails"){
+        //house wins
+        won = false;
+      }
+    }
+    //send tx
+    let tx;
+    try {
+      tx = await songbird.user_withdraw_astral(loser.id, playerwin_address, coinflip_info.wager);
+    } catch (e) {
+      console.log(e);
+      return await interaction.followUp(`<@${winner.id}> won, but send from <@${loser.id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
+    }
+    //send result: winner, players, each player's random input, reveal server nonce, tx
+    let coinflip_result_embed = new discord.EmbedBuilder();
+    coinflip_result_embed.setTitle("A coin has been flipped...");
+    coinflip_result_embed.setColor("#e07c35");
+    coinflip_result_embed.setDescription(`**It's ${result.toUpperCase()}!
+**\n** ${ won ? `<@${winner.id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${winner.id}> lost ${coinflip_info.wager} XAC in a bet against the house!` } [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
+    coinflip_result_embed.addFields([
+      {
+        name: "Flip Result",
+        value: `${result} (${decimal_two_places})`,
+      },
+      {
+        name: "Pick",
+        value: coinflip_info.pick.toUpperCase(),
+      },
+      {
+        name: "Server Nonce",
+        value: "`"+coinflip_info.server_nonce+"`",
+      },
+      {
+        name: "Player Random",
+        value: "`"+coinflip_info.player1.random+"`",
+      },
+    ]);
+    if (result === "Heads") {
+      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538417553408/Heads.gif");
+    } else {
+      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
+    }
+    coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvh\`" });
+    return await interaction.followUp({ embeds: [coinflip_result_embed] });
   }
 });
 

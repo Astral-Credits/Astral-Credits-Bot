@@ -285,6 +285,10 @@ const commands = [
         required: true
       }
     ]
+  },
+  {
+    name: 'provably_fair_pvp',
+    description: 'Get some explanation and code for the provably fair pvp coinflip game'
   }
 ];
 
