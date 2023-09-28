@@ -242,6 +242,10 @@ client.on('interactionCreate', async interaction => {
         value: "$"+util.format_commas(String(liqudity_cache))+"~"
       },
       {
+        name: "FeatherSwap",
+        value: "[Pool](https://featherswap.xyz/swap/?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0x9cbc1cc3b29d8a61b1843df50b6e90261a692705)"
+      },
+      {
         name: "Pangolin",
         value: "[Pool](https://app.pangolin.exchange/#/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xdd06d19b1217423ba474783a16e4a9798b794225)"
       },
@@ -278,7 +282,7 @@ client.on('interactionCreate', async interaction => {
         fail_descrip += " Not enough time has lapsed since your last claim.";
       }
       if (!next_claim_info.under_claim_limit) {
-        fail_descrip += " The faucet has reached the max claims for this month (11111 claims), wait until next month to claim again.";
+        fail_descrip += " The faucet is now CLOSED as we have reached the max no. of claims for the month! (11,111 claims). Please return in the new month to claim again!";
       }
       claim_embed.setDescription(fail_descrip);
       claim_embed.addFields([
@@ -427,7 +431,7 @@ client.on('interactionCreate', async interaction => {
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit SGB or XAC. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit SGB or XAC. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play games.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
@@ -503,7 +507,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
     }
     if (!send) {
-      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Please contact an admin if otherwise.");
     }
     //send tx embed
     let withdraw_embed = new discord.EmbedBuilder();
@@ -636,7 +640,7 @@ client.on('interactionCreate', async interaction => {
     let player1_address = await songbird.get_tipbot_address(user.id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
     if (player1_sgb_bal < 0.5) {
-      return await interaction.editReply("Please deposit a bit more SGB (**into your tipbot wallet**) to cover any gas fees.");
+      return await interaction.editReply("Please deposit more SGB (**into your tipbot wallet**) to cover any gas fees.");
     }
     let player1_astral_bal = await songbird.get_bal_astral(player1_address);
     if (player1_astral_bal < wager) {
@@ -705,7 +709,7 @@ client.on('interactionCreate', async interaction => {
           address_valid = false;
         }
         if (!address_valid) {
-          return interaction.editReply("Failed, invalid address");
+          return interaction.editReply("Failed, invalid address.");
         }
         tx = await songbird.send_astral(address, amount);
         if (!tx) {
