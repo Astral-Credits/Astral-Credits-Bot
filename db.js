@@ -370,6 +370,18 @@ async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
   return true;
 }
 
+async function add_coinflip_pvh() {
+  //
+}
+
+async function add_coinflip_pvh_random() {
+  //
+}
+
+async function get_coinflip_pvh() {
+  //
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -392,4 +404,7 @@ module.exports = {
   add_coinflip_pvp,
   add_coinflip_pvp_random,
   get_coinflip_pvp,
+  add_coinflip_pvh,
+  add_coinflip_pvh_random,
+  get_coinflip_pvh,
 };

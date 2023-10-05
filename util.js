@@ -97,6 +97,7 @@ function uint8_to_hex(uint8) {
 }
 
 function hex_to_uint8(hex) {
+  hex = hex.toUpperCase();
   //get it to an even length
   if (hex.length%2 === 1) {
     hex = "0"+hex;
