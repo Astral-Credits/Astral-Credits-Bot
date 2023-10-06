@@ -19,6 +19,7 @@ coinflip_wallet = faucet_wallet.connect(provider);
 
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
+const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
 
 const erc20_abi = [
   {
@@ -124,12 +125,83 @@ const domains_abi = [
   }
 ];
 
+const sgb_domain_abi = [
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ],
+    "name": "getDefaultDomain",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_addr",
+        "internalType": "address"
+      },
+      {
+        "type": "string",
+        "name": "_tld",
+        "internalType": "string"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ],
+    "name": "getDefaultDomains",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_addr",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "address",
+        "name": "",
+        "internalType": "address"
+      }
+    ],
+    "name": "getDomainHolder",
+    "inputs": [
+      {
+        "type": "string",
+        "name": "_domainName",
+        "internalType": "string"
+      },
+      {
+        "type": "string",
+        "name": "_tld",
+        "internalType": "string"
+      }
+    ]
+  }
+];
+
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 let coinflip_astral_token = new ethers.Contract(token_contract_address, erc20_abi, coinflip_wallet);
 
+let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, provider);
 let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);
 
 //faucet requirements
@@ -405,6 +477,11 @@ async function find_shared_txs(address1, address2) {
   return txs;
 }
 
+async function lookup_domain_owner(domain) {
+  domain = domain.slice(0, -4)
+  return await sgb_domain_contract.getDomainHolder(domain, ".sgb");
+}
+
 module.exports = {
   HOLDING_BLOCK_TIME,
   get_liquidity_blaze,
@@ -424,5 +501,6 @@ module.exports = {
   check_domain_owned,
   find_associated,
   find_shared_txs,
+  lookup_domain_owner,
   is_valid: ethers.utils.isAddress
 };
