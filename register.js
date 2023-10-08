@@ -193,7 +193,7 @@ const commands = [
       {
         type: 3,
         name: "address",
-        description: "XAC address (0x...) to withdraw to",
+        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
         required: true
       },
       {

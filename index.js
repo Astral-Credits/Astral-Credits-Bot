@@ -139,7 +139,7 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "/withdraw",
-        value: "Withdraw your tipbot/game balance"
+        value: "Withdraw your tipbot/game balance to an address or .sgb domain"
       },
       {
         name: "/tip",
