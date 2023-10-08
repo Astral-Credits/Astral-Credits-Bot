@@ -268,8 +268,15 @@ client.on('interactionCreate', async interaction => {
     return await interaction.reply({ embeds: [pools_embed] });
   } else if (command === "next_claim") {
     await interaction.deferReply({ ephemeral: true });
-    let address = (await params.get("address")).value.toLowerCase().trim();
+    let address = await params.get("address");
     let address_valid;
+    let user_info = await db.get_user(user.id);
+    if (!user_info && !address) return interaction.editReply("Failed, you are not registered, and have not provided any address.");
+    if (address) {
+      address = address.value.toLowerCase().trim();
+    } else {
+      address = user_info.address;
+    }
     try {
       address_valid = songbird.is_valid(address);
     } catch (e) {
@@ -486,6 +493,13 @@ client.on('interactionCreate', async interaction => {
     //withdraw address
     let withdraw_address = (await params.get("address")).value.toLowerCase().trim();
     let address_valid;
+    if (withdraw_address.endsWith(".sgb")) {
+      address_valid = true;
+      withdraw_address = await songbird.lookup_domain_owner(withdraw_address);
+      if (!withdraw_address || withdraw_address === "0x0000000000000000000000000000000000000000") {
+        return await interaction.editReply(`Could not find owner of that .sgb domain. Does it exist? Check the spelling.`);
+      }
+    }
     try {
       address_valid = songbird.is_valid(withdraw_address);
     } catch (e) {
@@ -663,7 +677,7 @@ client.on('interactionCreate', async interaction => {
     let coinflip_start_embed = new discord.EmbedBuilder();
     coinflip_start_embed.setTitle("Play Coinflip!");
     coinflip_start_embed.setColor("#2ae519");
-    coinflip_start_embed.setDescription(`<@${user.id}> has selected **${pick.toUpperCase()}**!\n\nTo cover the bet and join the game as **${pick === "heads" ? "TAILS" : "HEADS"}** click the button below! (Note: Both players must click the button below to start the game)`);
+    coinflip_start_embed.setDescription(`<@${user.id}> has selected **${pick.toUpperCase()}**${ pick === "heads" ? " <:Heads:1157086933495840868>" : " <:Tails:1157086940777164942>" }\n\nTo cover the bet and join the game as **${pick === "heads" ? "TAILS" : "HEADS"}** click the button below! (Note: Both players must click the button below to start the game)`);
     coinflip_start_embed.addFields([
       {
         name: "Wager Amount",
@@ -674,7 +688,7 @@ client.on('interactionCreate', async interaction => {
         value: "`"+hashed_server_nonce+"`",
       }
     ]);
-    coinflip_start_embed.setImage("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif");
+    //coinflip_start_embed.setImage("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif");
     coinflip_start_embed.setFooter({ text: "Provably fair! Run `/provably_fair_pvp`." });
     //send button that opens modal to enter in random string
     let bet_button = new discord.ButtonBuilder()
@@ -686,6 +700,28 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [coinflip_start_embed], components: [action_row] });
   } else if (command === "coinflip_house") {
     //unregistered
+    /*
+    await interaction.deferReply();
+    let wager = (await params.get("wager")).value;
+    wager = Math.floor(wager);
+    if (wager < 1) {
+      return await interaction.editReply("Failed, cannot wager less than 1, 0, or negative XAC.");
+    } else if (wager > 10000) {
+      return await interaction.editReply("For now, wagers cannot be over ten thousand XAC.");
+    }
+    let pick = (await params.get("pick")).value.toLowerCase().trim();
+    if (pick !== "heads" && pick !== "tails") {
+      return await interaction.editReply("Must choose 'Heads' or 'Tails'.");
+    }
+    //check house balance (bet amount + 10k for safety)
+    //
+    //gen server nonce
+    //
+    //add to db
+    //
+    //send embed with button that opens up modal
+    //
+    */
     //
   } else if (command === "provably_fair_pvp") {
     //explain why the pvp game is provably fair. but for now...
@@ -1173,7 +1209,6 @@ client.on('interactionCreate', async interaction => {
       if (playerwin_astral_bal < coinflip_info.wager) {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
       }
-      await sleep(2500);
       //send tx
       let tx;
       try {
@@ -1182,6 +1217,9 @@ client.on('interactionCreate', async interaction => {
         console.log(e);
         return await interaction.followUp(`<@${winner.id}> won, but send from <@${loser.id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
       }
+      const attachment = new discord.AttachmentBuilder("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif", { name: "spin.gif" });
+      let followMessage = await interaction.followUp({ content: "The coin is being flipped...", files: [attachment] });
+      await sleep(3500);
       //send result: winner, players, each player's random input, reveal server nonce, tx
       let coinflip_result_embed = new discord.EmbedBuilder();
       coinflip_result_embed.setTitle("A coin has been flipped...");
@@ -1216,7 +1254,7 @@ client.on('interactionCreate', async interaction => {
         coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
       }
       coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvp\`" });
-      return await interaction.followUp({ embeds: [coinflip_result_embed] });
+      return await followMessage.edit({ content: "", files: [], embeds: [coinflip_result_embed] });
     }
   } else if (customId.startsWith("cfpvhbtn-")) {
     //await interaction.deferReply();
@@ -1287,7 +1325,7 @@ client.on('interactionCreate', async interaction => {
     coinflip_info = await db.get_coinflip_pvh(bet_id);
     await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
     await interaction.followUp(`<@${user.id}> submitted their random input, and the bet is being calculated!`);
-    await sleep(2500);
+    await sleep(3500);
     //disable button
     disable_button_cfpvh();
     //calculate result: hash, convert hash to number and calculate winner

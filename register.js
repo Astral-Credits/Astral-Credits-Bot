@@ -34,7 +34,7 @@ const commands = [
         type: 3,
         name: "address",
         description: "Your XAC address (0x...)",
-        required: true
+        required: false
       }
     ]
   },
