@@ -77,6 +77,12 @@ const commands = [
         name: "target",
         description: "@ mention of user to send to",
         required: false
+      },
+      {
+        type: 5,
+        name: "to_tipbot",
+        description: "If true (and target is used instead of address), sends to tipbot wallet",
+        required: false
       }
     ]
   },
@@ -287,8 +293,30 @@ const commands = [
     ]
   },
   {
+    name: 'coinflip_pvh',
+    description: 'Wager some XAC in a game of chance against the house!',
+    options: [
+      {
+        type: 4,
+        name: "wager",
+        description: "Amount of XAC to bet",
+        required: true
+      },
+      {
+        type: 3,
+        name: "pick",
+        description: "'Heads' or 'Tails'",
+        required: true
+      }
+    ]
+  },
+  {
     name: 'provably_fair_pvp',
     description: 'Get some explanation and code for the provably fair pvp coinflip game'
+  },
+  {
+    name: 'provably_fair_pvh',
+    description: 'Get some explanation and code for the provably fair pvh coinflip game'
   }
 ];
 
