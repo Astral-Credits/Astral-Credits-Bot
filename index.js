@@ -20,12 +20,15 @@ const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066"
 
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
+const MIN_SGB = 0.25;
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 //23 1/2 hours
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;
 const HOLDING_REQUIREMENT = 2000;
+const MAX_DECIMALS = 4; //astral credits has 18 but not the point
 
 let historic_data_cache;
 let liqudity_cache;
@@ -517,7 +520,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply(`Invalid address \`${withdraw_address}\` provided`);
     }
     //check options to see user withdraw amount
-    let withdraw_amount = (await params.get("amount")).value;
+    let withdraw_amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
     if (withdraw_amount <= 0) {
       return await interaction.editReply("Amount cannot be equal to or less than 0");
     }
@@ -581,7 +584,7 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "tip") {
     await interaction.deferReply();
     let target = (await params.get("target")).user;
-    let amount = (await params.get("amount")).value;
+    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
     if (amount <= 0) {
       return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
     }
@@ -671,8 +674,8 @@ client.on('interactionCreate', async interaction => {
     //check tipbot sgb and xac balance
     let player1_address = await songbird.get_tipbot_address(user.id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
-    if (player1_sgb_bal < 0.5) {
-      return await interaction.editReply("Please deposit more SGB (**into your tipbot wallet**) to cover any gas fees.");
+    if (player1_sgb_bal < MIN_SGB) {
+      return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
     }
     let player1_astral_bal = await songbird.get_bal_astral(player1_address);
     if (player1_astral_bal < wager) {
@@ -723,8 +726,8 @@ client.on('interactionCreate', async interaction => {
     //check player balance
     let player_address = await songbird.get_tipbot_address(user.id);
     let player_sgb_bal = await songbird.get_bal(player_address);
-    if (player_sgb_bal < 0.5) {
-      return await interaction.editReply("Please deposit more SGB (**into your tipbot wallet**) to cover any gas fees.");
+    if (player_sgb_bal < MIN_SGB) {
+      return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
     }
     let player_astral_bal = await songbird.get_bal_astral(player_address);
     if (player_astral_bal < wager) {
@@ -732,7 +735,7 @@ client.on('interactionCreate', async interaction => {
     }
     //check house balance (bet amount + 10k for safety)
     let house_address = await songbird.get_tipbot_address(0);
-    if (await songbird.get_bal(house_address) < 0.5) {
+    if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
     } else if (await songbird.get_bal_astral(house_address) < 10000 + wager) {
       return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
@@ -781,8 +784,7 @@ client.on('interactionCreate', async interaction => {
     if (command === "send") {
       await interaction.deferReply();
       //two optional args: address or discord user, can only choose one
-      let amount = (await params.get("amount")).value;
-      amount = Math.floor(amount);
+      let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
       if (amount <= 0) {
         return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
       }
@@ -1160,9 +1162,9 @@ client.on('interactionCreate', async interaction => {
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
-    if (player1_sgb_bal < 0.5) {
+    if (player1_sgb_bal < MIN_SGB) {
       disable_button_cfpvp();
-      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
       return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
     }
     let player1_astral_bal = await songbird.get_bal_astral(player1_address);
@@ -1175,9 +1177,9 @@ client.on('interactionCreate', async interaction => {
       //is player 1 and player 2 exists
       let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
-      if (player2_sgb_bal < 0.5) {
+      if (player2_sgb_bal < MIN_SGB) {
         disable_button_cfpvp();
-        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
         return await interaction.followUp(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
       }
       let player2_astral_bal = await songbird.get_bal_astral(player2_address);
@@ -1190,8 +1192,8 @@ client.on('interactionCreate', async interaction => {
       //is player 2, check self
       let player2_address = await songbird.get_tipbot_address(user.id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
-      if (player2_sgb_bal < 0.5) {
-        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees.");
+      if (player2_sgb_bal < MIN_SGB) {
+        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).");
       }
       let player2_astral_bal = await songbird.get_bal_astral(player2_address);
       if (player2_astral_bal < coinflip_info.wager) {
@@ -1269,7 +1271,7 @@ client.on('interactionCreate', async interaction => {
       //do last check
       let playerwin_address = await songbird.get_tipbot_address(winner.id);
       let playerwin_sgb_bal = await songbird.get_bal(playerwin_address);
-      if (playerwin_sgb_bal < 0.5) {
+      if (playerwin_sgb_bal < MIN_SGB) {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
       }
       let playerwin_astral_bal = await songbird.get_bal_astral(playerwin_address);
@@ -1377,9 +1379,9 @@ client.on('interactionCreate', async interaction => {
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player_address = await songbird.get_tipbot_address(coinflip_info.player_id);
     let player_sgb_bal = await songbird.get_bal(player_address);
-    if (player_sgb_bal < 0.5) {
+    if (player_sgb_bal < MIN_SGB) {
       disable_button_cfpvh();
-      await interaction.editReply(`You (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      await interaction.editReply(`You (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
       return await interaction.followUp(`Player (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
     }
     let player_astral_bal = await songbird.get_bal_astral(player_address);
@@ -1390,7 +1392,7 @@ client.on('interactionCreate', async interaction => {
     }
     //check house balance (bet amount + 10k for safety)
     let house_address = await songbird.get_tipbot_address(0);
-    if (await songbird.get_bal(house_address) < 0.5) {
+    if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
     } else if (await songbird.get_bal_astral(house_address) < 10000 + coinflip_info.wager) {
       return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");

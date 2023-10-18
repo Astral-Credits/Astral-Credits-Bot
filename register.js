@@ -61,7 +61,7 @@ const commands = [
     description: 'Send XAC to discord user or address (admin only)',
     options: [
       {
-        type: 4,
+        type: 10,
         name: "amount",
         description: "Amount of XAC to send",
         required: true
@@ -203,9 +203,9 @@ const commands = [
         required: true
       },
       {
-        type: 4,
+        type: 10,
         name: "amount",
-        description: "Amount of XAC to withdraw",
+        description: "Amount of currency to withdraw",
         required: true
       },
       {
@@ -221,7 +221,7 @@ const commands = [
     description: 'Tip XAC from your tipbot/gaming address to another user',
     options: [
       {
-        type: 4,
+        type: 10,
         name: "amount",
         description: "Amount of XAC to tip",
         required: true
