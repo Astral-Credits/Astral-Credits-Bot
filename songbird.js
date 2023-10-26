@@ -13,10 +13,6 @@ wallet = wallet.connect(provider);
 let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
 faucet_wallet = faucet_wallet.connect(provider);
 
-//0xd8317572Cac6F10CD1933BB59082EC1bB3a4458D
-let coinflip_wallet = new ethers.Wallet(process.env.coinflip_privkey);
-coinflip_wallet = faucet_wallet.connect(provider);
-
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
@@ -199,7 +195,6 @@ let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
-let coinflip_astral_token = new ethers.Contract(token_contract_address, erc20_abi, coinflip_wallet);
 
 let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, provider);
 let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);

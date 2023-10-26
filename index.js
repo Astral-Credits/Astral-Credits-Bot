@@ -20,12 +20,15 @@ const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066"
 
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
+const MIN_SGB = 0.25;
+
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 //23 1/2 hours
 const CLAIM_FREQ = 23.5*60*60*1000;
 const MAX_CLAIMS_PER_MONTH = 11111;
 const HOLDING_REQUIREMENT = 2000;
+const MAX_DECIMALS = 4; //astral credits has 18 but not the point
 
 let historic_data_cache;
 let liqudity_cache;
@@ -150,8 +153,16 @@ client.on('interactionCreate', async interaction => {
         value: "Player vs player coinflip betting game"
       },
       {
+        name: "/coinflip_pvh",
+        value: "Player vs house coinflip betting game"
+      },
+      {
         name: "/provably_fair_pvp",
         value: "Player vs player coinflip betting game explanation"
+      },
+      {
+        name: "/provably_fair_pvh",
+        value: "Player vs house coinflip betting game explanation"
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
@@ -509,7 +520,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply(`Invalid address \`${withdraw_address}\` provided`);
     }
     //check options to see user withdraw amount
-    let withdraw_amount = (await params.get("amount")).value;
+    let withdraw_amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
     if (withdraw_amount <= 0) {
       return await interaction.editReply("Amount cannot be equal to or less than 0");
     }
@@ -573,7 +584,7 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "tip") {
     await interaction.deferReply();
     let target = (await params.get("target")).user;
-    let amount = (await params.get("amount")).value;
+    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
     if (amount <= 0) {
       return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
     }
@@ -663,8 +674,8 @@ client.on('interactionCreate', async interaction => {
     //check tipbot sgb and xac balance
     let player1_address = await songbird.get_tipbot_address(user.id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
-    if (player1_sgb_bal < 0.5) {
-      return await interaction.editReply("Please deposit more SGB (**into your tipbot wallet**) to cover any gas fees.");
+    if (player1_sgb_bal < MIN_SGB) {
+      return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
     }
     let player1_astral_bal = await songbird.get_bal_astral(player1_address);
     if (player1_astral_bal < wager) {
@@ -698,9 +709,8 @@ client.on('interactionCreate', async interaction => {
     let action_row = new discord.ActionRowBuilder();
     action_row.addComponents(bet_button);
     return await interaction.editReply({ embeds: [coinflip_start_embed], components: [action_row] });
-  } else if (command === "coinflip_house") {
+  } else if (command === "coinflip_pvh") {
     //unregistered
-    /*
     await interaction.deferReply();
     let wager = (await params.get("wager")).value;
     wager = Math.floor(wager);
@@ -713,19 +723,59 @@ client.on('interactionCreate', async interaction => {
     if (pick !== "heads" && pick !== "tails") {
       return await interaction.editReply("Must choose 'Heads' or 'Tails'.");
     }
+    //check player balance
+    let player_address = await songbird.get_tipbot_address(user.id);
+    let player_sgb_bal = await songbird.get_bal(player_address);
+    if (player_sgb_bal < MIN_SGB) {
+      return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
+    }
+    let player_astral_bal = await songbird.get_bal_astral(player_address);
+    if (player_astral_bal < wager) {
+      return await interaction.editReply("You do not have enough XAC **in your tipbot wallet** to cover the wager.");
+    }
     //check house balance (bet amount + 10k for safety)
-    //
+    let house_address = await songbird.get_tipbot_address(0);
+    if (await songbird.get_bal(house_address) < MIN_SGB) {
+      return await interaction.editReply("House does not have enough SGB to pay for fees.");
+    } else if (await songbird.get_bal_astral(house_address) < 10000 + wager) {
+      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
+    }
     //gen server nonce
-    //
+    const server_nonce = util.gen_server_nonce();
+    const hashed_server_nonce = util.hash(server_nonce);
     //add to db
-    //
+    await db.add_coinflip_pvh(interaction.id, user.id, wager, server_nonce, pick);
     //send embed with button that opens up modal
-    //
-    */
-    //
+    let coinflip_start_embed = new discord.EmbedBuilder();
+    coinflip_start_embed.setTitle("Coinflip against the House!");
+    coinflip_start_embed.setColor("#2ae519");
+    coinflip_start_embed.setDescription(`You (<@${user.id}>) have selected **${pick.toUpperCase()}**${ pick === "heads" ? " <:Heads:1157086933495840868>" : " <:Tails:1157086940777164942>" }\n\nNow you just need to click the button below to complete the bet.`);
+    coinflip_start_embed.addFields([
+      {
+        name: "Wager Amount",
+        value: `${wager} XAC`,
+      },
+      {
+        name: "Server Nonce Hash",
+        value: "`"+hashed_server_nonce+"`",
+      }
+    ]);
+    //coinflip_start_embed.setImage("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif");
+    coinflip_start_embed.setFooter({ text: "Provably fair! Run `/provably_fair_pvh`." });
+    //send button that opens modal to enter in random string
+    let bet_button = new discord.ButtonBuilder()
+      .setCustomId("cfpvhbtn-"+interaction.id)
+      .setLabel("Bet!")
+      .setStyle('Primary');
+    let action_row = new discord.ActionRowBuilder();
+    action_row.addComponents(bet_button);
+    return await interaction.editReply({ embeds: [coinflip_start_embed], components: [action_row] });
   } else if (command === "provably_fair_pvp") {
     //explain why the pvp game is provably fair. but for now...
     return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvp.js");
+  } else if (command === "provably_fair_pvh") {
+    //explain why the pvh game is provably fair. but for now...
+    return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvh.js");
   }
 
   //admin command
@@ -734,16 +784,19 @@ client.on('interactionCreate', async interaction => {
     if (command === "send") {
       await interaction.deferReply();
       //two optional args: address or discord user, can only choose one
-      let amount = (await params.get("amount")).value;
-      amount = Math.floor(amount);
+      let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
       if (amount <= 0) {
         return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
       }
       let address = await params.get("address");
       let target = await params.get("target");
+      let to_tipbot = await params.get("to_tipbot");
       let tx;
       let receiver;
-      if (address && target) {
+      let sgb_domain = false;
+      if (to_tipbot && address) {
+        return await interaction.editReply("Failed, `to_tipbot` can only be an option when using target, not address.");
+      } else if (address && target) {
         return await interaction.editReply("Failed, both address and target cannot be specified, only put in one.");
       } else if (address) {
         address = address.value;
@@ -753,6 +806,14 @@ client.on('interactionCreate', async interaction => {
           address_valid = songbird.is_valid(address);
         } catch (e) {
           address_valid = false;
+        }
+        if (address.endsWith(".sgb")) {
+          sgb_domain = address;
+          address_valid = true;
+          address = await songbird.lookup_domain_owner(address);
+          if (!address || address === "0x0000000000000000000000000000000000000000") {
+            return await interaction.editReply(`Could not find owner of that .sgb domain. Does it exist? Check the spelling.`);
+          }
         }
         if (!address_valid) {
           return interaction.editReply("Failed, invalid address.");
@@ -764,16 +825,24 @@ client.on('interactionCreate', async interaction => {
         receiver = "`"+address+"`";
       } else if (target) {
         target = target.user;
-        //get address
-        let user_info = await db.get_user(target.id);
-        if (!user_info) {
-          return await interaction.editReply("Failed, target user has not registered with bot, try address instead?");
+        if (to_tipbot.value) {
+          tx = await songbird.send_astral(await songbird.get_tipbot_address(target.id), amount);
+          if (!tx) {
+            return interaction.editReply("Failed, send error. Perhaps not enough balance?");
+          }
+          receiver = "<@"+target.id+">";
+        } else {
+          //get address
+          let user_info = await db.get_user(target.id);
+          if (!user_info) {
+            return await interaction.editReply("Failed, target user has not registered with bot, try address instead?");
+          }
+          tx = await songbird.send_astral(user_info.address, amount);
+          if (!tx) {
+            return interaction.editReply("Failed, send error. Perhaps not enough balance?");
+          }
+          receiver = "<@"+target.id+">";
         }
-        tx = await songbird.send_astral(user_info.address, amount);
-        if (!tx) {
-          return interaction.editReply("Failed, send error. Perhaps not enough balance?");
-        }
-        receiver = "<@"+target.id+">";
       } else {
         return await interaction.editReply("Failed, neither address or target to send to was specified.");
       }
@@ -781,7 +850,7 @@ client.on('interactionCreate', async interaction => {
       let send_embed = new discord.EmbedBuilder();
       send_embed.setTitle("Successfully Sent!");
       send_embed.setColor("#0940e5");
-      send_embed.setDescription(`${String(amount)} XAC sent to ${receiver}. [View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
+      send_embed.setDescription(`${String(amount)} XAC sent to ${receiver}${ to_tipbot?.value ? " (sent to tipbot wallet)" : ""}${ sgb_domain ? ` (${sgb_domain})` : "" }. [View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
       send_embed.setFooter({ text: "Made by prussia.dev" });
       return await interaction.editReply({ embeds: [send_embed] });
     } else if (command === "change_register") {
@@ -1093,9 +1162,9 @@ client.on('interactionCreate', async interaction => {
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
-    if (player1_sgb_bal < 0.5) {
+    if (player1_sgb_bal < MIN_SGB) {
       disable_button_cfpvp();
-      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
       return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
     }
     let player1_astral_bal = await songbird.get_bal_astral(player1_address);
@@ -1108,9 +1177,9 @@ client.on('interactionCreate', async interaction => {
       //is player 1 and player 2 exists
       let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
-      if (player2_sgb_bal < 0.5) {
+      if (player2_sgb_bal < MIN_SGB) {
         disable_button_cfpvp();
-        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+        await interaction.editReply(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
         return await interaction.followUp(`Player 2 (<@${coinflip_info.player2.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
       }
       let player2_astral_bal = await songbird.get_bal_astral(player2_address);
@@ -1123,8 +1192,8 @@ client.on('interactionCreate', async interaction => {
       //is player 2, check self
       let player2_address = await songbird.get_tipbot_address(user.id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
-      if (player2_sgb_bal < 0.5) {
-        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees.");
+      if (player2_sgb_bal < MIN_SGB) {
+        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).");
       }
       let player2_astral_bal = await songbird.get_bal_astral(player2_address);
       if (player2_astral_bal < coinflip_info.wager) {
@@ -1187,7 +1256,7 @@ client.on('interactionCreate', async interaction => {
             num: "2",
             id: coinflip_info.player2.player_id,
           };
-        } else if (coinflip_info.pick === "tails"){
+        } else if (coinflip_info.pick === "tails") {
           //player 2 wins
           winner = {
             num: "2",
@@ -1202,7 +1271,7 @@ client.on('interactionCreate', async interaction => {
       //do last check
       let playerwin_address = await songbird.get_tipbot_address(winner.id);
       let playerwin_sgb_bal = await songbird.get_bal(playerwin_address);
-      if (playerwin_sgb_bal < 0.5) {
+      if (playerwin_sgb_bal < MIN_SGB) {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
       }
       let playerwin_astral_bal = await songbird.get_bal_astral(playerwin_address);
@@ -1298,39 +1367,47 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply({ ephemeral: true });
     //get bet info
     let bet_id = customId.split("-")[1];
-    let coinflip_info = await db.get_coinflip_pvp(bet_id);
+    let coinflip_info = await db.get_coinflip_pvh(bet_id);
     let player_random = interaction.fields.getTextInputValue("random");
     //if player 2, make sure player 2 doesn't exist yet
-    if (coinflip_info.player1.player_id !== user.id) {
+    if (coinflip_info.player_id !== user.id) {
       return await interaction.editReply("Error, only the creator of this game can play. Run the command yourself.");
+    }
+    if (coinflip_info.player_random) {
+      return await interaction.editReply("Error, player random has already been submitted.");
     }
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
     let player_address = await songbird.get_tipbot_address(coinflip_info.player_id);
     let player_sgb_bal = await songbird.get_bal(player_address);
-    if (player_sgb_bal < 0.5) {
+    if (player_sgb_bal < MIN_SGB) {
       disable_button_cfpvh();
-      await interaction.editReply(`Player 1 (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
-      return await interaction.followUp(`Player 1 (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
+      await interaction.editReply(`You (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
+      return await interaction.followUp(`Player (<@${coinflip_info.player_id}>) should deposit more SGB **into their tipbot wallet** to cover any gas fees.`);
     }
     let player_astral_bal = await songbird.get_bal_astral(player_address);
     if (player_astral_bal < coinflip_info.wager) {
       disable_button_cfpvh();
-      await interaction.editReply(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
-      return await interaction.followUp(`Player 1 (<@${coinflip_info.player1.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
+      await interaction.editReply(`You (<@${coinflip_info.player_id}>) do not have enough XAC **in your tipbot wallet** to cover the wager.`);
+      return await interaction.followUp(`Player (<@${coinflip_info.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
     }
-    //check player and house balance
-    //
+    //check house balance (bet amount + 10k for safety)
+    let house_address = await songbird.get_tipbot_address(0);
+    if (await songbird.get_bal(house_address) < MIN_SGB) {
+      return await interaction.editReply("House does not have enough SGB to pay for fees.");
+    } else if (await songbird.get_bal_astral(house_address) < 10000 + coinflip_info.wager) {
+      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
+    }
     //we know balances are enough, so go add player random
-    await db.add_coinflip_pvh_random(bet_id, user.id, player_random);
+    await db.add_coinflip_pvh_random(bet_id, player_random);
     coinflip_info = await db.get_coinflip_pvh(bet_id);
-    await interaction.editReply("Successfully joined bet and submitted your random input! Now just wait for the other player to submit theirs.");
+    await interaction.editReply("Successfully joined bet and submitted your random input!");
     await interaction.followUp(`<@${user.id}> submitted their random input, and the bet is being calculated!`);
     await sleep(3500);
     //disable button
     disable_button_cfpvh();
     //calculate result: hash, convert hash to number and calculate winner
     //hash should be 32 bytes
-    const cfpvh_hash = util.hash(Buffer.from(coinflip_info.random).toString("hex")+coinflip_info.server_nonce);
+    const cfpvh_hash = util.hash(Buffer.from(coinflip_info.player_random).toString("hex")+coinflip_info.server_nonce);
     const cfpvh_number = util.hex_to_bigint(cfpvh_hash);
     //determine winner.
     const decimal_two_places = Number((cfpvh_number*BigInt(100))/(BigInt(2)**BigInt(256)))/100;
@@ -1352,7 +1429,7 @@ client.on('interactionCreate', async interaction => {
       if (coinflip_info.pick === "heads") {
         //player 1 wins
         won = true;
-      } else if (coinflip_info.pick === "tails"){
+      } else if (coinflip_info.pick === "tails") {
         //house wins
         won = false;
       }
@@ -1360,17 +1437,21 @@ client.on('interactionCreate', async interaction => {
     //send tx
     let tx;
     try {
-      tx = await songbird.user_withdraw_astral(loser.id, playerwin_address, coinflip_info.wager);
+      if (won) {
+        tx = await songbird.user_withdraw_astral(0, player_address, coinflip_info.wager);
+      } else {
+        tx = await songbird.user_withdraw_astral(coinflip_info.player_id, house_address, coinflip_info.wager);
+      }
     } catch (e) {
       console.log(e);
-      return await interaction.followUp(`<@${winner.id}> won, but send from <@${loser.id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
+      return await interaction.followUp(`${ won ? "The player" : "The house" } won, but send from the loser (${ won ? "the player" : "the house" }) to the winner failed for some reason. This shouldn't happen. Contact admin.`);
     }
     //send result: winner, players, each player's random input, reveal server nonce, tx
     let coinflip_result_embed = new discord.EmbedBuilder();
     coinflip_result_embed.setTitle("A coin has been flipped...");
     coinflip_result_embed.setColor("#e07c35");
     coinflip_result_embed.setDescription(`**It's ${result.toUpperCase()}!
-**\n** ${ won ? `<@${winner.id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${winner.id}> lost ${coinflip_info.wager} XAC in a bet against the house!` } [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
+**\n**${ won ? `<@${coinflip_info.player_id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${coinflip_info.player_id}> lost ${coinflip_info.wager} XAC in a bet against the house!` }** [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
     coinflip_result_embed.addFields([
       {
         name: "Flip Result",
@@ -1386,7 +1467,7 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "Player Random",
-        value: "`"+coinflip_info.player1.random+"`",
+        value: "`"+coinflip_info.player_random+"`",
       },
     ]);
     if (result === "Heads") {

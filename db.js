@@ -9,6 +9,7 @@ let users;
 let linked_websites;
 let domains;
 let coinflip_pvp;
+let coinflip_pvh;
 
 let ready = false;
 
@@ -21,6 +22,7 @@ db.then((db) => {
   linked_websites = db.collection("linked_websites");
   domains = db.collection("domains");
   coinflip_pvp = db.collection("coinflip_pvp");
+  coinflip_pvh = db.collection("coinflip_pvh");
 });
 
 setTimeout(function() {
@@ -200,6 +202,10 @@ async function get_next_claim_time(address) {
   };
 }
 
+async function get_all_users() {
+  return await (await users.find()).toArray();
+}
+
 async function get_user_by_address(address) {
   //return address
   return await users.findOne({
@@ -370,16 +376,30 @@ async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
   return true;
 }
 
-async function add_coinflip_pvh() {
-  //
+async function add_coinflip_pvh(interaction_id, player_id, wager, server_nonce, pick) {
+  await coinflip_pvh.insertOne({
+    bet_id: interaction_id,
+    pick, //player's pick of 'heads' or 'tails'
+    player_id,
+    wager,
+    server_nonce,
+  });
 }
 
-async function add_coinflip_pvh_random() {
-  //
+async function get_coinflip_pvh(bet_id) {
+  return await coinflip_pvh.findOne({
+    bet_id,
+  });
 }
 
-async function get_coinflip_pvh() {
-  //
+//could be one db call but whatever
+async function add_coinflip_pvh_random(bet_id, player_random) {
+  let coinflip_info = await get_coinflip_pvh(bet_id);
+  coinflip_info.player_random = player_random;
+  await coinflip_pvh.replaceOne({
+    bet_id,
+  }, coinflip_info);
+  return true;
 }
 
 module.exports = {
@@ -389,6 +409,7 @@ module.exports = {
   get_faucet_stats,
   get_claims_this_month,
   get_next_claim_time,
+  get_all_users,
   get_user_by_address,
   get_user,
   register_user,
