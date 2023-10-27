@@ -825,7 +825,7 @@ client.on('interactionCreate', async interaction => {
         receiver = "`"+address+"`";
       } else if (target) {
         target = target.user;
-        if (to_tipbot.value) {
+        if (to_tipbot?.value) {
           tx = await songbird.send_astral(await songbird.get_tipbot_address(target.id), amount);
           if (!tx) {
             return interaction.editReply("Failed, send error. Perhaps not enough balance?");
@@ -1446,6 +1446,9 @@ client.on('interactionCreate', async interaction => {
       console.log(e);
       return await interaction.followUp(`${ won ? "The player" : "The house" } won, but send from the loser (${ won ? "the player" : "the house" }) to the winner failed for some reason. This shouldn't happen. Contact admin.`);
     }
+    const attachment = new discord.AttachmentBuilder("https://cdn.discordapp.com/attachments/1087903395962179646/1166130952255324220/Flip.gif", { name: "spin.gif" });
+    let followMessage = await interaction.followUp({ content: "The coin is being flipped...", files: [attachment] });
+    await sleep(3500);
     //send result: winner, players, each player's random input, reveal server nonce, tx
     let coinflip_result_embed = new discord.EmbedBuilder();
     coinflip_result_embed.setTitle("A coin has been flipped...");
@@ -1471,12 +1474,12 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     if (result === "Heads") {
-      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538417553408/Heads.gif");
+      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1166134493749452831/Heads2.gif");
     } else {
-      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
+      coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1166134493388734534/Tails2.gif");
     }
     coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvh\`" });
-    return await interaction.followUp({ embeds: [coinflip_result_embed] });
+    return await followMessage.edit({ content: "", files: [], embeds: [coinflip_result_embed] });
   }
 });
 
