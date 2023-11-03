@@ -584,6 +584,9 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "tip") {
     await interaction.deferReply();
     let target = (await params.get("target")).user;
+    if (target.id === user.id) {
+      return await interaction.editReply("Failed, cannot tip yourself.");
+    }
     let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
     if (amount <= 0) {
       return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
@@ -749,7 +752,7 @@ client.on('interactionCreate', async interaction => {
     let coinflip_start_embed = new discord.EmbedBuilder();
     coinflip_start_embed.setTitle("Coinflip against the House!");
     coinflip_start_embed.setColor("#2ae519");
-    coinflip_start_embed.setDescription(`You (<@${user.id}>) have selected **${pick.toUpperCase()}**${ pick === "heads" ? " <:Heads:1157086933495840868>" : " <:Tails:1157086940777164942>" }\n\nNow you just need to click the button below to complete the bet.`);
+    coinflip_start_embed.setDescription(`You (<@${user.id}>) have selected **${pick.toUpperCase()}**${ pick === "heads" ? " <:Heads2:1167286494046720041>" : " <:Tails2:1167286498593345557>" }\n\nNow you just need to click the button below to complete the bet.`);
     coinflip_start_embed.addFields([
       {
         name: "Wager Amount",
@@ -776,6 +779,84 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "provably_fair_pvh") {
     //explain why the pvh game is provably fair. but for now...
     return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvh.js");
+  } else if (command === "crawl") {
+    //while not an admin id guarded command, mkzi still has this command hidden for most non-admin people and channels
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      let address = (await params.get("address")).value.toLowerCase().trim();
+      let known_only = (await params.get("known_only")).value;
+      let address_valid;
+      try {
+        address_valid = songbird.is_valid(address);
+      } catch (e) {
+        address_valid = false;
+      }
+      if (!address_valid) {
+        return await interaction.editReply(`Invalid address \`${address}\` provided`);
+      }
+      let associates = await songbird.find_associated(address);
+      //sort associates
+      //probably, not everything needs to be sorted
+      let sorted_associates = Object.entries(associates).sort((a, b) => b[1] - a[1]);
+      let content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
+      let current_count = 0;
+      let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
+      for (let i=0; i < sorted_associates.length; i++) {
+        //if known_only is true, more than 25 can be displayed
+        if (current_count === 25 && !known_only) break;
+        let found_user = await db.get_user_by_address(sorted_associates[i][0]);
+        if (found_user && !ignore_list.includes(sorted_associates[i][0])) {
+          content += `<@${found_user.user}> (${sorted_associates[i][0]}): ${sorted_associates[i][1]} transactions\n`;
+        } else if (known_only) {
+          //skip
+          continue;
+        } else {
+          content += `${sorted_associates[i][0]}: ${sorted_associates[i][1]} transactions\n`;
+        }
+        current_count++;
+      }
+      if (content.length > 2000) {
+        const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address}.txt` });
+        return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+      }
+      return await interaction.editReply(content);
+    } catch (e) {
+      console.log(e);
+      return await interaction.editReply("Encountered error");
+    }
+  } else if (command === "crawl_shared_txs") {
+    //while not an admin id guarded command, mkzi still has this command hidden for most non-admin people and channels
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      let address1 = (await params.get("address1")).value.toLowerCase().trim();
+      let address2 = (await params.get("address2")).value.toLowerCase().trim();
+      let address_valid;
+      try {
+        address_valid = songbird.is_valid(address1) && songbird.is_valid(address2);
+      } catch (e) {
+        address_valid = false;
+      }
+      if (!address_valid) {
+        return await interaction.editReply("Invalid address provided");
+      }
+      let shared_txs = await songbird.find_shared_txs(address1, address2);
+      if (shared_txs.length === 0) {
+        return await interaction.editReply("Did not find any");
+      } else {
+        let content = "**Shared TXs**\n";
+        for (let i=0; i < shared_txs.length; i++) {
+          content += `- [${shared_txs[i]}](<https://songbird-explorer.flare.network/tx/${shared_txs[i]}>)\n`;
+        }
+        if (content.length > 2000) {
+          const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address1}_${address2}.txt` });
+          return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+        }
+        return await interaction.editReply(content);
+      }
+    } catch (e) {
+      console.log(e);
+      return await interaction.editReply("Encountered error");
+    }
   }
 
   //admin command
@@ -930,82 +1011,6 @@ client.on('interactionCreate', async interaction => {
       let all_domains = await db.get_all_domains();
       const domains_attachment = new discord.AttachmentBuilder(Buffer.from(JSON.stringify(all_domains)), { name: "domains_airdrop.json" });
       return await interaction.editReply({ files: [ domains_attachment ] })
-    } else if (command === "crawl") {
-      await interaction.deferReply({ ephemeral: true });
-      try {
-        let address = (await params.get("address")).value.toLowerCase().trim();
-        let known_only = (await params.get("known_only")).value;
-        let address_valid;
-        try {
-          address_valid = songbird.is_valid(address);
-        } catch (e) {
-          address_valid = false;
-        }
-        if (!address_valid) {
-          return await interaction.editReply(`Invalid address \`${address}\` provided`);
-        }
-        let associates = await songbird.find_associated(address);
-        //sort associates
-        //probably, not everything needs to be sorted
-        let sorted_associates = Object.entries(associates).sort((a, b) => b[1] - a[1]);
-        let content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
-        let current_count = 0;
-        let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
-        for (let i=0; i < sorted_associates.length; i++) {
-          //if known_only is true, more than 25 can be displayed
-          if (current_count === 25 && !known_only) break;
-          let found_user = await db.get_user_by_address(sorted_associates[i][0]);
-          if (found_user && !ignore_list.includes(sorted_associates[i][0])) {
-            content += `<@${found_user.user}> (${sorted_associates[i][0]}): ${sorted_associates[i][1]} transactions\n`;
-          } else if (known_only) {
-            //skip
-            continue;
-          } else {
-            content += `${sorted_associates[i][0]}: ${sorted_associates[i][1]} transactions\n`;
-          }
-          current_count++;
-        }
-        if (content.length > 2000) {
-          const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address}.txt` });
-          return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
-        }
-        return await interaction.editReply(content);
-      } catch (e) {
-        console.log(e);
-        return await interaction.editReply("Encountered error");
-      }
-    } else if (command === "crawl_shared_txs") {
-      await interaction.deferReply({ ephemeral: true });
-      try {
-        let address1 = (await params.get("address1")).value.toLowerCase().trim();
-        let address2 = (await params.get("address2")).value.toLowerCase().trim();
-        let address_valid;
-        try {
-          address_valid = songbird.is_valid(address1) && songbird.is_valid(address2);
-        } catch (e) {
-          address_valid = false;
-        }
-        if (!address_valid) {
-          return await interaction.editReply("Invalid address provided");
-        }
-        let shared_txs = await songbird.find_shared_txs(address1, address2);
-        if (shared_txs.length === 0) {
-          return await interaction.editReply("Did not find any");
-        } else {
-          let content = "**Shared TXs**\n";
-          for (let i=0; i < shared_txs.length; i++) {
-            content += `- [${shared_txs[i]}](<https://songbird-explorer.flare.network/tx/${shared_txs[i]}>)\n`;
-          }
-          if (content.length > 2000) {
-            const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address1}_${address2}.txt` });
-            return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
-          }
-          return await interaction.editReply(content);
-        }
-      } catch (e) {
-        console.log(e);
-        return await interaction.editReply("Encountered error");
-      }
     }
   }
 });
@@ -1153,7 +1158,7 @@ client.on('interactionCreate', async interaction => {
     let bet_id = customId.split("-")[1];
     let coinflip_info = await db.get_coinflip_pvp(bet_id);
     if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
-      return await interaction.reply({ ephemeral: true, content: "You have already submitted your random input." });
+      return await interaction.editReply({ ephemeral: true, content: "You have already submitted your random input." });
     }
     //if player 2, make sure player 2 doesn't exist yet
     if (coinflip_info.player1.player_id !== user.id && coinflip_info.player2) {
@@ -1193,7 +1198,7 @@ client.on('interactionCreate', async interaction => {
       let player2_address = await songbird.get_tipbot_address(user.id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
       if (player2_sgb_bal < MIN_SGB) {
-        return await interaction.editReply("You should deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).");
+        return await interaction.editReply(`You should deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
       }
       let player2_astral_bal = await songbird.get_bal_astral(player2_address);
       if (player2_astral_bal < coinflip_info.wager) {
@@ -1201,9 +1206,14 @@ client.on('interactionCreate', async interaction => {
       }
     }
     //we know balances are enough, so go add player random (if player2, it will create automatically)
-    await interaction.editReply("Successfully joined bet. Now just wait for the other player.");
     let player_random = (await interaction.followUp(`<@${user.id}> joined the bet!`)).id;
-    await db.add_coinflip_pvp_random(bet_id, user.id, String(player_random));
+    const insert_result = await db.add_coinflip_pvp_random(bet_id, user.id, String(player_random));
+    //I think when it fails insert_result === false but hey
+    if (insert_result?.modifiedCount !== 1) {
+      //player 2 already exists
+      return await interaction.editReply("There are already two players in this game (or you tried to join a game twice), so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one.");
+    }
+    await interaction.editReply("Successfully joined bet. Now just wait for the other player.");
     //if both player 1 and player 2's randoms exist
     coinflip_info = await db.get_coinflip_pvp(bet_id);
     if (coinflip_info.player1.random && coinflip_info.player2?.random) {
@@ -1398,7 +1408,12 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
     }
     //we know balances are enough, so go add player random
-    await db.add_coinflip_pvh_random(bet_id, player_random);
+    const insert_result = await db.add_coinflip_pvh_random(bet_id, player_random);
+    //I think when it fails insert_result === false but hey
+    if (insert_result?.modifiedCount !== 1) {
+      //player already joined
+      return await interaction.editReply("This bet is already in progress, probably (you probably clicked the button twice). Make a new bet to play twice.");
+    }
     coinflip_info = await db.get_coinflip_pvh(bet_id);
     await interaction.editReply("Successfully joined bet and submitted your random input!");
     await interaction.followUp(`<@${user.id}> submitted their random input, and the bet is being calculated!`);

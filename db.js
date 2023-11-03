@@ -361,19 +361,39 @@ async function get_coinflip_pvp(bet_id) {
 async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
   let coinflip_info = await get_coinflip_pvp(bet_id);
   if (coinflip_info.player1.player_id === player_id) {
-    coinflip_info.player1.random = player_random;
+    return await coinflip_pvp.updateOne(
+      {
+        bet_id,
+        "player1.random": {
+          $exists: false,
+        },
+      },
+      {
+        $set: {
+          "player1.random": player_random,
+        },
+      }
+    );
   } else {
     if (coinflip_info.player2) return false;
     //Create player2
-    coinflip_info.player2 = {
-      player_id: player_id,
-      random: player_random
-    };
+    return await coinflip_pvp.updateOne(
+      {
+        bet_id,
+        player2: {
+          $exists: false,
+        },
+      },
+      {
+        $set: {
+          player2: {
+            player_id: player_id,
+            random: player_random,
+          },
+        },
+      }
+    );
   }
-  await coinflip_pvp.replaceOne({
-    bet_id,
-  }, coinflip_info);
-  return true;
 }
 
 async function add_coinflip_pvh(interaction_id, player_id, wager, server_nonce, pick) {
@@ -394,12 +414,19 @@ async function get_coinflip_pvh(bet_id) {
 
 //could be one db call but whatever
 async function add_coinflip_pvh_random(bet_id, player_random) {
-  let coinflip_info = await get_coinflip_pvh(bet_id);
-  coinflip_info.player_random = player_random;
-  await coinflip_pvh.replaceOne({
-    bet_id,
-  }, coinflip_info);
-  return true;
+  return await coinflip_pvh.updateOne(
+    {
+      bet_id,
+      player_random: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        player_random,
+      },
+    }
+  );
 }
 
 module.exports = {
