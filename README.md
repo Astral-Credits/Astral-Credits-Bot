@@ -1,6 +1,8 @@
 # Astral-Credits-Bot
 Bot made for and commissioned by the Astral Credits Discord server by [Prussia](https://github.com/jetstream0)
 
+Please not that I (jetstream0) do not hold any of the copyright for anything in the `/assets_compressed` directory. That belongs to MKZI.
+
 **GENERAL COMMANDS:**
 
 `/help`
@@ -40,6 +42,15 @@ Check the current balance of your Tipbot Wallet.
 
 `/tip`
 Send XAC to another community member.
+
+`/coinflip_pvp`
+Play provably fair coinflip against other players.
+
+`/coinflip_pvh`
+Play provably fair coinflip against the house.
+
+`/supported`
+See all supported tipbot currencies.
 
 **ADMIN ONLY COMMANDS:**
 

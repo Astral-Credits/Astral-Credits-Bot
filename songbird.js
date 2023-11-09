@@ -2,6 +2,42 @@ const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
 
 const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
+const { erc20_abi, erc1155_abi, domains_abi, sgb_domain_abi } = require('./abi.js');
+
+const SUPPORTED_INFO = {
+  "sgb": {
+    //no token address, ofc
+    "id": "sgb",
+    "name": "Songbird",
+    "emoji": "<:SGB:1130360963636408350>",
+  },
+  "xac": {
+    "id": "xac",
+    "name": "Astral Credits",
+    "emoji": "<:astral_creds:1000992673341120592>",
+    "token_address": "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723",
+  },
+  "bbx": {
+    "id": "bbx",
+    "name": "BlueBirdX",
+    "emoji": "<:BBX:1142960050273521765>",
+    "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
+  },
+  "sphx": {
+    "id": "sphx",
+    "name": "Songbird Phoenix",
+    "emoji": "<:sPHX:1130346027497558126>",
+    "token_address": "0x7afDe1497da4AeDecFaf6CC32FB0D83572C10426",
+  },
+  "fthr": {
+    "id": "fthr",
+    "name": "FeatherSwap",
+    "emoji": "<:FTHR:1152030938793005076>",
+    "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
+  },
+};
+
+let SUPPORTED = Object.keys(SUPPORTED_INFO);
 
 const provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
 
@@ -16,180 +52,6 @@ faucet_wallet = faucet_wallet.connect(provider);
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
-
-const erc20_abi = [
-  {
-    "constant": false,
-    "inputs": [
-      {
-        "name": "_to",
-        "type": "address"
-      },
-      {
-        "name": "_value",
-        "type": "uint256"
-      }
-    ],
-    "name": "transfer",
-    "outputs": [],
-    "payable": false,
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "constant": true,
-    "inputs": [
-      {
-        "name": "who",
-        "type": "address"
-      }
-    ],
-    "name": "balanceOf",
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "payable": false,
-    "stateMutability": "view",
-    "type": "function"
-  }
-];
-
-const erc1155_abi = [
-  {
-		"inputs": [
-			{
-				"internalType": "address[]",
-				"name": "accounts",
-				"type": "address[]"
-			},
-			{
-				"internalType": "uint256[]",
-				"name": "ids",
-				"type": "uint256[]"
-			}
-		],
-		"name": "balanceOfBatch",
-		"outputs": [
-			{
-				"internalType": "uint256[]",
-				"name": "",
-				"type": "uint256[]"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	}
-];
-
-const domains_abi = [
-  {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "string",
-        "name": "name",
-        "internalType": "string"
-      },
-      {
-        "type": "uint256",
-        "name": "tokenId",
-        "internalType": "uint256"
-      },
-      {
-        "type": "address",
-        "name": "holder",
-        "internalType": "address"
-      },
-      {
-        "type": "string",
-        "name": "data",
-        "internalType": "string"
-      }
-    ],
-    "name": "domains",
-    "inputs": [
-      {
-        "type": "string",
-        "name": "",
-        "internalType": "string"
-      }
-    ]
-  }
-];
-
-const sgb_domain_abi = [
-  {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "string",
-        "name": "",
-        "internalType": "string"
-      }
-    ],
-    "name": "getDefaultDomain",
-    "inputs": [
-      {
-        "type": "address",
-        "name": "_addr",
-        "internalType": "address"
-      },
-      {
-        "type": "string",
-        "name": "_tld",
-        "internalType": "string"
-      }
-    ]
-  },
-  {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "string",
-        "name": "",
-        "internalType": "string"
-      }
-    ],
-    "name": "getDefaultDomains",
-    "inputs": [
-      {
-        "type": "address",
-        "name": "_addr",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "function",
-    "stateMutability": "view",
-    "outputs": [
-      {
-        "type": "address",
-        "name": "",
-        "internalType": "address"
-      }
-    ],
-    "name": "getDomainHolder",
-    "inputs": [
-      {
-        "type": "string",
-        "name": "_domainName",
-        "internalType": "string"
-      },
-      {
-        "type": "string",
-        "name": "_tld",
-        "internalType": "string"
-      }
-    ]
-  }
-];
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
@@ -217,12 +79,32 @@ if (hex_to_bigint(process.env.tipbot_derive_privkey)+BigInt(256)**BigInt(8) > Bi
 
 //get songbird balance
 async function get_bal(address) {
-  return ethers.utils.formatEther(await provider.getBalance(address));
+  return Number(ethers.utils.formatEther(await provider.getBalance(address)));
 }
 
 async function get_bal_astral(address) {
   let astral_bal = await astral_token.balanceOf(address);
   return Number(ethers.utils.formatUnits(astral_bal.toString(), 18));
+}
+
+async function get_bal_generic_tokens(address) {
+  let resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokenlist&address=${address}`);
+  resp = await resp.json();
+  if (resp.result) {
+    let token_list = {};
+    for (let i=0; i < resp.result.length; i++) {
+      //sgb does not have token_address
+      let found_token = Object.values(SUPPORTED_INFO).find((c) => c.token_address?.toLowerCase() === resp.result[i].contractAddress);
+      if (found_token) {
+        token_list[found_token.id] = Number(ethers.utils.formatUnits(resp.result[i].balance, Number(resp.result[i].decimals)));
+      }
+    }
+    return token_list;
+  } else {
+    //shouldn't really happen I think
+    console.log("could not get token balance", address);
+    return {};
+  }
 }
 
 //tipbot/coinflip functions
@@ -264,11 +146,24 @@ async function user_withdraw_astral(user_id, address, amount) {
   }
 }
 
+//withdraw any supported erc20 by name
+async function user_withdraw_generic_token(user_id, address, amount, currency) {
+  amount = ethers.utils.parseUnits(String(amount), 18);
+  let derived_wallet = await derive_wallet(user_id);
+  let derived_generic_token = new ethers.Contract(SUPPORTED_INFO[currency].token_address, erc20_abi, derived_wallet);
+  try {
+    return await derived_generic_token.transfer(address, amount);
+  } catch (e) {
+    //console.log(e);
+    return false;
+  }
+}
+
 //check if they hold enough wrapped songbird or songbird to use the faucet
 async function enough_balance(address, holding_requirement) {
   let wrapped_bal = await wrapped_songbird_token.balanceOf(address);
   wrapped_bal = Number(ethers.utils.formatUnits(wrapped_bal.toString(), 18));
-  let reg_bal = Number(await get_bal(address));
+  let reg_bal = await get_bal(address);
   return {
     success: wrapped_bal >= holding_requirement || reg_bal >= holding_requirement,
     wrapped_sgb_bal: wrapped_bal,
@@ -478,11 +373,14 @@ async function lookup_domain_owner(domain) {
 }
 
 module.exports = {
+  SUPPORTED,
+  SUPPORTED_INFO,
   HOLDING_BLOCK_TIME,
   get_liquidity_blaze,
   enough_balance,
   get_bal,
   get_bal_astral,
+  get_bal_generic_tokens,
   aged_enough,
   holds_aged_nfts,
   send_astral,
@@ -493,6 +391,7 @@ module.exports = {
   get_tipbot_address,
   user_withdraw_songbird,
   user_withdraw_astral,
+  user_withdraw_generic_token,
   check_domain_owned,
   find_associated,
   find_shared_txs,

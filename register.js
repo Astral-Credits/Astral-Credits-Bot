@@ -7,28 +7,28 @@ dotenv.config();
 //3: STRING
 const commands = [
   {
-    name: 'help',
-    description: 'Get list of commands for this bot',
+    name: "help",
+    description: "Get list of commands for this bot",
     options: []
   },
 	{
-    name: 'price',
-    description: 'Get Astral Credits price data',
+    name: "price",
+    description: "Get Astral Credits price data",
     options: []
   },
   {
-    name: 'pools',
-    description: 'Get Astral Credits pools',
+    name: "pools",
+    description: "Get Astral Credits pools",
     options: []
   },
   {
-    name: 'faucet_stats',
-    description: 'Get some neat faucet metrics',
+    name: "faucet_stats",
+    description: "Get some neat faucet metrics",
     options: []
   },
   {
-    name: 'next_claim',
-    description: 'See if your next faucet claim is ready',
+    name: "next_claim",
+    description: "See if your next faucet claim is ready",
     options: [
       {
         type: 3,
@@ -39,8 +39,8 @@ const commands = [
     ]
   },
   {
-    name: 'register',
-    description: 'Register your address with the bot',
+    name: "register",
+    description: "Register your address with the bot",
     options: [
       {
         type: 3,
@@ -51,14 +51,14 @@ const commands = [
     ]
   },
   {
-    name: 'faucet',
-    description: 'Use the XAC faucet!'
+    name: "faucet",
+    description: "Use the XAC faucet!"
   },
   {
-    name: 'send',
+    name: "send",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'Send XAC to discord user or address (admin only)',
+    description: "Send XAC to discord user or address (admin only)",
     options: [
       {
         type: 10,
@@ -87,10 +87,10 @@ const commands = [
     ]
   },
   {
-    name: 'change_register',
+    name: "change_register",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'Change the registered address of an user (admin only)',
+    description: "Change the registered address of an user (admin only)",
     options: [
       {
         type: 6,
@@ -107,8 +107,8 @@ const commands = [
     ]
   },
   {
-    name: 'domain',
-    description: 'Get a free Songbird Domain name! (a .sgb)',
+    name: "domain",
+    description: "Get a free Songbird Domain name! (a .sgb)",
     options: [
       {
         type: 3,
@@ -119,10 +119,10 @@ const commands = [
     ]
   },
   {
-    name: 'view_addresses',
+    name: "view_addresses",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'View addresses of an user (admin only)',
+    description: "View addresses of an user (admin only)",
     options: [
       {
         type: 6,
@@ -133,8 +133,8 @@ const commands = [
     ]
   },
   {
-    name: 'add_website',
-    description: 'Link a website to your address, for the XAC pixel billboard',
+    name: "add_website",
+    description: "Link a website to your address, for the XAC pixel billboard",
     options: [
       {
         type: 3,
@@ -145,10 +145,10 @@ const commands = [
     ]
   },
   {
-    name: 'remove_linked_website',
+    name: "remove_linked_website",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'Remove linked website of user (admin only)',
+    description: "Remove linked website of user (admin only)",
     options: [
       {
         type: 6,
@@ -159,10 +159,10 @@ const commands = [
     ]
   },
   {
-    name: 'list_role',
+    name: "list_role",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'List all users with a role',
+    description: "List all users with a role",
     options: [
       {
         type: 8,
@@ -179,22 +179,26 @@ const commands = [
     ]
   },
   {
-    name: 'export_domains',
+    name: "export_domains",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'Export the airdrop snapshot domains as a JSON file'
+    description: "Export the airdrop snapshot domains as a JSON file"
   },
   {
-    name: 'deposit',
-    description: 'Shows your tipbot/gaming deposit address'
+    name: "deposit",
+    description: "Shows your tipbot/gaming deposit address"
   },
   {
-    name: 'balance',
-    description: 'Shows your tipbot/gaming balance'
+    name: "balance",
+    description: "Shows your tipbot/gaming balance"
   },
   {
-    name: 'withdraw',
-    description: 'Withdraw your tipbot/gaming balance',
+    name: "supported",
+    description: "See all supported currencies of the tipbot"
+  },
+  {
+    name: "withdraw",
+    description: "Withdraw your tipbot/gaming balance",
     options: [
       {
         type: 3,
@@ -217,13 +221,13 @@ const commands = [
     ]
   },
   {
-    name: 'tip',
-    description: 'Tip XAC from your tipbot/gaming address to another user',
+    name: "tip",
+    description: "Tip XAC or another currency from your tipbot/gaming address to another user",
     options: [
       {
         type: 10,
         name: "amount",
-        description: "Amount of XAC to tip",
+        description: "Amount of currency to tip",
         required: true
       },
       {
@@ -231,14 +235,21 @@ const commands = [
         name: "target",
         description: "@ mention of user to give tip to",
         required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
       }
     ]
   },
   {
-    name: 'crawl',
+    name: "crawl",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'See connections between addresses',
+    description: "See connections between addresses",
     options: [
       {
         type: 3,
@@ -255,10 +266,10 @@ const commands = [
     ]
   },
   {
-    name: 'crawl_shared_txs',
+    name: "crawl_shared_txs",
     //admin only
     default_member_permissions: String(268435456),
-    description: 'Find txs between two addresses',
+    description: "Find txs between two addresses",
     options: [
       {
         type: 3,
@@ -275,8 +286,8 @@ const commands = [
     ]
   },
   {
-    name: 'coinflip_pvp',
-    description: 'Wager some XAC in a game of chance against other members!',
+    name: "coinflip_pvp",
+    description: "Wager some XAC in a game of chance against other members!",
     options: [
       {
         type: 4,
@@ -293,8 +304,8 @@ const commands = [
     ]
   },
   {
-    name: 'coinflip_pvh',
-    description: 'Wager some XAC in a game of chance against the house!',
+    name: "coinflip_pvh",
+    description: "Wager some XAC in a game of chance against the house!",
     options: [
       {
         type: 4,
@@ -311,27 +322,27 @@ const commands = [
     ]
   },
   {
-    name: 'provably_fair_pvp',
-    description: 'Get some explanation and code for the provably fair pvp coinflip game'
+    name: "provably_fair_pvp",
+    description: "Get some explanation and code for the provably fair pvp coinflip game"
   },
   {
-    name: 'provably_fair_pvh',
-    description: 'Get some explanation and code for the provably fair pvh coinflip game'
+    name: "provably_fair_pvh",
+    description: "Get some explanation and code for the provably fair pvh coinflip game"
   }
 ];
 
-const rest = new REST({ version: '9' }).setToken(process.env.token);
+const rest = new REST({ version: "9" }).setToken(process.env.token);
 
 (async () => {
   try {
-    console.log('Started refreshing application (/) commands.');
+    console.log("Started refreshing application (/) commands.");
 
     await rest.put(
-      Routes.applicationGuildCommands('1087862421290492019', '1000985457393422367'),
+      Routes.applicationGuildCommands("1087862421290492019", "1000985457393422367"),
       { body: commands },
     );
 
-    console.log('Successfully reloaded application (/) commands.');
+    console.log("Successfully reloaded application (/) commands.");
   } catch (error) {
     console.error(error);
   }

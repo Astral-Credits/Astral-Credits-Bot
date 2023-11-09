@@ -1,0 +1,180 @@
+const erc20_abi = [
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_to",
+        "type": "address"
+      },
+      {
+        "name": "_value",
+        "type": "uint256"
+      }
+    ],
+    "name": "transfer",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "who",
+        "type": "address"
+      }
+    ],
+    "name": "balanceOf",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  }
+];
+
+const erc1155_abi = [
+  {
+		"inputs": [
+			{
+				"internalType": "address[]",
+				"name": "accounts",
+				"type": "address[]"
+			},
+			{
+				"internalType": "uint256[]",
+				"name": "ids",
+				"type": "uint256[]"
+			}
+		],
+		"name": "balanceOfBatch",
+		"outputs": [
+			{
+				"internalType": "uint256[]",
+				"name": "",
+				"type": "uint256[]"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	}
+];
+
+const domains_abi = [
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "name",
+        "internalType": "string"
+      },
+      {
+        "type": "uint256",
+        "name": "tokenId",
+        "internalType": "uint256"
+      },
+      {
+        "type": "address",
+        "name": "holder",
+        "internalType": "address"
+      },
+      {
+        "type": "string",
+        "name": "data",
+        "internalType": "string"
+      }
+    ],
+    "name": "domains",
+    "inputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ]
+  }
+];
+
+const sgb_domain_abi = [
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ],
+    "name": "getDefaultDomain",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_addr",
+        "internalType": "address"
+      },
+      {
+        "type": "string",
+        "name": "_tld",
+        "internalType": "string"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "string",
+        "name": "",
+        "internalType": "string"
+      }
+    ],
+    "name": "getDefaultDomains",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_addr",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "address",
+        "name": "",
+        "internalType": "address"
+      }
+    ],
+    "name": "getDomainHolder",
+    "inputs": [
+      {
+        "type": "string",
+        "name": "_domainName",
+        "internalType": "string"
+      },
+      {
+        "type": "string",
+        "name": "_tld",
+        "internalType": "string"
+      }
+    ]
+  }
+];
+
+module.exports = {
+  erc20_abi,
+  erc1155_abi,
+  domains_abi,
+  sgb_domain_abi,
+};
