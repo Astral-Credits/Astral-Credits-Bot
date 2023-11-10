@@ -88,6 +88,17 @@ client.on('interactionCreate', async interaction => {
   let params = interaction.options;
   let user = interaction.user;
 
+  if (interaction.isAutocomplete()) {
+    if (command === "tip") {
+      const focused_option = interaction.options.getFocused(true);
+      if (focused_option.name === "currency") {
+        return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
+      } else {
+        return;
+      }
+    }
+  }
+
   //
 
   if (command === "help") {
@@ -146,7 +157,7 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "/tip",
-        value: "Tip other users XAC from your tipbot/game balance"
+        value: "Tip other users XAC and other currencies from your tipbot/game balance"
       },
       {
         name: "/coinflip_pvp",
@@ -470,35 +481,64 @@ client.on('interactionCreate', async interaction => {
     } else {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address, files: [attachment] });
     }
+  } else if (command === "supported") {
+    let embeds = [];
+    //25 fields max per embed
+    for (let i=0; i < Math.ceil(songbird.SUPPORTED.length / 25); i++) {
+      let supported_embed = new discord.EmbedBuilder();
+      supported_embed.setColor("#0bb3dd");
+      if (i === 0) {
+        supported_embed.setTitle("Supported Currencies");
+        supported_embed.setDescription("These are the supported currencies of the tipbot:");
+      } else {
+        supported_embed.setTitle("Supported Currencies (cont.)");
+      }
+      supported_embed.addFields(songbird.SUPPORTED.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c}` })));
+      supported_embed.setFooter({ text: "zutomayo" });
+      embeds.push(supported_embed);
+    }
+    return await interaction.reply({ embeds, ephemeral: true });
   } else if (command === "balance") {
     await interaction.deferReply({ ephemeral: true });
     let user_address = await songbird.get_tipbot_address(user.id);
     let sgb_bal = await songbird.get_bal(user_address);
     let astral_bal = await songbird.get_bal_astral(user_address);
+    let generic_bals = await songbird.get_bal_generic_tokens(user_address);
+    delete generic_bals.xac;
+    let embeds = [];
     let bal_embed = new discord.EmbedBuilder();
     bal_embed.setColor("#7ad831");
     bal_embed.setTitle("View Balance");
     bal_embed.setDescription("This is your current balance for the Astral Credits Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.");
     bal_embed.addFields([
       {
-        name: "Songbird",
-        value: String(sgb_bal)+" <:SGB:1130360963636408350>",
+        name: "Songbird (sgb)",
+        //truncate if more than 5 decimals
+        value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" <:SGB:1130360963636408350>",
       },
       {
-        name: "Astral Credits",
-        value: String(astral_bal)+" <:astral_creds:1000992673341120592>",
+        name: "Astral Credits (xac)",
+        value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
       },
     ]);
+    if (Object.keys(generic_bals).length > 23) {
+      //need pagination and sorting or something
+      //
+    } else if (Object.keys(generic_bals).length > 0) {
+      //generic_bals
+      bal_embed.addFields(Object.keys(generic_bals).map((c) => ({ name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`, value: String(String(generic_bals[c]).split(".")[1]?.length > 5 ? generic_bals[c].toFixed(5) : generic_bals[c])+" "+songbird.SUPPORTED_INFO[c].emoji })));
+      bal_embed.setFooter({ text: "247 nishina" });
+    }
     bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
+    embeds.push(bal_embed);
     if (astral_bal > 500000 || sgb_bal > 2000) {
       let warning_embed = new discord.EmbedBuilder();
       warning_embed.setColor("#ff0000");
       warning_embed.setTitle("⚠️ WARNING - High balance detected!");
       warning_embed.setDescription("Your balance exceeds 500k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!")
-      return interaction.editReply({ embeds: [bal_embed, warning_embed] });
-    } else {
-      return interaction.editReply({ embeds: [bal_embed] });
+      embeds.push(warning_embed);
     }
+    return interaction.editReply({ embeds });
   } else if (command === "withdraw") {
     await interaction.deferReply({ ephemeral: true });
     //withdraw address
@@ -591,11 +631,17 @@ client.on('interactionCreate', async interaction => {
     if (amount <= 0) {
       return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
     }
+    let currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     let target_address = await songbird.get_tipbot_address(target.id);
     //send
     let send;
     try {
-      send = await songbird.user_withdraw_astral(user.id, target_address, amount);
+      if (currency === "sgb") {
+        send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
+      } else {
+        send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
+      }
     } catch (e) {
       //shouldn't happen
       console.log(e);
@@ -604,13 +650,13 @@ client.on('interactionCreate', async interaction => {
     if (!send) {
       return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
     }
-    await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
+    await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
     try {
       let receipt = await send.wait();
       if (!receipt || receipt?.status === 0) {
         return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
       } else {
-        return await interaction.editReply(`<@${user.id}> sent <:astral_creds:1000992673341120592> ${String(amount)} XAC to <@${target.id}>!\n\`txID:${send.hash}\``)
+        return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target.id}>!\n\`txID:${send.hash}\``)
       }
     } catch (e) {
       console.log(e);
@@ -717,10 +763,10 @@ client.on('interactionCreate', async interaction => {
     await interaction.deferReply();
     let wager = (await params.get("wager")).value;
     wager = Math.floor(wager);
-    if (wager < 1) {
-      return await interaction.editReply("Failed, cannot wager less than 1, 0, or negative XAC.");
-    } else if (wager > 10000) {
-      return await interaction.editReply("For now, wagers cannot be over ten thousand XAC.");
+    if (wager < 500) {
+      return await interaction.editReply("Failed, cannot wager less than 500 XAC.");
+    } else if (wager > 5000) {
+      return await interaction.editReply("Wagers cannot be over 5000 XAC.");
     }
     let pick = (await params.get("pick")).value.toLowerCase().trim();
     if (pick !== "heads" && pick !== "tails") {
@@ -740,8 +786,8 @@ client.on('interactionCreate', async interaction => {
     let house_address = await songbird.get_tipbot_address(0);
     if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
-    } else if (await songbird.get_bal_astral(house_address) < 10000 + wager) {
-      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
+    } else if (await songbird.get_bal_astral(house_address) < 5000 + wager) {
+      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 5k).");
     }
     //gen server nonce
     const server_nonce = util.gen_server_nonce();
@@ -1206,6 +1252,7 @@ client.on('interactionCreate', async interaction => {
       }
     }
     //we know balances are enough, so go add player random (if player2, it will create automatically)
+    await interaction.editReply("Joining bet...");
     let player_random = (await interaction.followUp(`<@${user.id}> joined the bet!`)).id;
     const insert_result = await db.add_coinflip_pvp_random(bet_id, user.id, String(player_random));
     //I think when it fails insert_result === false but hey
@@ -1404,8 +1451,8 @@ client.on('interactionCreate', async interaction => {
     let house_address = await songbird.get_tipbot_address(0);
     if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
-    } else if (await songbird.get_bal_astral(house_address) < 10000 + coinflip_info.wager) {
-      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 10k).");
+    } else if (await songbird.get_bal_astral(house_address) < 5000 + coinflip_info.wager) {
+      return await interaction.editReply("House does not have enough XAC to play (house needs wager + 5k).");
     }
     //we know balances are enough, so go add player random
     const insert_result = await db.add_coinflip_pvh_random(bet_id, player_random);
@@ -1461,7 +1508,7 @@ client.on('interactionCreate', async interaction => {
       console.log(e);
       return await interaction.followUp(`${ won ? "The player" : "The house" } won, but send from the loser (${ won ? "the player" : "the house" }) to the winner failed for some reason. This shouldn't happen. Contact admin.`);
     }
-    const attachment = new discord.AttachmentBuilder("https://cdn.discordapp.com/attachments/1087903395962179646/1166130952255324220/Flip.gif", { name: "spin.gif" });
+    const attachment = new discord.AttachmentBuilder("https://cdn.discordapp.com/attachments/1087903395962179646/1166130952255324220/Flip.gif", { name: "flip.gif" });
     let followMessage = await interaction.followUp({ content: "The coin is being flipped...", files: [attachment] });
     await sleep(3500);
     //send result: winner, players, each player's random input, reveal server nonce, tx
