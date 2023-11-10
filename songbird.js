@@ -17,12 +17,6 @@ const SUPPORTED_INFO = {
     "emoji": "<:astral_creds:1000992673341120592>",
     "token_address": "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723",
   },
-  "bbx": {
-    "id": "bbx",
-    "name": "BlueBirdX",
-    "emoji": "<:BBX:1142960050273521765>",
-    "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
-  },
   "sphx": {
     "id": "sphx",
     "name": "Songbird Phoenix",
@@ -34,6 +28,18 @@ const SUPPORTED_INFO = {
     "name": "FeatherSwap",
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
+  },
+    "bbx": {
+    "id": "bbx",
+    "name": "BlueBirdX",
+    "emoji": "<:BBX:1142960050273521765>",
+    "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
+  },
+    "nishi": {
+    "id": "nishi",
+    "name": "Nishicoin",
+    "emoji": "<:NISHI:1172309804677599263>",
+    "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
   },
 };
 
