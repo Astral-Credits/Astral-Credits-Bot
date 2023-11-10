@@ -96,6 +96,13 @@ client.on('interactionCreate', async interaction => {
       } else {
         return;
       }
+    } else if (command === "withdraw") {
+      const focused_option = interaction.options.getFocused(true);
+      if (focused_option.name === "currency") {
+        return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
+      } else {
+        return;
+      }
     }
   }
 
@@ -470,7 +477,7 @@ client.on('interactionCreate', async interaction => {
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit SGB or XAC. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play games.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit ${songbird.SUPPORTED.filter((c) => c !== "sgb").map((c) => c.toUpperCase()).join(", ")}, or SGB. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play games.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
@@ -566,15 +573,13 @@ client.on('interactionCreate', async interaction => {
     }
     //check options to see if user withdrawing sgb or xac
     let withdraw_currency = (await params.get("currency")).value.toLowerCase().trim();
-    if (withdraw_currency !== "sgb" && withdraw_currency !== "xac") {
-      return await interaction.editReply("Currency must be either `SGB` or `XAC`");
-    }
+    if (!songbird.SUPPORTED.includes(withdraw_currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     let send;
     try {
       if (withdraw_currency === "sgb") {
         send = await songbird.user_withdraw_songbird(user.id, withdraw_address, withdraw_amount);
-      } else if (withdraw_currency === "xac") {
-        send = await songbird.user_withdraw_astral(user.id, withdraw_address, withdraw_amount);
+      } else {
+        send = await songbird.user_withdraw_generic_token(user.id, withdraw_address, withdraw_amount, withdraw_currency);
       }
     } catch (e) {
       //shouldn't happen
@@ -596,7 +601,7 @@ client.on('interactionCreate', async interaction => {
       },
       {
         name: "Withdrawal Amount",
-        value: `${String(withdraw_amount)} ${withdraw_currency.toLowerCase() === "sgb" ? "<:SGB:1130360963636408350>" : "<:astral_creds:1000992673341120592>"}`,
+        value: `${String(withdraw_amount)} ${ withdraw_currency === "sgb" ? "<:SGB:1130360963636408350>" : songbird.SUPPORTED_INFO[withdraw_currency].emoji }`,
       },
     ]);
     await interaction.editReply({ embeds: [withdraw_embed] });

@@ -215,7 +215,8 @@ const commands = [
       {
         type: 3,
         name: "currency",
-        description: "Either 'XAC' or 'SGB'",
+        description: "Coin/token to send",
+        autocomplete: true,
         required: true
       }
     ]
