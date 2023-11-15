@@ -396,6 +396,22 @@ async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
   }
 }
 
+async function mark_coinflip_pvp_finished(bet_id) {
+  return await coinflip_pvp.updateOne(
+    {
+      bet_id,
+      finished: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        finished: true,
+      },
+    }
+  );
+}
+
 async function add_coinflip_pvh(interaction_id, player_id, wager, server_nonce, pick) {
   await coinflip_pvh.insertOne({
     bet_id: interaction_id,
@@ -452,6 +468,7 @@ module.exports = {
   add_coinflip_pvp,
   add_coinflip_pvp_random,
   get_coinflip_pvp,
+  mark_coinflip_pvp_finished,
   add_coinflip_pvh,
   add_coinflip_pvh_random,
   get_coinflip_pvh,
