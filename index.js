@@ -83,6 +83,38 @@ client.once('ready', async (info) => {
   }, 30*60*1000);
 });
 
+async function send_tip(interaction, user, target_id, amount, currency, type) {
+  let target_address = await songbird.get_tipbot_address(target_id);
+  //send
+  let send;
+  try {
+    if (currency === "sgb") {
+      send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
+    } else {
+      send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
+    }
+  } catch (e) {
+    //shouldn't happen
+    console.log(e);
+    return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
+  }
+  if (!send) {
+    return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+  }
+  await interaction.editReply(`Sending tip${type}...\nTx: <https://songbird-explorer.flare.network/tx/${send.hash}>`);
+  try {
+    let receipt = await send.wait();
+    if (!receipt || receipt?.status === 0) {
+      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+    } else {
+      return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://songbird-explorer.flare.network/tx/${send.hash}>)`);
+    }
+  } catch (e) {
+    console.log(e);
+    return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+  }
+}
+
 client.on('interactionCreate', async interaction => {
   let command = interaction.commandName;
   let params = interaction.options;
@@ -164,6 +196,10 @@ client.on('interactionCreate', async interaction => {
         value: "Tip a random recently active user (in the channel) some XAC or other currencies from your tipbot/game balance"
       },
       {
+        name: "/role_tip",
+        value: "Tip a random user with a certain role some XAC or other currencies from your tipbot/game balance"
+      },
+      {
         name: "/coinflip_pvp",
         value: "Player vs player coinflip betting game"
       },
@@ -213,6 +249,10 @@ client.on('interactionCreate', async interaction => {
           name: "/crawl_shared_txs",
           value: "See txs between addresses"
         },
+        {
+          name: "/registered_count",
+          value: "Get a count of all registered users"
+        }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
       return await interaction.reply({ embeds: [help_embed, admin_embed] });
@@ -635,35 +675,7 @@ client.on('interactionCreate', async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    let target_address = await songbird.get_tipbot_address(target.id);
-    //send
-    let send;
-    try {
-      if (currency === "sgb") {
-        send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
-      } else {
-        send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
-      }
-    } catch (e) {
-      //shouldn't happen
-      console.log(e);
-      return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
-    }
-    if (!send) {
-      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
-    }
-    await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
-    try {
-      let receipt = await send.wait();
-      if (!receipt || receipt?.status === 0) {
-        return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
-      } else {
-        return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target.id}>!\n[View tx](<https://songbird-explorer.flare.network/tx/${send.hash}>)`);
-      }
-    } catch (e) {
-      console.log(e);
-      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
-    }
+    await send_tip(interaction, user, target.id, amount, currency, "");
   } else if (command === "active_tip") {
     await interaction.deferReply();
     let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
@@ -679,35 +691,29 @@ client.on('interactionCreate', async interaction => {
     }
     let random_message = recent_messages[Math.floor(Math.random() * recent_messages.length)];
     let target_id = random_message.author.id;
-    let target_address = await songbird.get_tipbot_address(target_id);
-    //send
-    let send;
-    try {
-      if (currency === "sgb") {
-        send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
-      } else {
-        send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
-      }
-    } catch (e) {
-      //shouldn't happen
-      console.log(e);
-      return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
+    await send_tip(interaction, user, target_id, amount, currency, " to random active user");
+  } else if (command === "role_tip") {
+    await interaction.deferReply();
+    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    if (amount <= 0) {
+      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
     }
-    if (!send) {
-      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
-    }
-    await interaction.editReply(`Sending tip to random active user...\nTx: <https://songbird-explorer.flare.network/tx/${send.hash}>`);
+    let currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
+    let role = (await params.get("role")).role;
     try {
-      let receipt = await send.wait();
-      if (!receipt || receipt?.status === 0) {
-        return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
-      } else {
-        return await interaction.editReply(`<@${user.id}> randomly sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://songbird-explorer.flare.network/tx/${send.hash}>)`);
-      }
+      await interaction.guild.members.fetch();
     } catch (e) {
       console.log(e);
-      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+      return await interaction.editReply("Something went wrong while fetching users. Sorry, try again later.");
     }
+    let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
+    if (role_members.length === 0) {
+      return await interaction.editReply("Could not find any non-bot users with that role, or you are the only one with that role.");
+    }
+    let random_member = role_members[Math.floor(Math.random() * role_members.length)];
+    let target_id = random_member[1].user.id;
+    await send_tip(interaction, user, target_id, amount, currency, " to random user with role");
   } else if (command === "domain") {
     await interaction.deferReply({ ephemeral: true });
     let domain = (await params.get("domain")).value.toLowerCase().trim();
@@ -1103,6 +1109,10 @@ client.on('interactionCreate', async interaction => {
       let all_domains = await db.get_all_domains();
       const domains_attachment = new discord.AttachmentBuilder(Buffer.from(JSON.stringify(all_domains)), { name: "domains_airdrop.json" });
       return await interaction.editReply({ files: [ domains_attachment ] });
+    } else if (command === "registered_count") {
+      await interaction.deferReply();
+      let registered_count = await db.count_users();
+      return await interaction.editReply(`${registered_count} registered with bot (including banned, left, etc).`);
     }
   }
 });

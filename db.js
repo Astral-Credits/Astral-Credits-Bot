@@ -206,6 +206,10 @@ async function get_all_users() {
   return await (await users.find()).toArray();
 }
 
+async function count_users() {
+  return await users.count({});
+}
+
 async function get_user_by_address(address) {
   //return address
   return await users.findOne({
@@ -453,6 +457,7 @@ module.exports = {
   get_claims_this_month,
   get_next_claim_time,
   get_all_users,
+  count_users,
   get_user_by_address,
   get_user,
   register_user,
