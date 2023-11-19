@@ -41,6 +41,12 @@ const SUPPORTED_INFO = {
     "emoji": "<:NISHI:1172309804677599263>",
     "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
   },
+    "wsgb": {
+    "id": "wsgb",
+    "name": "Wrapped Songbird",
+    "emoji": "<:WSGB:1175906483154722906>",
+    "token_address": "0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED",
+  },
 };
 
 let SUPPORTED = Object.keys(SUPPORTED_INFO);
