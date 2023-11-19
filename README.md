@@ -43,6 +43,12 @@ Check the current balance of your Tipbot Wallet.
 `/tip`
 Send XAC to another community member.
 
+`/active_tip`
+Send a tip to a random user who has been active in the current channel within the last 12HR's.
+
+`/role_tip`
+Send a tip to a random user with the specified role. (Discord wide.)
+
 `/coinflip_pvp`
 Play provably fair coinflip against other players.
 
