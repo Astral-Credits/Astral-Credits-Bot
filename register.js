@@ -185,6 +185,12 @@ const commands = [
     description: "Export the airdrop snapshot domains as a JSON file"
   },
   {
+    name: "registered_count",
+    //admin only
+    default_member_permissions: String(268435456),
+    description: "Get a count of all registered users"
+  },
+  {
     name: "deposit",
     description: "Shows your tipbot/gaming deposit address"
   },
@@ -235,6 +241,50 @@ const commands = [
         type: 6,
         name: "target",
         description: "@ mention of user to give tip to",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      }
+    ]
+  },
+  {
+    name: "active_tip",
+    description: "Tip a random recently active user some XAC or other currencies from your tipbot/game balance",
+    options: [
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      }
+    ]
+  },
+  {
+    name: "role_tip",
+    description: "Tip a random user with a role some XAC or other currencies from your tipbot/game balance",
+    options: [
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 8,
+        name: "role",
+        description: "Role to randomly tip",
         required: true
       },
       {

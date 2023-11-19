@@ -206,6 +206,10 @@ async function get_all_users() {
   return await (await users.find()).toArray();
 }
 
+async function count_users() {
+  return await users.count({});
+}
+
 async function get_user_by_address(address) {
   //return address
   return await users.findOne({
@@ -396,6 +400,22 @@ async function add_coinflip_pvp_random(bet_id, player_id, player_random) {
   }
 }
 
+async function mark_coinflip_pvp_finished(bet_id) {
+  return await coinflip_pvp.updateOne(
+    {
+      bet_id,
+      finished: {
+        $exists: false,
+      },
+    },
+    {
+      $set: {
+        finished: true,
+      },
+    }
+  );
+}
+
 async function add_coinflip_pvh(interaction_id, player_id, wager, server_nonce, pick) {
   await coinflip_pvh.insertOne({
     bet_id: interaction_id,
@@ -437,6 +457,7 @@ module.exports = {
   get_claims_this_month,
   get_next_claim_time,
   get_all_users,
+  count_users,
   get_user_by_address,
   get_user,
   register_user,
@@ -452,6 +473,7 @@ module.exports = {
   add_coinflip_pvp,
   add_coinflip_pvp_random,
   get_coinflip_pvp,
+  mark_coinflip_pvp_finished,
   add_coinflip_pvh,
   add_coinflip_pvh_random,
   get_coinflip_pvh,

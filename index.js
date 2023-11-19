@@ -83,20 +83,45 @@ client.once('ready', async (info) => {
   }, 30*60*1000);
 });
 
+async function send_tip(interaction, user, target_id, amount, currency, type) {
+  let target_address = await songbird.get_tipbot_address(target_id);
+  //send
+  let send;
+  try {
+    if (currency === "sgb") {
+      send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
+    } else {
+      send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
+    }
+  } catch (e) {
+    //shouldn't happen
+    console.log(e);
+    return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
+  }
+  if (!send) {
+    return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
+  }
+  await interaction.editReply(`Sending tip${type}...\nTx: <https://songbird-explorer.flare.network/tx/${send.hash}>`);
+  try {
+    let receipt = await send.wait();
+    if (!receipt || receipt?.status === 0) {
+      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+    } else {
+      return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://songbird-explorer.flare.network/tx/${send.hash}>)`);
+    }
+  } catch (e) {
+    console.log(e);
+    return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+  }
+}
+
 client.on('interactionCreate', async interaction => {
   let command = interaction.commandName;
   let params = interaction.options;
   let user = interaction.user;
 
   if (interaction.isAutocomplete()) {
-    if (command === "tip") {
-      const focused_option = interaction.options.getFocused(true);
-      if (focused_option.name === "currency") {
-        return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
-      } else {
-        return;
-      }
-    } else if (command === "withdraw") {
+    if (command === "tip" || "withdraw" || "active_tip") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
         return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
@@ -167,6 +192,14 @@ client.on('interactionCreate', async interaction => {
         value: "Tip other users XAC and other currencies from your tipbot/game balance"
       },
       {
+        name: "/active_tip",
+        value: "Tip a random recently active user (in the channel) some XAC or other currencies from your tipbot/game balance"
+      },
+      {
+        name: "/role_tip",
+        value: "Tip a random user with a certain role some XAC or other currencies from your tipbot/game balance"
+      },
+      {
         name: "/coinflip_pvp",
         value: "Player vs player coinflip betting game"
       },
@@ -216,6 +249,10 @@ client.on('interactionCreate', async interaction => {
           name: "/crawl_shared_txs",
           value: "See txs between addresses"
         },
+        {
+          name: "/registered_count",
+          value: "Get a count of all registered users"
+        }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
       return await interaction.reply({ embeds: [help_embed, admin_embed] });
@@ -227,7 +264,7 @@ client.on('interactionCreate', async interaction => {
     try {
       price_info = await songbird.get_price();
     } catch (e) {
-      return await interaction.editReply("Failed to fetch coingecko API, probably you are requesting too fast (ratelimits)!")
+      return await interaction.editReply("Failed to fetch coingecko API, probably you are requesting too fast (ratelimits)!");
     }
     let price_embed = new discord.EmbedBuilder();
     price_embed.setTitle("Astral Credits Price");
@@ -429,7 +466,7 @@ client.on('interactionCreate', async interaction => {
     let captcha_embed = new discord.EmbedBuilder();
     captcha_embed.setTitle("One more step...");
     captcha_embed.setColor("#2c16f7");
-    captcha_embed.setDescription("Please answer the captcha before you claim your XAC!")
+    captcha_embed.setDescription("Please answer the captcha before you claim your XAC!");
     const attachment = new discord.AttachmentBuilder(captcha_info.challenge_url, { name: "captcha.png" });
     captcha_embed.setImage(`attachment://captcha.png`);
     captcha_embed.setFooter({ text: "Almost there!" });
@@ -542,7 +579,7 @@ client.on('interactionCreate', async interaction => {
       let warning_embed = new discord.EmbedBuilder();
       warning_embed.setColor("#ff0000");
       warning_embed.setTitle("⚠️ WARNING - High balance detected!");
-      warning_embed.setDescription("Your balance exceeds 500k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!")
+      warning_embed.setDescription("Your balance exceeds 500k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
       embeds.push(warning_embed);
     }
     return interaction.editReply({ embeds });
@@ -638,35 +675,45 @@ client.on('interactionCreate', async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    let target_address = await songbird.get_tipbot_address(target.id);
-    //send
-    let send;
+    await send_tip(interaction, user, target.id, amount, currency, "");
+  } else if (command === "active_tip") {
+    await interaction.deferReply();
+    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    if (amount <= 0) {
+      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+    }
+    let currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
+    //one of the last 25 messages, non-bot, non-self, and sent in the last 12 hours
+    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 60*60*12*1000));
+    if (recent_messages.length === 0) {
+      return await interaction.editReply("Could not find enough recent messages in channel not sent by you or a bot.");
+    }
+    let random_message = recent_messages[Math.floor(Math.random() * recent_messages.length)];
+    let target_id = random_message.author.id;
+    await send_tip(interaction, user, target_id, amount, currency, " to random active user");
+  } else if (command === "role_tip") {
+    await interaction.deferReply();
+    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    if (amount <= 0) {
+      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+    }
+    let currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
+    let role = (await params.get("role")).role;
     try {
-      if (currency === "sgb") {
-        send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
-      } else {
-        send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
-      }
-    } catch (e) {
-      //shouldn't happen
-      console.log(e);
-      return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
-    }
-    if (!send) {
-      return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
-    }
-    await interaction.editReply("Sending tip...\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
-    try {
-      let receipt = await send.wait();
-      if (!receipt || receipt?.status === 0) {
-        return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
-      } else {
-        return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target.id}>!\n\`txID:${send.hash}\``)
-      }
+      await interaction.guild.members.fetch();
     } catch (e) {
       console.log(e);
-      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">")
+      return await interaction.editReply("Something went wrong while fetching users. Sorry, try again later.");
     }
+    let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
+    if (role_members.length === 0) {
+      return await interaction.editReply("Could not find any non-bot users with that role, or you are the only one with that role.");
+    }
+    let random_member = role_members[Math.floor(Math.random() * role_members.length)];
+    let target_id = random_member[1].user.id;
+    await send_tip(interaction, user, target_id, amount, currency, " to random user with role");
   } else if (command === "domain") {
     await interaction.deferReply({ ephemeral: true });
     let domain = (await params.get("domain")).value.toLowerCase().trim();
@@ -1061,7 +1108,11 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply();
       let all_domains = await db.get_all_domains();
       const domains_attachment = new discord.AttachmentBuilder(Buffer.from(JSON.stringify(all_domains)), { name: "domains_airdrop.json" });
-      return await interaction.editReply({ files: [ domains_attachment ] })
+      return await interaction.editReply({ files: [ domains_attachment ] });
+    } else if (command === "registered_count") {
+      await interaction.deferReply();
+      let registered_count = await db.count_users();
+      return await interaction.editReply(`${registered_count} registered with bot (including banned, left, etc).`);
     }
   }
 });
@@ -1101,6 +1152,9 @@ client.on('interactionCreate', async interaction => {
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) return interaction.editReply("Failed, you are not registered.");
+    if (user.id === "836766848413990952") {
+      console.log("a", user_info);
+    }
     //edit prev message to disable button
     try {
       let captcha_button = new discord.ButtonBuilder()
@@ -1121,25 +1175,24 @@ client.on('interactionCreate', async interaction => {
     let code = customId.split("-")[1];
     let nonce = customId.split("-")[2];
     let answer = interaction.fields.getTextInputValue("answer");
+    if (user.id === "836766848413990952") {
+      console.log("b", address, code, nonce, answer);
+    }
     //verify captcha
     let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
     if (!passed_captcha) {
       return await interaction.editReply(`<@${user.id}> Error, you failed captcha. Run \`/faucet\` to try again.`);
+    }
+    if (user.id === "836766848413990952") {
+      console.log("c");
     }
     //make sure claim limit not already exceeded
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
       return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
     }
-    //make sure not blacklisted
-    try {
-      let blacklist = fs.readFileSync("blacklist.txt", "utf-8").split("\n").map((item) => item.trim().toLowerCase());
-      if (blacklist.includes(address)) {
-        return await interaction.editReply("Your address has been blacklisted. Contact the admins if you think this is a mistake. If this isn't a mistake, contact us anyways! We'd love to talk with you ;)");
-      }
-    } catch (e) {
-      //probably blacklist.txt does not exist
-      //console.log(e);
+    if (user.id === "836766848413990952") {
+      console.log("d");
     }
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
@@ -1148,10 +1201,19 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
+    if (user.id === "836766848413990952") {
+      console.log("f");
+    }
     //songbird enough balance
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
+    if (user.id === "836766848413990952") {
+      console.log("g");
+    }
     let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
     token_tx_resp = await token_tx_resp.json();
+    if (user.id === "836766848413990952") {
+      console.log("h");
+    }
     //let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
     let aged_enough = true;
     if (!aged_enough || !enough_balance.success) {
@@ -1165,14 +1227,23 @@ client.on('interactionCreate', async interaction => {
         }
       }
     }
+    if (user.id === "836766848413990952") {
+      console.log("i");
+    }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
       return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
     }
+    if (user.id === "836766848413990952") {
+      console.log("j");
+    }
     //add to db
     await db.add_claim(user_info.address, send_amount);
+    if (user.id === "836766848413990952") {
+      console.log("k");
+    }
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
@@ -1186,6 +1257,9 @@ client.on('interactionCreate', async interaction => {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
     } else {
       faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
+    }
+    if (user.id === "836766848413990952") {
+      console.log("z");
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
   } else if (customId.startsWith("cfpvpbtn-")) {
@@ -1269,6 +1343,15 @@ client.on('interactionCreate', async interaction => {
     //if both player 1 and player 2's randoms exist
     coinflip_info = await db.get_coinflip_pvp(bet_id);
     if (coinflip_info.player1.random && coinflip_info.player2?.random) {
+      //In very rare cases, with both users clicking at the same time, insert_result check will pass since two randoms are being added (as intended),
+      //and the check above making sure both randoms exist will pass (if both players add their randoms milliseconds apart from each other, both will query the db and see that both randoms exist),
+      //the game will be played twice (although with the same randoms, so the same results)
+      //this should prevent that (apologies to future self if this comment is hard to understand)
+      const fin_result = await db.mark_coinflip_pvp_finished(bet_id);
+      if (fin_result?.modifiedCount !== 1) {
+        //game already marked as finished
+        return;
+      }
       //disable button
       disable_button_cfpvp();
       //calculate result: hash, convert hash to number and calculate winner
