@@ -306,6 +306,10 @@ client.on('interactionCreate', async interaction => {
     pools_embed.setColor("#3cb707");
     pools_embed.addFields([
       {
+        name: "FeatherSwap",
+        value: "[Pool](https://featherswap.xyz/swap/?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0x9cbc1cc3b29d8a61b1843df50b6e90261a692705)"
+      },
+      {
         name: "BlazeSwap",
         value: "[Pool](https://app.blazeswap.xyz/swap/?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0)"
       },
@@ -313,14 +317,10 @@ client.on('interactionCreate', async interaction => {
         name: "BlazeSwap Volume (last 7 days)",
         value: "$"+util.format_commas(String(Math.floor(historic_data_cache.ohlcv_list.slice(-7).map((item) => item[5]).reduce((total, num) => total+num))))+"~"
       },*/
-      {
+      /*{
         name: "BlazeSwap Liquidity",
         value: "$"+util.format_commas(String(liqudity_cache))+"~"
-      },
-      {
-        name: "FeatherSwap",
-        value: "[Pool](https://featherswap.xyz/swap/?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0x9cbc1cc3b29d8a61b1843df50b6e90261a692705)"
-      },
+      },*/
       {
         name: "Pangolin",
         value: "[Pool](https://app.pangolin.exchange/#/swap?outputCurrency=0x61b64c643fccd6ff34fc58c8ddff4579a89e2723) | [GeckoTerminal](https://www.geckoterminal.com/songbird/pools/0xdd06d19b1217423ba474783a16e4a9798b794225)"
@@ -365,7 +365,7 @@ client.on('interactionCreate', async interaction => {
         fail_descrip += " Not enough time has lapsed since your last claim.";
       }
       if (!next_claim_info.under_claim_limit) {
-        fail_descrip += " The faucet is now CLOSED as we have reached the max no. of claims for the month! (11,111 claims). Please return in the new month to claim again!";
+        fail_descrip += " The faucet is now CLOSED as we have reached the max no. of claims for the month! (11,111 claims). Please return when the faucet resets in the new month to claim again!";
       }
       claim_embed.setDescription(fail_descrip);
       claim_embed.addFields([
@@ -455,7 +455,7 @@ client.on('interactionCreate', async interaction => {
     //make sure not too many claims this month
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
-      return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
+      return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month} claims globally)! Please return when the faucet resets in the new month to claim again!`);
     }
     //send captcha and modal thing with id set to code and nonce
     let captcha_info = await util.get_text_captcha();
@@ -575,11 +575,11 @@ client.on('interactionCreate', async interaction => {
     }
     bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
     embeds.push(bal_embed);
-    if (astral_bal > 500000 || sgb_bal > 2000) {
+    if (astral_bal > 200000 || sgb_bal > 2000) {
       let warning_embed = new discord.EmbedBuilder();
       warning_embed.setColor("#ff0000");
       warning_embed.setTitle("⚠️ WARNING - High balance detected!");
-      warning_embed.setDescription("Your balance exceeds 500k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
+      warning_embed.setDescription("Your balance exceeds 200k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
       embeds.push(warning_embed);
     }
     return interaction.editReply({ embeds });
