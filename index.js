@@ -18,6 +18,8 @@ const client = new discord.Client({
 
 const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
 
+const TEAM = [...ADMINS, "486380942911471617"];
+
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
 const MIN_SGB = 0.25;
@@ -217,7 +219,8 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
-    if (ADMINS.includes(user.id)) {
+    await interaction.member.fetch();
+    if (ADMINS.includes(user.id) || interaction.member.roles.cache.has("1001004354981077032") || interaction.member.roles.cache.has("1127728118006829136")) {
       let admin_embed = new discord.EmbedBuilder();
       admin_embed.setTitle("Admin Help");
       admin_embed.addFields([
@@ -684,10 +687,10 @@ client.on('interactionCreate', async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    //one of the last 25 messages, non-bot, non-self, and sent in the last 12 hours
-    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 60*60*12*1000));
+    //one of the last 25 messages, non-bot, non-self, non-admin, and sent in the last 12 hours
+    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !TEAM.includes(m.author.id) && !m.author.bot && m.createdTimestamp > (Date.now() - 60*60*12*1000));
     if (recent_messages.length === 0) {
-      return await interaction.editReply("Could not find enough recent messages in channel not sent by you or a bot.");
+      return await interaction.editReply("Could not find enough recent messages in channel not sent by you, an admin, or a bot.");
     }
     let random_message = recent_messages[Math.floor(Math.random() * recent_messages.length)];
     let target_id = random_message.author.id;

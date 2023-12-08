@@ -29,19 +29,19 @@ const SUPPORTED_INFO = {
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
   },
-    "bbx": {
+  "bbx": {
     "id": "bbx",
     "name": "BlueBirdX",
     "emoji": "<:BBX:1142960050273521765>",
     "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
   },
-    "nishi": {
+  "nishi": {
     "id": "nishi",
     "name": "Nishicoin",
     "emoji": "<:NISHI:1172309804677599263>",
     "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
   },
-    "wsgb": {
+  "wsgb": {
     "id": "wsgb",
     "name": "Wrapped Songbird",
     "emoji": "<:WSGB:1175906483154722906>",
@@ -160,7 +160,8 @@ async function user_withdraw_astral(user_id, address, amount) {
 
 //withdraw any supported erc20 by name
 async function user_withdraw_generic_token(user_id, address, amount, currency) {
-  amount = ethers.utils.parseUnits(String(amount), 18);
+  //default to 18 decimal places if nothing specified
+  amount = ethers.utils.parseUnits(String(amount), isNaN(SUPPORTED_INFO[currency].decimal_places) ? 18 : SUPPORTED_INFO[currency].decimal_places);
   let derived_wallet = await derive_wallet(user_id);
   let derived_generic_token = new ethers.Contract(SUPPORTED_INFO[currency].token_address, erc20_abi, derived_wallet);
   try {

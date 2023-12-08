@@ -10,6 +10,7 @@ let linked_websites;
 let domains;
 let coinflip_pvp;
 let coinflip_pvh;
+let airdrop_one;
 
 let ready = false;
 
@@ -23,6 +24,7 @@ db.then((db) => {
   domains = db.collection("domains");
   coinflip_pvp = db.collection("coinflip_pvp");
   coinflip_pvh = db.collection("coinflip_pvh");
+  airdrop_one = db.collection("airdrop_one");
 });
 
 setTimeout(function() {
@@ -449,6 +451,18 @@ async function add_coinflip_pvh_random(bet_id, player_random) {
   );
 }
 
+async function airdrop_find(address) {
+  return airdrop_one.findOne({
+    address,
+  });
+}
+
+async function airdrop_insert(address) {
+  return airdrop_one.insertOne({
+    address,
+  });
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -477,4 +491,6 @@ module.exports = {
   add_coinflip_pvh,
   add_coinflip_pvh_random,
   get_coinflip_pvh,
+  airdrop_find,
+  airdrop_insert,
 };

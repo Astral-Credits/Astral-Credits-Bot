@@ -238,17 +238,17 @@ const commands = [
         required: true
       },
       {
-        type: 6,
-        name: "target",
-        description: "@ mention of user to give tip to",
-        required: true
-      },
-      {
         type: 3,
         name: "currency",
         description: "Coin/token to send",
         required: true,
         autocomplete: true
+      },
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to give tip to",
+        required: true
       }
     ]
   },
