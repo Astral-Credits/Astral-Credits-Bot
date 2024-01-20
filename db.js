@@ -463,6 +463,16 @@ async function airdrop_insert(address) {
   });
 }
 
+async function get_all_linked_websites() {
+  try {
+    return await (await linked_websites.find({})).toArray();
+  } catch(e) {
+    console.log(e)
+    //database not connected yet
+    return {};
+  }
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -493,4 +503,5 @@ module.exports = {
   get_coinflip_pvh,
   airdrop_find,
   airdrop_insert,
+  get_all_linked_websites,
 };

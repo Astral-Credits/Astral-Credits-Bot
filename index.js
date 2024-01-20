@@ -1,7 +1,7 @@
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 dotenv.config();
 
-const QRCode = require('qrcode');
+const QRCode = require("qrcode");
 
 const discord = require("discord.js");
 
@@ -9,8 +9,8 @@ const db = require("./db.js");
 const songbird = require("./songbird.js");
 const util = require("./util.js");
 const _keep_alive = require("./keep_alive.js");
-const { fetch } = require('cross-fetch');
-const fs = require('fs');
+const { fetch } = require("cross-fetch");
+const fs = require("fs");
 
 const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers]
@@ -1155,9 +1155,6 @@ client.on('interactionCreate', async interaction => {
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) return interaction.editReply("Failed, you are not registered.");
-    if (user.id === "836766848413990952") {
-      console.log("a", user_info);
-    }
     //edit prev message to disable button
     try {
       let captcha_button = new discord.ButtonBuilder()
@@ -1178,24 +1175,15 @@ client.on('interactionCreate', async interaction => {
     let code = customId.split("-")[1];
     let nonce = customId.split("-")[2];
     let answer = interaction.fields.getTextInputValue("answer");
-    if (user.id === "836766848413990952") {
-      console.log("b", address, code, nonce, answer);
-    }
     //verify captcha
     let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
     if (!passed_captcha) {
       return await interaction.editReply(`<@${user.id}> Error, you failed captcha. Run \`/faucet\` to try again.`);
     }
-    if (user.id === "836766848413990952") {
-      console.log("c");
-    }
     //make sure claim limit not already exceeded
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
       return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
-    }
-    if (user.id === "836766848413990952") {
-      console.log("d");
     }
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
@@ -1204,21 +1192,13 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
-    if (user.id === "836766848413990952") {
-      console.log("f");
-    }
     //songbird enough balance
+    let current_block = await songbird.get_block_number();
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    if (user.id === "836766848413990952") {
-      console.log("g");
-    }
-    let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
+    let token_tx_resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=${address}&start_block=${String(current_block-songbird.HOLDING_BLOCK_TIME)}`);
     token_tx_resp = await token_tx_resp.json();
-    if (user.id === "836766848413990952") {
-      console.log("h");
-    }
-    //let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
-    let aged_enough = true;
+    let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    //let aged_enough = true;
     if (!aged_enough || !enough_balance.success) {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
@@ -1230,23 +1210,14 @@ client.on('interactionCreate', async interaction => {
         }
       }
     }
-    if (user.id === "836766848413990952") {
-      console.log("i");
-    }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
       return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
     }
-    if (user.id === "836766848413990952") {
-      console.log("j");
-    }
     //add to db
     await db.add_claim(user_info.address, send_amount);
-    if (user.id === "836766848413990952") {
-      console.log("k");
-    }
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
@@ -1260,9 +1231,6 @@ client.on('interactionCreate', async interaction => {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
     } else {
       faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
-    }
-    if (user.id === "836766848413990952") {
-      console.log("z");
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
   } else if (customId.startsWith("cfpvpbtn-")) {

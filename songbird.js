@@ -184,10 +184,14 @@ async function enough_balance(address, holding_requirement) {
   };
 }
 
+async function get_block_number() {
+  return await provider.getBlockNumber();
+}
+
 async function aged_enough(address, holding_requirement, wrapped_songbird_resp, wrapped_sgb_bal) {
   let holding_enough = false;
   //get current block
-  let current_block = await provider.getBlockNumber();
+  let current_block = await get_block_number();
   let songbird_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=eth_get_balance&address="+address+"&block="+String(current_block-HOLDING_BLOCK_TIME));
   songbird_resp = await songbird_resp.json();
   if (!songbird_resp.error) {
@@ -241,7 +245,7 @@ async function holds_aged_nfts(address, nft_resp) {
   let nft_balances = await astral_nft.balanceOfBatch([address, address, address, address, address], [1, 2, 3, 4, 5]);
   if (nft_resp.result) {
     nft_resp = nft_resp.result;
-    let current_block = await provider.getBlockNumber();
+    let current_block = await get_block_number();
     //timestamp attribute can also be used but whatever
     //get token transfers within the hour and see if the (balance)-(total received)=(balance 24 hours ago) is above the holding req or not
     nft_resp = nft_resp.filter(function(item) {
@@ -409,5 +413,6 @@ module.exports = {
   find_associated,
   find_shared_txs,
   lookup_domain_owner,
-  is_valid: ethers.utils.isAddress
+  get_block_number,
+  is_valid: ethers.utils.isAddress,
 };
