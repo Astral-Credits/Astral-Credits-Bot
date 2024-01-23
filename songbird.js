@@ -415,4 +415,5 @@ module.exports = {
   lookup_domain_owner,
   get_block_number,
   is_valid: ethers.utils.isAddress,
+  admin_address: wallet.address,
 };

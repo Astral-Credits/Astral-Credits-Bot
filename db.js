@@ -3,14 +3,7 @@ const { exec } = require('child_process');
 
 let db = mongo.getDb();
 
-let claims;
-let milestones;
-let users;
-let linked_websites;
-let domains;
-let coinflip_pvp;
-let coinflip_pvh;
-let airdrop_one;
+let claims, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one;
 
 let ready = false;
 
@@ -27,7 +20,23 @@ db.then((db) => {
   airdrop_one = db.collection("airdrop_one");
 });
 
+const INITIAL_ACHIEVEMENT_DATA = {
+  faucet: {
+    current_streak: 0,
+    longest_streak: 0
+  },
+  messages: 0,
+  tips: {
+    xac_amount: 0
+  },
+  coinflip: {
+    wins: 0
+  }
+};
+
 setTimeout(function() {
+  //run this before deploying
+  //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA });
   if (!ready) {
     exec("kill 1");
   }
@@ -186,7 +195,9 @@ async function get_next_claim_time(address) {
   if (claims_this_month >= MAX_CLAIMS_PER_MONTH) {
     under_claim_limit = false;
     let current_month = get_month();
-    next_claim_time = (new Date(`${START_YEAR+Math.floor(current_month/12)}-${current_month%12+START_MONTH+2}-01`)).getTime();
+    let current_year = START_YEAR+Math.floor((current_month+START_MONTH+1)/12);
+    let current_calendar_month = (current_month+START_MONTH+2)%12 || 12; //if 0, that means it is 12th month, not 0th
+    next_claim_time = (new Date(`${current_year}-${current_calendar_month}-01`)).getTime();
   }
   if (user_info) {
     if (user_info.last_claim+CLAIM_FREQ > Date.now()) {
@@ -248,11 +259,101 @@ async function register_user(user_id, address, change=false) {
   } else {
     await users.insertOne({
       user: user_id,
-      address: address
+      address: address,
+      achievements: [],
+      //data needed for achievements
+      achievement_data: INITIAL_ACHIEVEMENT_DATA
     });
   }
   return true;
 }
+
+const ACHIEVEMENTS = {
+  "example": {
+    id: "example",
+    name: "Example Achievement",
+    description: "lorem ipsum",
+    prize: 100,
+    role: false //or role id
+  },
+  //
+}
+
+//returns false is user already has achievement
+async function add_achievement_db(user_id, achievement_id, cached_user) {
+  //save on db calls
+  if (cached_user.achievements?.includes(achievement_id)) {
+    return false;
+  }
+  await users.updateOne({
+    user: user_id,
+  }, {
+    $push: {
+      achievements: achievement_id,
+    }
+  });
+  return true;
+}
+
+//faucet achievement info
+async function add_claim_achievement_info(user_id, cached_user) {
+  const last_claim = await find_claim(cached_user.address);
+  //if their last claim was less than 2 days ago, streak continues
+  if (last_claim?.last_claim + CLAIM_FREQ * 2 > Date.now()) {
+    let update = {
+      $inc: {
+        "achievement_data.faucet.current_streak": 1,
+      }
+    };
+    if (cached_user.achievement_data.faucet.longest_streak === cached_user.achievement_data.faucet.current_streak) {
+      //new longest streak
+      update["$inc"]["achievement_data.faucet.longest_streak"] = 1;
+    }
+    await users.updateOne({
+      user: user_id,
+    }, update);
+  } else {
+    await users.updateOne({
+      user: user_id,
+    }, {
+      $set: {
+        "achievement_data.faucet.current_streak": 0,
+      }
+    });
+  }
+}
+
+async function increment_message_achievement_info(user_id) {
+  await users.updateOne({
+    user: user_id,
+  }, {
+    $inc: {
+      "achievement_data.messages": 1,
+    }
+  });
+}
+
+async function increment_xac_tips_achievement_info(user_id, xac_amount) {
+  await users.updateOne({
+    user: user_id,
+  }, {
+    $inc: {
+      "achievement_data.tips.xac_amount": xac_amount,
+    }
+  });
+}
+
+async function increment_coinflip_wins_achievement_info(user_id, xac_amount) {
+  await users.updateOne({
+    user: user_id,
+  }, {
+    $inc: {
+      "achievement_data.coinflip.wins": xac_amount,
+    }
+  });
+}
+
+//TODO: db functions to add the achievement data to users
 
 //insert or replace
 async function add_claim(address, amount) {
@@ -485,6 +586,12 @@ module.exports = {
   get_user_by_address,
   get_user,
   register_user,
+  ACHIEVEMENTS,
+  add_achievement_db,
+  add_claim_achievement_info,
+  increment_message_achievement_info,
+  increment_xac_tips_achievement_info,
+  increment_coinflip_wins_achievement_info,
   find_claim,
   add_claim,
   get_linked_website,
@@ -504,4 +611,5 @@ module.exports = {
   airdrop_find,
   airdrop_insert,
   get_all_linked_websites,
+  CLAIM_FREQ,
 };

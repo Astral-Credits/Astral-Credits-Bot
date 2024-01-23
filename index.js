@@ -16,9 +16,10 @@ const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers]
 });
 
-const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
+const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497", "486380942911471617"];
 
-const TEAM = [...ADMINS, "486380942911471617"];
+//mods too
+const TEAM = [...ADMINS];
 
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
@@ -27,7 +28,7 @@ const MIN_SGB = 0.25;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 //23 1/2 hours
-const CLAIM_FREQ = 23.5*60*60*1000;
+const CLAIM_FREQ = db.CLAIM_FREQ;
 const MAX_CLAIMS_PER_MONTH = 11111;
 const HOLDING_REQUIREMENT = 2000;
 const MAX_DECIMALS = 4; //astral credits has 18 but not the point
@@ -114,6 +115,24 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
   } catch (e) {
     console.log(e);
     return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+  }
+}
+
+async function add_achievement(user_id, achievement_id, cached_user) {
+  //add_achievement_db returns false if user already has the acheivement
+  if (await db.add_achievement_db(user_id, achievement_id, cached_user)) {
+    //pay prize from team's collective tipping wallet
+    const tx = await songbird.send_astral(cached_user.address, db.ACHIEVEMENTS[achievement_id].prize)
+    //send message in notifications
+    let astral_guild = client.guilds.cache.get("1000985457393422367");
+    await astral_guild.channels.fetch();
+    //notifications: 1103087597875634257
+    let achievement_notif_embed = new discord.EmbedBuilder();
+    achievement_notif_embed.setTitle("Achievement Earned!");
+    achievement_notif_embed.setColor("#30d613");
+    achievement_notif_embed.setDescription(`<@${user_id} has earned the achievement "${db.ACHIEVEMENTS[achievement_id].name}"! Congratulations!\nPrize Tx: <https://songbird-explorer.flare.network/tx/${tx}>`);
+    achievement_notif_embed.setFooter({ text: "Do /achievements to see a list of your achievements, and achievements yet to be earned" });
+    await astral_guild.channels.cache.get("1087903395962179646").send({ embeds: [achievement_notif_embed] });
   }
 }
 
@@ -255,6 +274,10 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/registered_count",
           value: "Get a count of all registered users"
+        },
+        {
+          name: "/admin_balance",
+          value: "See balance of the admin tipping wallet"
         }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
@@ -569,7 +592,7 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     if (Object.keys(generic_bals).length > 23) {
-      //need pagination and sorting or something
+      //TODO: need pagination and sorting or something (for now, not a problem)
       //
     } else if (Object.keys(generic_bals).length > 0) {
       //generic_bals
@@ -1116,6 +1139,27 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply();
       let registered_count = await db.count_users();
       return await interaction.editReply(`${registered_count} registered with bot (including banned, left, etc).`);
+    } else if (command === "admin_balance") {
+      await interaction.deferReply({ ephemeral: true });
+      let sgb_bal = await songbird.get_bal(songbird.admin_address);
+      let astral_bal = await songbird.get_bal_astral(songbird.admin_address);
+      let bal_embed = new discord.EmbedBuilder();
+      bal_embed.setColor("#7ad831");
+      bal_embed.setTitle("View Admin Balance");
+      bal_embed.setDescription("Balance for the admin tipping wallet.");
+      bal_embed.addFields([
+        {
+          name: "Songbird (sgb)",
+          //truncate if more than 5 decimals
+          value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" <:SGB:1130360963636408350>",
+        },
+        {
+          name: "Astral Credits (xac)",
+          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
+        },
+      ]);
+      bal_embed.setURL("https://songbird-explorer.flare.network/address/"+songbird.admin_address);
+      return await interaction.editReply({ embeds: [bal_embed] });
     }
   }
 });
@@ -1218,6 +1262,20 @@ client.on('interactionCreate', async interaction => {
     }
     //add to db
     await db.add_claim(user_info.address, send_amount);
+    //update streak
+    /*
+    await db.add_claim_achievement_info(user.id, user_info);
+    const refreshed_user_info = await db.get_user(user.id);
+    switch (refreshed_user_info.achievement_data.faucet.current_streak === 10) {
+      case 1:
+        //example, give achievement for 1 claim (first time only)
+      case 10:
+        //example, give achievement for 10 claims (first time only)
+      default:
+        //nothing
+    }
+    */
+    //
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
