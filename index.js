@@ -1,7 +1,7 @@
-const dotenv = require('dotenv');
+const dotenv = require("dotenv");
 dotenv.config();
 
-const QRCode = require('qrcode');
+const QRCode = require("qrcode");
 
 const discord = require("discord.js");
 
@@ -9,14 +9,17 @@ const db = require("./db.js");
 const songbird = require("./songbird.js");
 const util = require("./util.js");
 const _keep_alive = require("./keep_alive.js");
-const { fetch } = require('cross-fetch');
-const fs = require('fs');
+const { fetch } = require("cross-fetch");
+const fs = require("fs");
 
 const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers]
 });
 
-const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497"];
+const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497", "486380942911471617"];
+
+//mods too
+const TEAM = [...ADMINS];
 
 const DOMAIN_END = 1694029371; //september 7th, 2023 00:00 UTC
 
@@ -25,7 +28,7 @@ const MIN_SGB = 0.25;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 //23 1/2 hours
-const CLAIM_FREQ = 23.5*60*60*1000;
+const CLAIM_FREQ = db.CLAIM_FREQ;
 const MAX_CLAIMS_PER_MONTH = 11111;
 const HOLDING_REQUIREMENT = 2000;
 const MAX_DECIMALS = 4; //astral credits has 18 but not the point
@@ -112,6 +115,24 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
   } catch (e) {
     console.log(e);
     return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+  }
+}
+
+async function add_achievement(user_id, achievement_id, cached_user) {
+  //add_achievement_db returns false if user already has the acheivement
+  if (await db.add_achievement_db(user_id, achievement_id, cached_user)) {
+    //pay prize from team's collective tipping wallet
+    const tx = await songbird.send_astral(cached_user.address, db.ACHIEVEMENTS[achievement_id].prize)
+    //send message in notifications
+    let astral_guild = client.guilds.cache.get("1000985457393422367");
+    await astral_guild.channels.fetch();
+    //notifications: 1103087597875634257
+    let achievement_notif_embed = new discord.EmbedBuilder();
+    achievement_notif_embed.setTitle("Achievement Earned!");
+    achievement_notif_embed.setColor("#30d613");
+    achievement_notif_embed.setDescription(`<@${user_id} has earned the achievement "${db.ACHIEVEMENTS[achievement_id].name}"! Congratulations!\nPrize Tx: <https://songbird-explorer.flare.network/tx/${tx}>`);
+    achievement_notif_embed.setFooter({ text: "Do /achievements to see a list of your achievements, and achievements yet to be earned" });
+    await astral_guild.channels.cache.get("1087903395962179646").send({ embeds: [achievement_notif_embed] });
   }
 }
 
@@ -217,7 +238,8 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
-    if (ADMINS.includes(user.id)) {
+    await interaction.member.fetch();
+    if (ADMINS.includes(user.id) || interaction.member.roles.cache.has("1001004354981077032") || interaction.member.roles.cache.has("1127728118006829136")) {
       let admin_embed = new discord.EmbedBuilder();
       admin_embed.setTitle("Admin Help");
       admin_embed.addFields([
@@ -252,6 +274,10 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/registered_count",
           value: "Get a count of all registered users"
+        },
+        {
+          name: "/admin_balance",
+          value: "See balance of the admin tipping wallet"
         }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
@@ -566,7 +592,7 @@ client.on('interactionCreate', async interaction => {
       },
     ]);
     if (Object.keys(generic_bals).length > 23) {
-      //need pagination and sorting or something
+      //TODO: need pagination and sorting or something (for now, not a problem)
       //
     } else if (Object.keys(generic_bals).length > 0) {
       //generic_bals
@@ -684,10 +710,10 @@ client.on('interactionCreate', async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    //one of the last 25 messages, non-bot, non-self, and sent in the last 12 hours
-    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 60*60*12*1000));
+    //one of the last 25 messages, non-bot, non-self, non-admin, and sent in the last 12 hours
+    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !TEAM.includes(m.author.id) && !m.author.bot && m.createdTimestamp > (Date.now() - 60*60*12*1000));
     if (recent_messages.length === 0) {
-      return await interaction.editReply("Could not find enough recent messages in channel not sent by you or a bot.");
+      return await interaction.editReply("Could not find enough recent messages in channel not sent by you, an admin, or a bot.");
     }
     let random_message = recent_messages[Math.floor(Math.random() * recent_messages.length)];
     let target_id = random_message.author.id;
@@ -1113,6 +1139,27 @@ client.on('interactionCreate', async interaction => {
       await interaction.deferReply();
       let registered_count = await db.count_users();
       return await interaction.editReply(`${registered_count} registered with bot (including banned, left, etc).`);
+    } else if (command === "admin_balance") {
+      await interaction.deferReply({ ephemeral: true });
+      let sgb_bal = await songbird.get_bal(songbird.admin_address);
+      let astral_bal = await songbird.get_bal_astral(songbird.admin_address);
+      let bal_embed = new discord.EmbedBuilder();
+      bal_embed.setColor("#7ad831");
+      bal_embed.setTitle("View Admin Balance");
+      bal_embed.setDescription("Balance for the admin tipping wallet.");
+      bal_embed.addFields([
+        {
+          name: "Songbird (sgb)",
+          //truncate if more than 5 decimals
+          value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" <:SGB:1130360963636408350>",
+        },
+        {
+          name: "Astral Credits (xac)",
+          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
+        },
+      ]);
+      bal_embed.setURL("https://songbird-explorer.flare.network/address/"+songbird.admin_address);
+      return await interaction.editReply({ embeds: [bal_embed] });
     }
   }
 });
@@ -1152,9 +1199,6 @@ client.on('interactionCreate', async interaction => {
     //make sure they are registered
     let user_info = await db.get_user(user.id);
     if (!user_info) return interaction.editReply("Failed, you are not registered.");
-    if (user.id === "836766848413990952") {
-      console.log("a", user_info);
-    }
     //edit prev message to disable button
     try {
       let captcha_button = new discord.ButtonBuilder()
@@ -1175,24 +1219,15 @@ client.on('interactionCreate', async interaction => {
     let code = customId.split("-")[1];
     let nonce = customId.split("-")[2];
     let answer = interaction.fields.getTextInputValue("answer");
-    if (user.id === "836766848413990952") {
-      console.log("b", address, code, nonce, answer);
-    }
     //verify captcha
     let passed_captcha = await util.verify_text_captcha(code, nonce, answer);
     if (!passed_captcha) {
       return await interaction.editReply(`<@${user.id}> Error, you failed captcha. Run \`/faucet\` to try again.`);
     }
-    if (user.id === "836766848413990952") {
-      console.log("c");
-    }
     //make sure claim limit not already exceeded
     let claims_month = await db.get_claims_this_month();
     if (claims_month >= MAX_CLAIMS_PER_MONTH) {
       return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month})!`);
-    }
-    if (user.id === "836766848413990952") {
-      console.log("d");
     }
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
@@ -1201,21 +1236,13 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
-    if (user.id === "836766848413990952") {
-      console.log("f");
-    }
     //songbird enough balance
+    let current_block = await songbird.get_block_number();
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    if (user.id === "836766848413990952") {
-      console.log("g");
-    }
-    let token_tx_resp = await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address="+address);
+    let token_tx_resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=${address}&start_block=${String(current_block-songbird.HOLDING_BLOCK_TIME)}`);
     token_tx_resp = await token_tx_resp.json();
-    if (user.id === "836766848413990952") {
-      console.log("h");
-    }
-    //let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
-    let aged_enough = true;
+    let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
+    //let aged_enough = true;
     if (!aged_enough || !enough_balance.success) {
       let holds_aged_nft = await songbird.holds_aged_nfts(address, token_tx_resp);
       //provide exemption if they hold aged nft
@@ -1227,23 +1254,28 @@ client.on('interactionCreate', async interaction => {
         }
       }
     }
-    if (user.id === "836766848413990952") {
-      console.log("i");
-    }
     //send XAC, check for send error
     let send_amount = db.get_amount();
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
       return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
     }
-    if (user.id === "836766848413990952") {
-      console.log("j");
-    }
     //add to db
     await db.add_claim(user_info.address, send_amount);
-    if (user.id === "836766848413990952") {
-      console.log("k");
+    //update streak
+    /*
+    await db.add_claim_achievement_info(user.id, user_info);
+    const refreshed_user_info = await db.get_user(user.id);
+    switch (refreshed_user_info.achievement_data.faucet.current_streak === 10) {
+      case 1:
+        //example, give achievement for 1 claim (first time only)
+      case 10:
+        //example, give achievement for 10 claims (first time only)
+      default:
+        //nothing
     }
+    */
+    //
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
@@ -1257,9 +1289,6 @@ client.on('interactionCreate', async interaction => {
       faucet_embed.setFooter({ text: "Thanks! Note: user not found in DB." });
     } else {
       faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
-    }
-    if (user.id === "836766848413990952") {
-      console.log("z");
     }
     return await interaction.editReply({ embeds: [faucet_embed] });
   } else if (customId.startsWith("cfpvpbtn-")) {

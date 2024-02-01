@@ -4,7 +4,42 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-//3: STRING
+const global_commands = [
+  {
+    name: "withdraw",
+    description: "Withdraw your tipbot/gaming balance",
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
+        required: true
+      },
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to withdraw",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        autocomplete: true,
+        required: true
+      }
+    ]
+  },
+  {
+    name: "deposit",
+    description: "Shows your tipbot/gaming deposit address"
+  },
+  {
+    name: "balance",
+    description: "Shows your tipbot/gaming balance"
+  },
+];
+
 const commands = [
   {
     name: "help",
@@ -191,41 +226,8 @@ const commands = [
     description: "Get a count of all registered users"
   },
   {
-    name: "deposit",
-    description: "Shows your tipbot/gaming deposit address"
-  },
-  {
-    name: "balance",
-    description: "Shows your tipbot/gaming balance"
-  },
-  {
     name: "supported",
     description: "See all supported currencies of the tipbot"
-  },
-  {
-    name: "withdraw",
-    description: "Withdraw your tipbot/gaming balance",
-    options: [
-      {
-        type: 3,
-        name: "address",
-        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
-        required: true
-      },
-      {
-        type: 10,
-        name: "amount",
-        description: "Amount of currency to withdraw",
-        required: true
-      },
-      {
-        type: 3,
-        name: "currency",
-        description: "Coin/token to send",
-        autocomplete: true,
-        required: true
-      }
-    ]
   },
   {
     name: "tip",
@@ -238,17 +240,17 @@ const commands = [
         required: true
       },
       {
-        type: 6,
-        name: "target",
-        description: "@ mention of user to give tip to",
-        required: true
-      },
-      {
         type: 3,
         name: "currency",
         description: "Coin/token to send",
         required: true,
         autocomplete: true
+      },
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to give tip to",
+        required: true
       }
     ]
   },
@@ -379,7 +381,13 @@ const commands = [
   {
     name: "provably_fair_pvh",
     description: "Get some explanation and code for the provably fair pvh coinflip game"
-  }
+  },
+  {
+    name: "admin_balance",
+    //admin only
+    default_member_permissions: String(268435456),
+    description: "See balance of the admin tipping wallet"
+  },
 ];
 
 const rest = new REST({ version: "9" }).setToken(process.env.token);
@@ -392,6 +400,12 @@ const rest = new REST({ version: "9" }).setToken(process.env.token);
       Routes.applicationGuildCommands("1087862421290492019", "1000985457393422367"),
       { body: commands },
     );
+
+    await rest.put(
+      Routes.applicationCommands("1087862421290492019"),
+      { body: global_commands },
+    );
+    
 
     console.log("Successfully reloaded application (/) commands.");
   } catch (error) {

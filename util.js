@@ -1,7 +1,7 @@
 const { fetch } = require('cross-fetch');
 const crypto = require('crypto');
 
-const CAPTCHA_BASE_URL = "https://captcha.astralcredits.repl.co";
+const CAPTCHA_BASE_URL = process.env.CAPTCHA_BASE_URL ? process.env.CAPTCHA_BASE_URL : "https://captcha.astralcredits.xyz";
 
 async function get_text_captcha() {
   let resp;
