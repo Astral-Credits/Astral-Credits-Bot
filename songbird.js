@@ -17,6 +17,12 @@ const SUPPORTED_INFO = {
     "emoji": "<:astral_creds:1000992673341120592>",
     "token_address": "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723",
   },
+  "nishi": {
+    "id": "nishi",
+    "name": "Nishicoin",
+    "emoji": "<:NISHI:1172309804677599263>",
+    "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
+  },
   "sphx": {
     "id": "sphx",
     "name": "Songbird Phoenix",
@@ -35,11 +41,17 @@ const SUPPORTED_INFO = {
     "emoji": "<:BBX:1142960050273521765>",
     "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
   },
-  "nishi": {
-    "id": "nishi",
-    "name": "Nishicoin",
-    "emoji": "<:NISHI:1172309804677599263>",
-    "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
+  "sprk": {
+    "id": "sprk",
+    "name": "Spark",
+    "emoji": "<:SPRK:1206369512396689488>",
+    "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
+  },
+  "exusdt": {
+    "id": "exusdt",
+    "name": "exUSDT",
+    "emoji": "<:exUSDT:1206369568696569986>",
+    "token_address": "0x1a7b46656B2b8b29B1694229e122d066020503D0",
   },
   "wsgb": {
     "id": "wsgb",
