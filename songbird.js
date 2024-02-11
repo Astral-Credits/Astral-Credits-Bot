@@ -51,7 +51,7 @@ const SUPPORTED_INFO = {
     "id": "exusdt",
     "name": "exUSDT",
     "emoji": "<:exUSDT:1206369568696569986>",
-    "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
+    "token_address": "0x1a7b46656B2b8b29B1694229e122d066020503D0",
   },
   "wsgb": {
     "id": "wsgb",
