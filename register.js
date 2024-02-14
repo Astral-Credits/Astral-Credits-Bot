@@ -383,6 +383,14 @@ const commands = [
     description: "Get some explanation and code for the provably fair pvh coinflip game"
   },
   {
+    name: "unlocked_achievements",
+    description: "See your unlocked achievements"
+  },
+  {
+    name: "locked_achievements",
+    description: "See achievements you haven't unlocked yet"
+  },
+  {
     name: "admin_balance",
     //admin only
     default_member_permissions: String(268435456),

@@ -52,6 +52,7 @@ const SUPPORTED_INFO = {
     "name": "exUSDT",
     "emoji": "<:exUSDT:1206369568696569986>",
     "token_address": "0x1a7b46656B2b8b29B1694229e122d066020503D0",
+    "decimal_places": 6,
   },
   "wsgb": {
     "id": "wsgb",
@@ -240,6 +241,10 @@ async function aged_enough(address, holding_requirement, wrapped_songbird_resp, 
   }
 }
 
+async function get_held_nfts(address) {
+  return await astral_nft.balanceOfBatch([address, address, address, address, address], [1, 2, 3, 4, 5]);
+}
+
 //checks if user has the right nfts, and has held them for at least 
 async function holds_aged_nfts(address, nft_resp) {
   //genesis token id: 1 (1000 sgb)
@@ -411,6 +416,7 @@ module.exports = {
   get_bal_astral,
   get_bal_generic_tokens,
   aged_enough,
+  get_held_nfts,
   holds_aged_nfts,
   send_astral,
   faucet_send_astral,
