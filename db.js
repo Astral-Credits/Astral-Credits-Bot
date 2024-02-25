@@ -269,11 +269,90 @@ async function register_user(user_id, address, change=false) {
 }
 
 const ACHIEVEMENTS = {
-  "example": {
-    id: "example",
-    name: "Example Achievement",
-    description: "lorem ipsum",
+  //activity achievements
+  "activity-1": {
+    id: "activity-1",
+    name: "Comet",
+    description: "Chat activity level 1",
+    prize: 50,
+    role: false //or role id
+  },
+  "activity-2": {
+    id: "activity-2",
+    name: "Dwarf Planet",
+    description: "Chat activity level 2",
     prize: 100,
+    role: false //or role id
+  },
+  "activity-3": {
+    id: "activity-3",
+    name: "Planet",
+    description: "Chat activity level 3",
+    prize: 150,
+    role: false //or role id
+  },
+  "activity-4": {
+    id: "activity-4",
+    name: "Star",
+    description: "Chat activity level 4",
+    prize: 200,
+    role: false //or role id
+  },
+  "activity-5": {
+    id: "activity-5",
+    name: "Nebula",
+    description: "Chat activity level 5",
+    prize: 250,
+    role: false //or role id
+  },
+  "activity-6": {
+    id: "activity-6",
+    name: "Supernova",
+    description: "Chat activity level 6",
+    prize: 300,
+    role: false //or role id
+  },
+  //faucet achievements
+  "faucet-2": {
+    id: "faucet-2",
+    name: "The Journey Begins",
+    description: "Have a 2 day faucet streak!",
+    prize: 200,
+    role: false //or role id
+  },
+  "faucet-10": {
+    id: "faucet-10",
+    name: "Jump Into Hyperspace",
+    description: "Have a 10 day faucet streak!",
+    prize: 2000,
+    role: false //or role id
+  },
+  "faucet-30": {
+    id: "faucet-30",
+    name: "Beam Me Up, Scotty",
+    description: "Have a 30 day faucet streak!",
+    prize: 6000,
+    role: false //or role id
+  },
+  "faucet-50": {
+    id: "faucet-50",
+    name: "The Restaurant at the End of the Universe",
+    description: "Have a 50 day faucet streak!",
+    prize: 10000,
+    role: false //or role id
+  },
+  "faucet-100": {
+    id: "faucet-100",
+    name: "Alpha Centauri",
+    description: "Have a 100 day faucet streak!",
+    prize: 15000,
+    role: false //or role id
+  },
+  "faucet-365": {
+    id: "faucet-100",
+    name: "Kwisatz Haderach",
+    description: "Have a 365 day faucet streak! Wow!",
+    prize: 25000,
     role: false //or role id
   },
   //
@@ -296,10 +375,9 @@ async function add_achievement_db(user_id, achievement_id, cached_user) {
 }
 
 //faucet achievement info
-async function add_claim_achievement_info(user_id, cached_user) {
-  const last_claim = await find_claim(cached_user.address);
+async function add_claim_achievement_info(user_id, cached_user, last_claim) {
   //if their last claim was less than 2 days ago, streak continues
-  if (last_claim?.last_claim + CLAIM_FREQ * 2 > Date.now()) {
+  if (last_claim + CLAIM_FREQ * 2 > Date.now()) {
     let update = {
       $inc: {
         "achievement_data.faucet.current_streak": 1,
