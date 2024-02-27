@@ -3,14 +3,17 @@ const { exec } = require('child_process');
 
 let db = mongo.getDb();
 
-let claims, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one;
+let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one;
 
 let ready = false;
+
+const MIN_ACHIEVEMENT_TIP = 50;
 
 db.then((db) => {
   ready = true;
   console.log("Connected to db")
   claims = db.collection("claims");
+  month_end = db.collection("month_end");
   milestones = db.collection("milestones");
   users = db.collection("users");
   linked_websites = db.collection("linked_websites");
@@ -27,7 +30,7 @@ const INITIAL_ACHIEVEMENT_DATA = {
   },
   messages: 0,
   tips: {
-    xac_amount: 0
+    xac_amount: 0 //amount of xac tips made, not total amount
   },
   coinflip: {
     wins: 0
@@ -186,6 +189,27 @@ async function get_faucet_stats(_address) {
   };
 }
 
+function get_next_month_timestamp() {
+  let current_month = get_month();
+  let next_year = START_YEAR+Math.floor((current_month+START_MONTH+1)/12);
+  let next_calendar_month = (current_month+START_MONTH+2)%12 || 12; //if 0, that means it is 12th month, not 0th
+  return (new Date(`${next_year}-${next_calendar_month}-01`)).getTime();
+}
+
+async function get_month_end() {
+  return (await month_end.findOne({
+    //month: get_month() - 1,
+    month: get_month(),
+  })).end;
+}
+
+async function set_month_end() {
+  await month_end.insertOne({
+    month: get_month(),
+    end: Date.now(),
+  });
+}
+
 async function get_next_claim_time(address) {
   let user_info = await find_claim(address);
   let claims_this_month = await get_claims_this_month();
@@ -194,10 +218,7 @@ async function get_next_claim_time(address) {
   let under_claim_limit = true;
   if (claims_this_month >= MAX_CLAIMS_PER_MONTH) {
     under_claim_limit = false;
-    let current_month = get_month();
-    let current_year = START_YEAR+Math.floor((current_month+START_MONTH+1)/12);
-    let current_calendar_month = (current_month+START_MONTH+2)%12 || 12; //if 0, that means it is 12th month, not 0th
-    next_claim_time = (new Date(`${current_year}-${current_calendar_month}-01`)).getTime();
+    next_claim_time = get_next_month_timestamp();
   }
   if (user_info) {
     if (user_info.last_claim+CLAIM_FREQ > Date.now()) {
@@ -274,88 +295,189 @@ const ACHIEVEMENTS = {
     id: "activity-1",
     name: "Comet",
     description: "Chat activity level 1",
-    prize: 50,
+    prize: 100,
     role: false //or role id
   },
   "activity-2": {
     id: "activity-2",
     name: "Dwarf Planet",
     description: "Chat activity level 2",
-    prize: 100,
-    role: false //or role id
+    prize: 500,
+    role: false
   },
   "activity-3": {
     id: "activity-3",
     name: "Planet",
     description: "Chat activity level 3",
-    prize: 150,
-    role: false //or role id
+    prize: 1000,
+    role: false
   },
   "activity-4": {
     id: "activity-4",
     name: "Star",
     description: "Chat activity level 4",
-    prize: 200,
-    role: false //or role id
+    prize: 3000,
+    role: false
   },
   "activity-5": {
     id: "activity-5",
     name: "Nebula",
     description: "Chat activity level 5",
-    prize: 250,
-    role: false //or role id
+    prize: 5000,
+    role: false
   },
   "activity-6": {
     id: "activity-6",
     name: "Supernova",
     description: "Chat activity level 6",
-    prize: 300,
-    role: false //or role id
+    prize: 10000,
+    role: false
   },
   //faucet achievements
   "faucet-2": {
     id: "faucet-2",
     name: "The Journey Begins",
     description: "Have a 2 day faucet streak!",
-    prize: 200,
-    role: false //or role id
+    prize: 500,
+    role: false
   },
   "faucet-10": {
     id: "faucet-10",
     name: "Jump Into Hyperspace",
     description: "Have a 10 day faucet streak!",
     prize: 2000,
-    role: false //or role id
+    role: false
   },
   "faucet-30": {
     id: "faucet-30",
     name: "Beam Me Up, Scotty",
     description: "Have a 30 day faucet streak!",
     prize: 6000,
-    role: false //or role id
+    role: false
   },
   "faucet-50": {
     id: "faucet-50",
     name: "The Restaurant at the End of the Universe",
     description: "Have a 50 day faucet streak!",
     prize: 10000,
-    role: false //or role id
+    role: "1211426757828157440" //Faucet 50
   },
   "faucet-100": {
     id: "faucet-100",
     name: "Alpha Centauri",
     description: "Have a 100 day faucet streak!",
     prize: 15000,
-    role: false //or role id
+    role: "1211425830991958037" //Faucet 100
   },
   "faucet-365": {
     id: "faucet-100",
     name: "Kwisatz Haderach",
     description: "Have a 365 day faucet streak! Wow!",
     prize: 25000,
-    role: false //or role id
+    role: "1211426853055758396" //Faucet 365
   },
-  //
+  //tipping achievements
+  "tipper-1": {
+    id: "tipper-1",
+    name: "First tip!",
+    description: `First tip over ${MIN_ACHIEVEMENT_TIP} XAC. So you learned how to use the tipbot?`,
+    prize: 100,
+    role: false
+  },
+  "tipper-2": {
+    id: "tipper-2",
+    name: "Tip Novice",
+    description: "Make 10 XAC tips!",
+    prize: 500,
+    role: false
+  },
+  "tipper-3": {
+    id: "tipper-3",
+    name: "Tip Pro",
+    description: "Make 25 XAC tips!",
+    prize: 1000,
+    role: false
+  },
+  "tipper-4": {
+    id: "tipper-4",
+    name: "Tip Master",
+    description: "Make 100 XAC tips. So, why are you building a clock?",
+    prize: 3000,
+    role: "1211403167158501448" //Tip Master
+  },
+  "tipper-5": {
+    id: "tipper-5",
+    name: "Tip Grandmaster",
+    description: "Make 200 XAC tips. Hey! The replicator is for printing food, not money!",
+    prize: 5000,
+    role: "1211404005633294396" //Tip Grandmaster
+  },
+  "tipper-6": {
+    id: "tipper-6",
+    name: "Galactic Philanthropist",
+    description: "Make 300 XAC tips. I hear Magrathea is coming out of hibernation just for you...",
+    prize: 10000,
+    role: "1211404404356423730" //Galactic Philanthropist
+  },
+  //coinflip achievements
+  "coinflip-1": {
+    id: "coinflip-1",
+    name: "First coinflip win!",
+    description: "First win in coinflip!",
+    prize: 100,
+    role: false
+  },
+  "coinflip-2": {
+    id: "coinflip-2",
+    name: "Space Vegas",
+    description: "10 coinflip wins! Where is Space Frank Sinatra?",
+    prize: 1000,
+    role: false
+  },
+  "coinflip-3": {
+    id: "coinflip-3",
+    name: "Coinflip Duelist",
+    description: "Have 50 coinflip wins.",
+    prize: 10000,
+    role: false
+  },
+  //nft achievements
+  "nft-1": {
+    id: "nft-1",
+    name: "NFT Citizen",
+    description: "Own any Astral Credits NFT. Welcome!",
+    prize: 1000,
+    role: false
+  },
+  "nft-2": {
+    id: "nft-2",
+    name: "NFT Magnate",
+    description: "Own 10k SGB worth of Astral Credits NFTs. You really like them, huh?",
+    prize: 5000,
+    role: "1211411402187743272" //NFT Magnate
+  },
+  "nft-all": {
+    id: "nft-all",
+    name: "Diamond Supporter",
+    description: "Have one of each NFT badge! Gotta collect them all!",
+    prize: 10000,
+    role: "1211411950760632430" //Diamond Supporter
+  },
+  //one offs (pixel planet user, discord booster)
+  "pixel-planet": {
+    id: "pixel-planet",
+    name: "Pixel Planet Painter",
+    description: "Paint a pixel in [Pixel Planet](https://www.astralcredits.xyz/pixels)!",
+    prize: 500,
+    role: false
+  },
+  "booster": {
+    id: "booster",
+    name: "Team Rocket",
+    description: "Support by boosting the Discord server!",
+    prize: 10000,
+    role: false
+  },
 }
 
 //returns false is user already has achievement
@@ -376,16 +498,27 @@ async function add_achievement_db(user_id, achievement_id, cached_user) {
 
 //faucet achievement info
 async function add_claim_achievement_info(user_id, cached_user, last_claim) {
+  let override = false; //true if first of the month and person claimed last day of last month
+  let override_days; //downtime days to add to streak
+  //if first day of month
+  if ((new Date()).getUTCDate() === 1) {
+    let month_end_timestamp = await get_month_end();
+    //if last claim was made on last claiming day of the last month
+    if (last_claim > month_end_timestamp - CLAIM_FREQ) {
+      override = true;
+      override_days = Math.floor((Date.now() - last_claim) / (24 * 60 * 60 * 1000));
+    }
+  }
   //if their last claim was less than 2 days ago, streak continues
-  if (last_claim + CLAIM_FREQ * 2 > Date.now()) {
+  if (last_claim + CLAIM_FREQ * 2 > Date.now() || override) {
     let update = {
       $inc: {
-        "achievement_data.faucet.current_streak": 1,
+        "achievement_data.faucet.current_streak": override_days ?? 1,
       }
     };
-    if (cached_user.achievement_data.faucet.longest_streak === cached_user.achievement_data.faucet.current_streak) {
+    if (cached_user.achievement_data.faucet.longest_streak < cached_user.achievement_data.faucet.current_streak + (override_days ?? 1)) {
       //new longest streak
-      update["$inc"]["achievement_data.faucet.longest_streak"] = 1;
+      update["$inc"]["achievement_data.faucet.longest_streak"] = override_days ?? 1;
     }
     await users.updateOne({
       user: user_id,
@@ -411,12 +544,12 @@ async function increment_message_achievement_info(user_id) {
   });
 }
 
-async function increment_xac_tips_achievement_info(user_id, xac_amount) {
+async function increment_xac_tips_achievement_info(user_id) {
   await users.updateOne({
     user: user_id,
   }, {
     $inc: {
-      "achievement_data.tips.xac_amount": xac_amount,
+      "achievement_data.tips.xac_amount": 1,
     }
   });
 }
@@ -658,6 +791,7 @@ module.exports = {
   milestone_check,
   get_faucet_stats,
   get_claims_this_month,
+  get_next_month_timestamp,
   get_next_claim_time,
   get_all_users,
   count_users,
@@ -689,5 +823,7 @@ module.exports = {
   airdrop_find,
   airdrop_insert,
   get_all_linked_websites,
+  set_month_end,
   CLAIM_FREQ,
+  MIN_ACHIEVEMENT_TIP,
 };

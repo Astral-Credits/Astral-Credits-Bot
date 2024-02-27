@@ -391,6 +391,10 @@ const commands = [
     description: "See achievements you haven't unlocked yet"
   },
   {
+    name: "claim_achievements",
+    description: "Manually claim certain achievements"
+  },
+  {
     name: "admin_balance",
     //admin only
     default_member_permissions: String(268435456),
