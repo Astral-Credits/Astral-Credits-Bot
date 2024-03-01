@@ -245,6 +245,14 @@ async function get_held_nfts(address) {
   return await astral_nft.balanceOfBatch([address, address, address, address, address], [1, 2, 3, 4, 5]);
 }
 
+const nft_values = {
+  "1": 1000,
+  "2": 100,
+  "3": 350,
+  "4": 700,
+  "5": 3000,
+};
+
 //checks if user has the right nfts, and has held them for at least 
 async function holds_aged_nfts(address, nft_resp) {
   //genesis token id: 1 (1000 sgb)
@@ -252,13 +260,6 @@ async function holds_aged_nfts(address, nft_resp) {
   //hyperdrive token id: 3 (350 sgb)
   //cosmic token id: 4 (700 sgb)
   //hologram token id: 5 (3000 sgb)
-  const nft_values = {
-    "1": 1000,
-    "2": 100,
-    "3": 350,
-    "4": 700,
-    "5": 3000,
-  };
   let nft_balances = await astral_nft.balanceOfBatch([address, address, address, address, address], [1, 2, 3, 4, 5]);
   if (nft_resp.result) {
     nft_resp = nft_resp.result;
@@ -410,6 +411,7 @@ module.exports = {
   SUPPORTED,
   SUPPORTED_INFO,
   HOLDING_BLOCK_TIME,
+  nft_values,
   get_liquidity_blaze,
   enough_balance,
   get_bal,
