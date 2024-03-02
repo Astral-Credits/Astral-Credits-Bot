@@ -110,15 +110,32 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
     if (!receipt || receipt?.status === 0) {
       return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
     } else {
-      if (currency === "xac" && amount > db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
-        let user_info = await db.get_user(message.author.id);
+      if (currency === "xac" && amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
+        let user_info = await db.get_user(user.id);
         if (user_info) {
           await db.increment_xac_tips_achievement_info(user.id);
           //check for achievements
           switch (user_info.achievement_data.tips.xac_amount+1) {
             case 1:
-              //
+              add_achievement(user.id, "tipper-1", user_info, interaction.member);
               break;
+            case 10:
+              add_achievement(user.id, "tipper-2", user_info, interaction.member);
+              break;
+            case 25:
+              add_achievement(user.id, "tipper-3", user_info, interaction.member);
+              break;
+            case 100:
+              add_achievement(user.id, "tipper-4", user_info, interaction.member);
+              break;
+            case 200:
+              add_achievement(user.id, "tipper-5", user_info, interaction.member);
+              break;
+            case 300:
+              add_achievement(user.id, "tipper-5", user_info, interaction.member);
+              break;
+            default:
+              //nothing
           }
           //
         }
@@ -145,8 +162,9 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
     let achievement_notif_embed = new discord.EmbedBuilder();
     achievement_notif_embed.setTitle("Achievement Earned!");
     achievement_notif_embed.setColor("#30d613");
-    achievement_notif_embed.setDescription(`<@${user_id}> has earned the achievement "${achievement_info.name}" (${achievement_info.description})! Congratulations!\nPrize: ${achievement_info.prize} <:astral_creds:1000992673341120592>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`);
-    achievement_notif_embed.setFooter({ text: "Do /achievements to see a list of your achievements, and achievements yet to be earned" });
+    achievement_notif_embed.setThumbnail("https://cdn.discordapp.com/attachments/1070194353768775761/1212874280430215249/Medal.png?ex=65f36c32&is=65e0f732&hm=6c53aaec349530422678d6bd5a2ab020c16761b8bf9566b8d7361c3759cce539&");
+    achievement_notif_embed.setDescription(`Congratulations! <@${user_id}> has earned the achievement **"${achievement_info.name}" (${achievement_info.description})**\nPrize: ${achievement_info.prize} <:astral_creds:1000992673341120592>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`);
+    achievement_notif_embed.setFooter({ text: "Do /unlocked_achievements to see a list of your unlocked achievements" });
     //add role if any
     if (achievement_info.role) {
       member.roles.add(achievement_info.role);
@@ -157,7 +175,7 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
         }
       ]);
     }
-    await astral_guild.channels.cache.get("1087903395962179646").send({ embeds: [achievement_notif_embed] });
+    await astral_guild.channels.cache.get("1103087597875634257").send({ content: `<@${user_id}> completed an achievement :trophy:`, embeds: [achievement_notif_embed] });
     return true;
   }
   return false;
@@ -179,22 +197,22 @@ client.on('messageCreate', async (message) => {
       //don't judge
       switch (user_info.achievement_data.messages+1) {
         case 30:
-          add_achievement(message.author.id, "activity-1", user_info, message.member);
+          await add_achievement(message.author.id, "activity-1", user_info, message.member);
           break;
         case 100:
-          add_achievement(message.author.id, "activity-2", user_info, message.member);
+          await add_achievement(message.author.id, "activity-2", user_info, message.member);
           break;
         case 500:
-          add_achievement(message.author.id, "activity-3", user_info, message.member);
+          await add_achievement(message.author.id, "activity-3", user_info, message.member);
           break;
         case 1000:
-          add_achievement(message.author.id, "activity-4", user_info, message.member);
+          await add_achievement(message.author.id, "activity-4", user_info, message.member);
           break;
         case 2500:
-          add_achievement(message.author.id, "activity-5", user_info, message.member);
+          await add_achievement(message.author.id, "activity-5", user_info, message.member);
           break;
         case 5000:
-          add_achievement(message.author.id, "activity-6", user_info, message.member);
+          await add_achievement(message.author.id, "activity-6", user_info, message.member);
           break;
         default:
           //nothing
@@ -1093,7 +1111,6 @@ client.on('interactionCreate', async interaction => {
           //button interaction
           let dresp_bin = await dresp.awaitMessageComponent({ filter: (bin) => bin.user.id === interaction.user.id, time: 60000 });
           await dresp_bin.deferUpdate();
-          console.log(dresp_bin.customId)
           //update
           let action_row = new discord.ActionRowBuilder();
           let action_back = new discord.ButtonBuilder()
@@ -1107,7 +1124,6 @@ client.on('interactionCreate', async interaction => {
             .setDisabled(Number(dresp_bin.customId) === max_pages - 1)
             .setStyle("Primary");
           action_row.addComponents(action_back, action_front);
-          console.log(unlocked_embeds[Number(dresp_bin.customId)])
           //dresp_bin.customId will be the page to move to
           await interaction.editReply({
             embeds: [unlocked_embeds[Number(dresp_bin.customId)]],
@@ -1120,7 +1136,7 @@ client.on('interactionCreate', async interaction => {
     } else {
       let unlocked_embed = new discord.EmbedBuilder();
       unlocked_embed.setTitle("Unlocked Achievements");
-      if (unlocked_num < all_achievements / 3 && unlocked_num !== 0) {
+      if (unlocked_num < all_achievements / 3) {
         unlocked_embed.setThumbnail("https://cdn.discordapp.com/attachments/1070194353768775761/1210017913038184468/Badge1.png?ex=65e907ff&is=65d692ff&hm=7f19adfc0753cb7e5888da82d19c5f055263cef5b4f593d6cbd5028b8cfc9927&");
       } else if (unlocked_num < all_achievements / 3 * 2) {
         unlocked_embed.setThumbnail("https://cdn.discordapp.com/attachments/1070194353768775761/1210018490371678228/Badge2.png?ex=65e90889&is=65d69389&hm=b5626c6a881ce6bb92cfcf92e2e40ac6b3f6b7b8c4d165d553743b3a3e48ff08&");
@@ -1184,7 +1200,6 @@ client.on('interactionCreate', async interaction => {
           //button interaction
           let dresp_bin = await dresp.awaitMessageComponent({ filter: (bin) => bin.user.id === interaction.user.id, time: 60000 });
           await dresp_bin.deferUpdate();
-          console.log(dresp_bin.customId)
           //update
           let action_row = new discord.ActionRowBuilder();
           let action_back = new discord.ButtonBuilder()
@@ -1198,7 +1213,6 @@ client.on('interactionCreate', async interaction => {
             .setDisabled(Number(dresp_bin.customId) === max_pages - 1)
             .setStyle("Primary");
           action_row.addComponents(action_back, action_front);
-          console.log(locked_embeds[Number(dresp_bin.customId)])
           //dresp_bin.customId will be the page to move to
           await interaction.editReply({
             embeds: [locked_embeds[Number(dresp_bin.customId)]],
@@ -1232,7 +1246,8 @@ client.on('interactionCreate', async interaction => {
     //
     //discord boosts
     if (interaction.member.premiumSinceTimestamp) {
-      await add_achievement(user.id, "booster", user_info, interaction.member);
+      let g = await add_achievement(user.id, "booster", user_info, interaction.member);
+      if (g) await sleep(2500);
     }
     //nfts
     /*
@@ -1245,11 +1260,13 @@ client.on('interactionCreate', async interaction => {
     let held_nfts = await songbird.get_held_nfts(user_info.address);
     //check if any held
     if (held_nfts.filter((n) => n > 0).length > 0) {
-      await add_achievement(user.id, "nft-1", user_info, interaction.member);
+      let g = await add_achievement(user.id, "nft-1", user_info, interaction.member);
+      if (g) await sleep(2500);
     }
     //check if more than 100k sgb worth held
-    if (held_nfts.reduce((a, n, i) => a + n*songbird.nft_values[String(i+1)]).length >= 100_000) {
-      await add_achievement(user.id, "nft-2", user_info, interaction.member);
+    if (held_nfts.reduce((a, n, i) => a + Number(n)*songbird.nft_values[String(i+1)], 0) >= 10_000) {
+      let g = await add_achievement(user.id, "nft-2", user_info, interaction.member);
+      if (g) await sleep(2500);
     }
     //check if all held
     if (held_nfts.filter((n) => n > 0).length === 5) {
@@ -1368,7 +1385,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply({ embeds: [send_embed] });
     } else if (command === "change_register") {
       await interaction.deferReply();
-      let address = (await params.get("address")).value;
+      let address = (await params.get("address")).value.trim().toLowerCase();
       let target = (await params.get("target")).user;
       //validate address
       let address_valid;
@@ -1386,7 +1403,11 @@ client.on('interactionCreate', async interaction => {
         return await interaction.editReply("Failed, target user has not registered with bot.");
       }
       //change
-      await db.register_user(target.id, address, true);
+      let a_change = await db.register_user(target.id, address, true);
+      if (!a_change) {
+        let already_r_user = await db.get_user_by_address(address);
+        return await interaction.editReply(`Failed to change user's address${ already_r_user ? `, likely because someone else already registered with that address (<@${already_r_user.user}>)` : ", contact Prussia" }.`);
+      }
       //success
       return await interaction.editReply("Successfully changed user's address (admin only action).");
     } else if (command === "remove_linked_website") {
@@ -1580,27 +1601,27 @@ client.on('interactionCreate', async interaction => {
     //get updated user_info (current streak may increment by 1, or reset to 1)
     user_info = await db.get_user(user.id);
     //add_achievement does nothing if achievement already achieved
-    switch (user_info.achievement_data.faucet.current_streak) {
-      case 2:
-        await add_achievement(user.id, "faucet-2", user_info, interaction.member);
-        break;
-      case 10:
-        await add_achievement(user.id, "faucet-10", user_info, interaction.member);
-        break;
-      case 30:
-        await add_achievement(user.id, "faucet-30", user_info, interaction.member);
-        break;
-      case 50:
-        await add_achievement(user.id, "faucet-50", user_info, interaction.member);
-        break;
-      case 100:
-        await add_achievement(user.id, "faucet-100", user_info, interaction.member);
-        break;
-      case 365:
-        await add_achievement(user.id, "faucet-365", user_info, interaction.member);
-        break;
-      default:
-        //nothing
+    let user_cs = user_info.achievement_data.faucet.current_streak;
+    if (user_cs >= 2) {
+      let g1 = await add_achievement(user.id, "faucet-2", user_info, interaction.member);
+      if (user_cs >= 10) {
+        if (g1) await sleep(1500); //give time for nonce to increment (shouldn't there be a way to tell ethersjs to use nonce + 1...)
+        let g2 = await add_achievement(user.id, "faucet-10", user_info, interaction.member);
+        if (user_cs >= 30) {
+          if (g2) await sleep(1500);
+          let g3 = await add_achievement(user.id, "faucet-30", user_info, interaction.member);
+          if (user_cs >= 50) {
+            if (g3) await sleep(1500);
+            await add_achievement(user.id, "faucet-30", user_info, interaction.member);
+            if (user_cs >= 100) {
+              await add_achievement(user.id, "faucet-100", user_info, interaction.member);
+              if (user_cs >= 365) {
+                await add_achievement(user.id, "faucet-365", user_info, interaction.member);
+              }
+            }
+          }
+        }
+      }
     }
     //
     //reply with embed that includes tx link
@@ -1790,9 +1811,21 @@ client.on('interactionCreate', async interaction => {
       //const attachment = new discord.AttachmentBuilder("https://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif", { name: "spin.gif" });
       let followMessage = await interaction.followUp({ content: "The coin is being flipped...\nhttps://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif" });
       await sleep(3500);
-      //await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
-      //TODO: check for achievements
-      //
+      let winner_info = await db.get_user(winner.id);
+      await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      switch (winner_info.achievement_data.coinflip.wins + 1) {
+        case 1:
+          add_achievement(winner.id, "coinflip-1", winner_info, interaction.member);
+          break;
+        case 10:
+          add_achievement(winner.id, "coinflip-2", winner_info, interaction.member);
+          break;
+        case 50:
+          add_achievement(winner.id, "coinflip-3", winner_info, interaction.member);
+          break;
+        default:
+          break;
+      }
       //send result: winner, players, each player's random input, reveal server nonce, tx
       let coinflip_result_embed = new discord.EmbedBuilder();
       coinflip_result_embed.setTitle("A coin has been flipped...");
@@ -1965,9 +1998,21 @@ client.on('interactionCreate', async interaction => {
     coinflip_result_embed.setDescription(`**It's ${result.toUpperCase()}!
 **\n**${ won ? `<@${coinflip_info.player_id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${coinflip_info.player_id}> lost ${coinflip_info.wager} XAC in a bet against the house!` }** [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
     if (won) {
-      //await db.increment_coinflip_wins_achievement_info(user.id, coinflip_info.wager);
-      //TODO: check for achievements
-      //
+      let winner_info = await db.get_user(user.id);
+      await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      switch (winner_info.achievement_data.coinflip.wins + 1) {
+        case 1:
+          add_achievement(user.id, "coinflip-1", winner_info, interaction.member);
+          break;
+        case 10:
+          add_achievement(user.id, "coinflip-2", winner_info, interaction.member);
+          break;
+        case 50:
+          add_achievement(user.id, "coinflip-3", winner_info, interaction.member);
+          break;
+        default:
+          break;
+      }
     }
     coinflip_result_embed.addFields([
       {
@@ -1997,4 +2042,4 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-client.login(process.env.token);
+setTimeout(() => client.login(process.env.token), 3000);
