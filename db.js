@@ -198,8 +198,7 @@ function get_next_month_timestamp() {
 
 async function get_month_end() {
   return (await month_end.findOne({
-    //month: get_month() - 1,
-    month: get_month(),
+    month: get_month() - 1,
   })).end;
 }
 
@@ -247,7 +246,7 @@ async function count_users() {
 async function get_user_by_address(address) {
   //return address
   return await users.findOne({
-    address: address
+    address
   });
 }
 
@@ -554,12 +553,12 @@ async function increment_xac_tips_achievement_info(user_id) {
   });
 }
 
-async function increment_coinflip_wins_achievement_info(user_id, xac_amount) {
+async function increment_coinflip_wins_achievement_info(user_id) {
   await users.updateOne({
     user: user_id,
   }, {
     $inc: {
-      "achievement_data.coinflip.wins": xac_amount,
+      "achievement_data.coinflip.wins": 1,
     }
   });
 }
