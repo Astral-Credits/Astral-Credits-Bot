@@ -414,6 +414,10 @@ const commands = [
     default_member_permissions: String(268435456),
     description: "See balance of the admin tipping wallet"
   },
+  {
+    name: "leaderboard",
+    description: "See the users with the most achievements"
+  },
 ];
 
 const rest = new REST({ version: "9" }).setToken(process.env.token);

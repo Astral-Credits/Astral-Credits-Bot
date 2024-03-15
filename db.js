@@ -39,7 +39,7 @@ const INITIAL_ACHIEVEMENT_DATA = {
 
 setTimeout(function() {
   //run this before deploying
-  //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA });
+  //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA } });
   if (!ready) {
     exec("kill 1");
   }
@@ -791,6 +791,26 @@ async function get_all_linked_websites() {
   }
 }
 
+async function get_top_achievementeers() {
+  //limit?
+  return await ((await users.aggregate([
+    {
+      $project: {
+        _id: 0,
+        user: 1,
+        length: {
+          $size: "$achievements",
+        }
+      }
+    },
+    {
+      $sort: {
+        length: -1,
+      }
+    }
+  ])).limit(10)).toArray();
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -832,4 +852,5 @@ module.exports = {
   set_month_end,
   CLAIM_FREQ,
   MIN_ACHIEVEMENT_TIP,
+  get_top_achievementeers,
 };

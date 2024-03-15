@@ -139,7 +139,7 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
               add_achievement(user.id, "tipper-5", user_info, interaction.member);
               break;
             case 300:
-              add_achievement(user.id, "tipper-5", user_info, interaction.member);
+              add_achievement(user.id, "tipper-6", user_info, interaction.member);
               break;
             default:
               //nothing
@@ -340,6 +340,10 @@ client.on('interactionCreate', async interaction => {
       {
         name: "/claim_achievements",
         value: "Manually claim certain achievements"
+      },
+      {
+        name: "/leaderboard",
+        value: "See the users with the most achievements"
       },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
@@ -1356,6 +1360,17 @@ client.on('interactionCreate', async interaction => {
       console.log(e);
       return await interaction.editReply("Encountered error");
     }
+  } else if (command === "leaderboard") {
+    //currently, achievement leaderboard. in future, maybe new parameter that specifies what kind of leaderboard
+    await interaction.deferReply();
+    let sorted_top = await db.get_top_achievementeers(); //gets top 10
+    let leaderboard_embed = new discord.EmbedBuilder();
+    leaderboard_embed.setTitle("Achievements Leaderboard");
+    leaderboard_embed.setColor("#d3ed10");
+    leaderboard_embed.setDescription("See the users with the most achievements!");
+    leaderboard_embed.addFields(sorted_top.map((s) => ({ value: `<@${s.user}>`, name: `${s.length} achievements` })));
+    leaderboard_embed.setFooter({ text: "goodnight, texas" });
+    return await interaction.editReply({ embeds: [leaderboard_embed] });
   }
 
   //admin command
@@ -1871,7 +1886,7 @@ client.on('interactionCreate', async interaction => {
       let followMessage = await interaction.followUp({ content: "The coin is being flipped...\nhttps://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif" });
       await sleep(3500);
       let winner_info = await db.get_user(winner.id);
-      await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      await db.increment_coinflip_wins_achievement_info(winner.id);
       switch (winner_info.achievement_data.coinflip.wins + 1) {
         case 1:
           add_achievement(winner.id, "coinflip-1", winner_info, interaction.member);
@@ -2058,7 +2073,7 @@ client.on('interactionCreate', async interaction => {
 **\n**${ won ? `<@${coinflip_info.player_id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${coinflip_info.player_id}> lost ${coinflip_info.wager} XAC in a bet against the house!` }** [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
     if (won) {
       let winner_info = await db.get_user(user.id);
-      db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      db.increment_coinflip_wins_achievement_info(user.id);
       switch (winner_info.achievement_data.coinflip.wins + 1) {
         case 1:
           add_achievement(user.id, "coinflip-1", winner_info, interaction.member);
