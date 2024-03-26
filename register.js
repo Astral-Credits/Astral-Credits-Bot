@@ -168,6 +168,20 @@ const commands = [
     ]
   },
   {
+    name: "reverse_lookup",
+    //admin only
+    default_member_permissions: String(268435456),
+    description: "Find registered user by address",
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "Eth address (0x...)",
+        required: true
+      }
+    ]
+  },
+  {
     name: "add_website",
     description: "Link a website to your address, for the XAC pixel billboard",
     options: [
@@ -399,6 +413,10 @@ const commands = [
     //admin only
     default_member_permissions: String(268435456),
     description: "See balance of the admin tipping wallet"
+  },
+  {
+    name: "leaderboard",
+    description: "See the users with the most achievements"
   },
 ];
 

@@ -36,6 +36,7 @@ const MAX_DECIMALS = 4; //astral credits has 18 but not the point
 let historic_data_cache;
 let liqudity_cache;
 let sgb_price_cache;
+let pptr_cache;
 
 client.once('ready', async (info) => {
   console.log('Ready! as ' + info.user.tag);
@@ -84,6 +85,12 @@ client.once('ready', async (info) => {
   setInterval(async () => {
     await db.milestone_check(send_announcement);
   }, 30*60*1000);
+  async function set_pptr_cache() {
+    let token_resp = await (await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=0x93CA88Ee506096816414078664641C07aF731026")).json();
+    pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
+  }
+  set_pptr_cache();
+  setInterval(set_pptr_cache, 3*60*1000)
 });
 
 async function send_tip(interaction, user, target_id, amount, currency, type) {
@@ -132,7 +139,7 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
               add_achievement(user.id, "tipper-5", user_info, interaction.member);
               break;
             case 300:
-              add_achievement(user.id, "tipper-5", user_info, interaction.member);
+              add_achievement(user.id, "tipper-6", user_info, interaction.member);
               break;
             default:
               //nothing
@@ -240,6 +247,7 @@ client.on('interactionCreate', async interaction => {
   //
 
   if (command === "help") {
+    await interaction.deferReply({ ephemeral: true });
     let help_embed = new discord.EmbedBuilder();
     help_embed.setTitle("Help");
     help_embed.setColor("#08338e");
@@ -333,6 +341,10 @@ client.on('interactionCreate', async interaction => {
         name: "/claim_achievements",
         value: "Manually claim certain achievements"
       },
+      {
+        name: "/leaderboard",
+        value: "See the users with the most achievements"
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     await interaction.member.fetch();
@@ -351,6 +363,10 @@ client.on('interactionCreate', async interaction => {
         {
           name: "/view_addresses",
           value: "View addresses of an user"
+        },
+        {
+          name: "/reverse_lookup",
+          value: "Find registered user from address"
         },
         {
           name: "/remove_linked_website",
@@ -378,9 +394,9 @@ client.on('interactionCreate', async interaction => {
         }
       ]);
       admin_embed.setFooter({ text: "\"The ships hung in the sky in much the same way that bricks don't.\" -Douglas Adams" });
-      return await interaction.reply({ embeds: [help_embed, admin_embed] });
+      return await interaction.editReply({ embeds: [help_embed, admin_embed] });
     }
-    return await interaction.reply({ embeds: [help_embed] });
+    return await interaction.editReply({ embeds: [help_embed] });
   } else if (command === "price") {
     await interaction.deferReply();
     let price_info;
@@ -544,6 +560,21 @@ client.on('interactionCreate', async interaction => {
         inline: true
       }
     ]);
+    let user_info = await db.get_user(user.id);
+    if (user_info) {
+      stats_embed.addFields([
+        {
+          name: "Current Claim Streak",
+          value: String(user_info.achievement_data.faucet.current_streak),
+          inline: true
+        },
+        {
+          name: "Longest Claim Streak",
+          value: String(user_info.achievement_data.faucet.longest_streak),
+          inline: true
+        }
+      ]);
+    }
     stats_embed.setFooter({ text: "Made by prussia.dev" });
     return interaction.editReply({ embeds: [stats_embed] });
   } else if (command === "register") {
@@ -1006,10 +1037,10 @@ client.on('interactionCreate', async interaction => {
     return await interaction.editReply({ embeds: [coinflip_start_embed], components: [action_row] });
   } else if (command === "provably_fair_pvp") {
     //explain why the pvp game is provably fair. but for now...
-    return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvp.js");
+    return await interaction.reply("https://github.com/Astral-Credits/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvp.js");
   } else if (command === "provably_fair_pvh") {
     //explain why the pvh game is provably fair. but for now...
-    return await interaction.reply("https://github.com/jetstream0/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvh.js");
+    return await interaction.reply("https://github.com/Astral-Credits/Astral-Credits-Bot/blob/master/verifiers/coinflip_pvh.js");
   } else if (command === "crawl") {
     //while not an admin id guarded command, mkzi still has this command hidden for most non-admin people and channels
     await interaction.deferReply({ ephemeral: true });
@@ -1056,7 +1087,7 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("Encountered error");
     }
   } else if (command === "unlocked_achievements") {
-    await interaction.deferReply();
+    const dresp = await interaction.deferReply();
     //show unlocked achievements for user
     let user_info = await db.get_user(user.id);
     if (!user_info) {
@@ -1083,7 +1114,7 @@ client.on('interactionCreate', async interaction => {
         }
         unlocked_embed.setTitle("Unlocked Achievements");
         unlocked_embed.setDescription("Do `/locked_achievements` to see achievements yet to be unlocked.");
-        unlocked_embed.addFields(unlocked_infos.map((u) => ({ name: u.name, value: `${u.description} ${u.prize} XAC` })));
+        unlocked_embed.addFields(unlocked_infos.slice(10*i, 10*i+10).map((u) => ({ name: u.name, value: `${u.description} ${u.prize} XAC` })));
         unlocked_embed.setColor("#689F38");
         unlocked_embed.setFooter({ text: `${unlocked_num}/${Object.keys(db.ACHIEVEMENTS).length} unlocked` });
         unlocked_embeds.push(unlocked_embed);
@@ -1242,12 +1273,22 @@ client.on('interactionCreate', async interaction => {
       return await interaction.editReply("Please do `/register` first!");
     }
     //for non automatically rewarded achievements
+    let given = [];
     //pixel planet
-    //
+    if (pptr_cache?.filter((t) => t.from === user_info.address).length > 0) {
+      let g = await add_achievement(user.id, "pixel-planet", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["pixel-planet"].name);
+        await sleep(2500);
+      }
+    }
     //discord boosts
     if (interaction.member.premiumSinceTimestamp) {
       let g = await add_achievement(user.id, "booster", user_info, interaction.member);
-      if (g) await sleep(2500);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["booster"].name);
+        await sleep(2500);
+      }
     }
     //nfts
     /*
@@ -1261,18 +1302,31 @@ client.on('interactionCreate', async interaction => {
     //check if any held
     if (held_nfts.filter((n) => n > 0).length > 0) {
       let g = await add_achievement(user.id, "nft-1", user_info, interaction.member);
-      if (g) await sleep(2500);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["nft-1"].name);
+        await sleep(2500);
+      }
     }
     //check if more than 100k sgb worth held
     if (held_nfts.reduce((a, n, i) => a + Number(n)*songbird.nft_values[String(i+1)], 0) >= 10_000) {
       let g = await add_achievement(user.id, "nft-2", user_info, interaction.member);
-      if (g) await sleep(2500);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["nft-2"].name);
+        await sleep(2500);
+      }
     }
     //check if all held
     if (held_nfts.filter((n) => n > 0).length === 5) {
-      await add_achievement(user.id, "nft-all", user_info, interaction.member);
+      let g = await add_achievement(user.id, "nft-all", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["nft-all"].name);
+      }
     }
-    return await interaction.editReply("Gave all manually claimable achievements you were eligible for (check the notifications channel).");
+    if (given.length === 0) {
+      return await interaction.editReply("You were not eligible for any additional manually claimable achievements. Do `/locked_achievements` to see achievements to work towards.");
+    } else {
+      return await interaction.editReply(`Yay! You got ${given.length} manually claimable achievements: ${given.join(", ")}`);
+    }
   } else if (command === "crawl_shared_txs") {
     //while not an admin id guarded command, mkzi still has this command hidden for most non-admin people and channels
     await interaction.deferReply({ ephemeral: true });
@@ -1306,6 +1360,17 @@ client.on('interactionCreate', async interaction => {
       console.log(e);
       return await interaction.editReply("Encountered error");
     }
+  } else if (command === "leaderboard") {
+    //currently, achievement leaderboard. in future, maybe new parameter that specifies what kind of leaderboard
+    await interaction.deferReply();
+    let sorted_top = await db.get_top_achievementeers(); //gets top 10
+    let leaderboard_embed = new discord.EmbedBuilder();
+    leaderboard_embed.setTitle("Achievements Leaderboard");
+    leaderboard_embed.setColor("#d3ed10");
+    leaderboard_embed.setDescription("See the users with the most achievements!");
+    leaderboard_embed.addFields(sorted_top.map((s) => ({ value: `<@${s.user}>`, name: `${s.length} achievements` })));
+    leaderboard_embed.setFooter({ text: "goodnight, texas" });
+    return await interaction.editReply({ embeds: [leaderboard_embed] });
   }
 
   //admin command
@@ -1459,6 +1524,15 @@ client.on('interactionCreate', async interaction => {
         },
       ]);
       return interaction.editReply({ embeds: [add_embed] });
+    } else if (command === "reverse_lookup") {
+      await interaction.deferReply({ ephemeral: true });
+      let address = (await params.get("address")).value.trim().toLowerCase();
+      let user_info = await db.get_user_by_address(address);
+      if (user_info) {
+        return await interaction.editReply(`User <@${user_info.user}> is currently registered with that address.`);
+      } else {
+        return await interaction.editReply("No registered user found with that address.");
+      }
     } else if (command === "export_domains") {
       await interaction.deferReply();
       let all_domains = await db.get_all_domains();
@@ -1812,7 +1886,7 @@ client.on('interactionCreate', async interaction => {
       let followMessage = await interaction.followUp({ content: "The coin is being flipped...\nhttps://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif" });
       await sleep(3500);
       let winner_info = await db.get_user(winner.id);
-      await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      await db.increment_coinflip_wins_achievement_info(winner.id);
       switch (winner_info.achievement_data.coinflip.wins + 1) {
         case 1:
           add_achievement(winner.id, "coinflip-1", winner_info, interaction.member);
@@ -1999,7 +2073,7 @@ client.on('interactionCreate', async interaction => {
 **\n**${ won ? `<@${coinflip_info.player_id}> won ${coinflip_info.wager} XAC in a bet against the house!` : `<@${coinflip_info.player_id}> lost ${coinflip_info.wager} XAC in a bet against the house!` }** [View TX](https://songbird-explorer.flare.network/tx/${tx.hash}).\n\nHeads wins when the flip result is greater than or equal to 0.5, and Tails wins when the flip result is less than 0.5.`);
     if (won) {
       let winner_info = await db.get_user(user.id);
-      await db.increment_coinflip_wins_achievement_info(winner.id, coinflip_info.wager);
+      db.increment_coinflip_wins_achievement_info(user.id);
       switch (winner_info.achievement_data.coinflip.wins + 1) {
         case 1:
           add_achievement(user.id, "coinflip-1", winner_info, interaction.member);

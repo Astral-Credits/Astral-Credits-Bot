@@ -39,7 +39,7 @@ const INITIAL_ACHIEVEMENT_DATA = {
 
 setTimeout(function() {
   //run this before deploying
-  //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA });
+  //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA } });
   if (!ready) {
     exec("kill 1");
   }
@@ -246,14 +246,14 @@ async function count_users() {
 async function get_user_by_address(address) {
   //return address
   return await users.findOne({
-    address
+    address,
   });
 }
 
 async function get_user(user_id) {
   //return address
   return await users.findOne({
-    user: user_id
+    user: user_id,
   });
 }
 
@@ -271,7 +271,7 @@ async function register_user(user_id, address, change=false) {
       //insert
       user_info.address = address;
       await users.replaceOne({
-        user: user_id
+        user: user_id,
       }, user_info);
     } else {
       return false;
@@ -282,7 +282,7 @@ async function register_user(user_id, address, change=false) {
       address: address,
       achievements: [],
       //data needed for achievements
-      achievement_data: INITIAL_ACHIEVEMENT_DATA
+      achievement_data: INITIAL_ACHIEVEMENT_DATA,
     });
   }
   return true;
@@ -295,42 +295,42 @@ const ACHIEVEMENTS = {
     name: "Comet",
     description: "Chat activity level 1",
     prize: 100,
-    role: false //or role id
+    role: false, //or role id
   },
   "activity-2": {
     id: "activity-2",
     name: "Dwarf Planet",
     description: "Chat activity level 2",
     prize: 500,
-    role: false
+    role: false,
   },
   "activity-3": {
     id: "activity-3",
     name: "Planet",
     description: "Chat activity level 3",
     prize: 1000,
-    role: false
+    role: false,
   },
   "activity-4": {
     id: "activity-4",
     name: "Star",
     description: "Chat activity level 4",
     prize: 3000,
-    role: false
+    role: false,
   },
   "activity-5": {
     id: "activity-5",
     name: "Nebula",
     description: "Chat activity level 5",
     prize: 5000,
-    role: false
+    role: false,
   },
   "activity-6": {
     id: "activity-6",
     name: "Supernova",
     description: "Chat activity level 6",
     prize: 10000,
-    role: false
+    role: false,
   },
   //faucet achievements
   "faucet-2": {
@@ -338,42 +338,42 @@ const ACHIEVEMENTS = {
     name: "The Journey Begins",
     description: "Have a 2 day faucet streak!",
     prize: 500,
-    role: false
+    role: false,
   },
   "faucet-10": {
     id: "faucet-10",
     name: "Jump Into Hyperspace",
     description: "Have a 10 day faucet streak!",
     prize: 2000,
-    role: false
+    role: false,
   },
   "faucet-30": {
     id: "faucet-30",
     name: "Beam Me Up, Scotty",
     description: "Have a 30 day faucet streak!",
     prize: 6000,
-    role: false
+    role: false,
   },
   "faucet-50": {
     id: "faucet-50",
     name: "The Restaurant at the End of the Universe",
     description: "Have a 50 day faucet streak!",
     prize: 10000,
-    role: "1211426757828157440" //Faucet 50
+    role: "1211426757828157440", //Faucet 50
   },
   "faucet-100": {
     id: "faucet-100",
     name: "Alpha Centauri",
     description: "Have a 100 day faucet streak!",
     prize: 15000,
-    role: "1211425830991958037" //Faucet 100
+    role: "1211425830991958037", //Faucet 100
   },
   "faucet-365": {
     id: "faucet-100",
     name: "Kwisatz Haderach",
     description: "Have a 365 day faucet streak! Wow!",
     prize: 25000,
-    role: "1211426853055758396" //Faucet 365
+    role: "1211426853055758396", //Faucet 365
   },
   //tipping achievements
   "tipper-1": {
@@ -381,42 +381,42 @@ const ACHIEVEMENTS = {
     name: "First tip!",
     description: `First tip over ${MIN_ACHIEVEMENT_TIP} XAC. So you learned how to use the tipbot?`,
     prize: 100,
-    role: false
+    role: false,
   },
   "tipper-2": {
     id: "tipper-2",
     name: "Tip Novice",
     description: "Make 10 XAC tips!",
     prize: 500,
-    role: false
+    role: false,
   },
   "tipper-3": {
     id: "tipper-3",
     name: "Tip Pro",
     description: "Make 25 XAC tips!",
     prize: 1000,
-    role: false
+    role: false,
   },
   "tipper-4": {
     id: "tipper-4",
     name: "Tip Master",
     description: "Make 100 XAC tips. So, why are you building a clock?",
     prize: 3000,
-    role: "1211403167158501448" //Tip Master
+    role: "1211403167158501448", //Tip Master
   },
   "tipper-5": {
     id: "tipper-5",
     name: "Tip Grandmaster",
     description: "Make 200 XAC tips. Hey! The replicator is for printing food, not money!",
     prize: 5000,
-    role: "1211404005633294396" //Tip Grandmaster
+    role: "1211404005633294396", //Tip Grandmaster
   },
   "tipper-6": {
     id: "tipper-6",
     name: "Galactic Philanthropist",
     description: "Make 300 XAC tips. I hear Magrathea is coming out of hibernation just for you...",
     prize: 10000,
-    role: "1211404404356423730" //Galactic Philanthropist
+    role: "1211404404356423730", //Galactic Philanthropist
   },
   //coinflip achievements
   "coinflip-1": {
@@ -424,21 +424,21 @@ const ACHIEVEMENTS = {
     name: "First coinflip win!",
     description: "First win in coinflip!",
     prize: 100,
-    role: false
+    role: false,
   },
   "coinflip-2": {
     id: "coinflip-2",
     name: "Space Vegas",
     description: "10 coinflip wins! Where is Space Frank Sinatra?",
     prize: 1000,
-    role: false
+    role: false,
   },
   "coinflip-3": {
     id: "coinflip-3",
     name: "Coinflip Duelist",
     description: "Have 50 coinflip wins.",
     prize: 10000,
-    role: false
+    role: false,
   },
   //nft achievements
   "nft-1": {
@@ -446,36 +446,36 @@ const ACHIEVEMENTS = {
     name: "NFT Citizen",
     description: "Own any Astral Credits NFT. Welcome!",
     prize: 1000,
-    role: false
+    role: false,
   },
   "nft-2": {
     id: "nft-2",
     name: "NFT Magnate",
     description: "Own 10k SGB worth of Astral Credits NFTs. You really like them, huh?",
     prize: 5000,
-    role: "1211411402187743272" //NFT Magnate
+    role: "1211411402187743272", //NFT Magnate
   },
   "nft-all": {
     id: "nft-all",
     name: "Diamond Supporter",
     description: "Have one of each NFT badge! Gotta collect them all!",
     prize: 10000,
-    role: "1211411950760632430" //Diamond Supporter
+    role: "1211411950760632430", //Diamond Supporter
   },
   //one offs (pixel planet user, discord booster)
   "pixel-planet": {
     id: "pixel-planet",
     name: "Pixel Planet Painter",
-    description: "Paint a pixel in [Pixel Planet](https://www.astralcredits.xyz/pixels)!",
+    description: "Paint a pixel in [Pixel Planet](https://www.astralcredits.xyz/pixels)! Updates every three hours.",
     prize: 500,
-    role: false
+    role: false,
   },
   "booster": {
     id: "booster",
     name: "Team Rocket",
     description: "Support by boosting the Discord server!",
     prize: 10000,
-    role: false
+    role: false,
   },
 }
 
@@ -487,6 +487,13 @@ async function add_achievement_db(user_id, achievement_id, cached_user) {
   }
   await users.updateOne({
     user: user_id,
+    achievements: {
+      $not: {
+        $in: [
+          achievement_id,
+        ],
+      },
+    },
   }, {
     $push: {
       achievements: achievement_id,
@@ -527,7 +534,7 @@ async function add_claim_achievement_info(user_id, cached_user, last_claim) {
       user: user_id,
     }, {
       $set: {
-        "achievement_data.faucet.current_streak": 0,
+        "achievement_data.faucet.current_streak": 1,
       }
     });
   }
@@ -784,6 +791,26 @@ async function get_all_linked_websites() {
   }
 }
 
+async function get_top_achievementeers() {
+  //limit?
+  return await ((await users.aggregate([
+    {
+      $project: {
+        _id: 0,
+        user: 1,
+        length: {
+          $size: "$achievements",
+        }
+      }
+    },
+    {
+      $sort: {
+        length: -1,
+      }
+    }
+  ])).limit(10)).toArray();
+}
+
 module.exports = {
   get_month,
   get_amount,
@@ -825,4 +852,5 @@ module.exports = {
   set_month_end,
   CLAIM_FREQ,
   MIN_ACHIEVEMENT_TIP,
+  get_top_achievementeers,
 };
