@@ -2,7 +2,7 @@ const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
 
 const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
-const { erc20_abi, erc1155_abi, domains_abi, sgb_domain_abi } = require('./abi.js');
+const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi } = require('./abi.js');
 
 const SUPPORTED_INFO = {
   "sgb": {
@@ -80,7 +80,7 @@ const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB"
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
-let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_abi, faucet_wallet);
+let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_and_ftso_abi, faucet_wallet); //also includes FTSO functions!
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
 let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, provider);
@@ -89,6 +89,8 @@ let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb80
 //faucet requirements
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
 const HOLDING_BLOCK_TIME = 43200;
+
+const TRIFORCE_ADDRESS = "0x86fBF03CCF0FE152B2aBE2B43bA82662c59Ac1B4";
 
 //do a sanity check to make sure the tipbot derive privkey can never exceed 32 bytes (this would be bad :tm:), as priv key would be invalid
 //priv keys are 32 bytes, meaning 256**32-1 is the max
@@ -407,10 +409,15 @@ async function lookup_domain_owner(domain) {
   return await sgb_domain_contract.getDomainHolder(domain, ".sgb");
 }
 
+async function ftso_delegates_of(address) {
+  return await wrapped_songbird_token.delegatesOf(address);
+}
+
 module.exports = {
   SUPPORTED,
   SUPPORTED_INFO,
   HOLDING_BLOCK_TIME,
+  TRIFORCE_ADDRESS,
   nft_values,
   get_liquidity_blaze,
   enough_balance,
@@ -434,6 +441,7 @@ module.exports = {
   find_shared_txs,
   lookup_domain_owner,
   get_block_number,
+  ftso_delegates_of,
   is_valid: ethers.utils.isAddress,
   admin_address: wallet.address,
 };

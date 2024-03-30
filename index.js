@@ -161,7 +161,10 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
     const achievement_info = db.ACHIEVEMENTS[achievement_id];
     //pay prize from team's collective tipping wallet to the user's tipping wallet
     let user_tipbot_address = await songbird.get_tipbot_address(user_id);
-    const tx = await songbird.send_astral(user_tipbot_address, achievement_info.prize);
+    let tx = false;
+    if (achievement_info.prize > 0) {
+      tx = await songbird.send_astral(user_tipbot_address, achievement_info.prize);
+    }
     //send message in notifications
     let astral_guild = client.guilds.cache.get("1000985457393422367");
     await astral_guild.channels.fetch();
@@ -170,7 +173,11 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
     achievement_notif_embed.setTitle("Achievement Earned!");
     achievement_notif_embed.setColor("#30d613");
     achievement_notif_embed.setThumbnail("https://cdn.discordapp.com/attachments/1070194353768775761/1212874280430215249/Medal.png?ex=65f36c32&is=65e0f732&hm=6c53aaec349530422678d6bd5a2ab020c16761b8bf9566b8d7361c3759cce539&");
-    achievement_notif_embed.setDescription(`Congratulations! <@${user_id}> has earned the achievement **"${achievement_info.name}" (${achievement_info.description})**\nPrize: ${achievement_info.prize} <:astral_creds:1000992673341120592>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`);
+    let notif_description = `Congratulations! <@${user_id}> has earned the achievement **"${achievement_info.name}" (${achievement_info.description})**`;
+    if (achievement_info.prize > 0) {
+      notif_description += `\nPrize: ${achievement_info.prize} <:astral_creds:1000992673341120592>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`;
+    }
+    achievement_notif_embed.setDescription(notif_description);
     achievement_notif_embed.setFooter({ text: "Do /unlocked_achievements to see a list of your unlocked achievements" });
     //add role if any
     if (achievement_info.role) {
@@ -524,7 +531,7 @@ client.on('interactionCreate', async interaction => {
     stats_embed.setColor("#d10dd8");
     const remaining_claims = 11111-await db.get_claims_this_month();
     if (remaining_claims <= 0) {
-      stats_embed.setDescription(`There are no more claims remaining this month! Faucet reset <t:${db.get_next_month_timestamp()}:R>`);
+      stats_embed.setDescription(`There are no more claims remaining this month! Faucet reset <t:${Math.floor(db.get_next_month_timestamp() / 1000)}:R>`);
     } else {
       stats_embed.setDescription(`There are ${remaining_claims} claims remaining this month!`);
     }
@@ -1322,6 +1329,29 @@ client.on('interactionCreate', async interaction => {
         given.push(db.ACHIEVEMENTS["nft-all"].name);
       }
     }
+    //check for xac millionaire
+    if (await songbird.get_bal_astral(user_info.address) >= 1_000_000) {
+      let g = await add_achievement(user.id, "millionaire", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["millionaire"].name);
+        await sleep(2500);
+      }
+    }
+    //check for triforceone delegator
+    let ftso_resp = await songbird.ftso_delegates_of(user_info.address);
+    //console.log(ftso_resp);
+    //[0] is the addresses, [1] is the delegation % in bips
+    let found_index = ftso_resp[0].map((address) => address.toLowerCase()).indexOf(songbird.TRIFORCE_ADDRESS.toLowerCase()); //returns -1 if not found, array[-1] returns undefined
+    //10000 bips is 100%
+    if (ftso_resp[1][found_index]?.gte(5_000)) {
+      let g = await add_achievement(user.id, "triforce-delegator", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["triforce-delegator"].name);
+        await sleep(2500);
+      }
+    }
+    //check for liquidity provider
+    //
     if (given.length === 0) {
       return await interaction.editReply("You were not eligible for any additional manually claimable achievements. Do `/locked_achievements` to see achievements to work towards.");
     } else {
@@ -1362,15 +1392,65 @@ client.on('interactionCreate', async interaction => {
     }
   } else if (command === "leaderboard") {
     //currently, achievement leaderboard. in future, maybe new parameter that specifies what kind of leaderboard
-    await interaction.deferReply();
-    let sorted_top = await db.get_top_achievementeers(); //gets top 10
-    let leaderboard_embed = new discord.EmbedBuilder();
-    leaderboard_embed.setTitle("Achievements Leaderboard");
-    leaderboard_embed.setColor("#d3ed10");
-    leaderboard_embed.setDescription("See the users with the most achievements!");
-    leaderboard_embed.addFields(sorted_top.map((s) => ({ value: `<@${s.user}>`, name: `${s.length} achievements` })));
-    leaderboard_embed.setFooter({ text: "goodnight, texas" });
-    return await interaction.editReply({ embeds: [leaderboard_embed] });
+    const dresp = await interaction.deferReply();
+    let leaderboard_embeds = [];
+    let user_count = await db.count_users();
+    let max_pages = Math.ceil(user_count / 10);
+    async function gen_leaderboard_embed(p) {
+      let sorted_top = await ((await db.get_top_achievementeers()).skip(p * 10).limit(10)).toArray();
+      let leaderboard_embed = new discord.EmbedBuilder();
+      leaderboard_embed.setTitle("Achievements Leaderboard");
+      leaderboard_embed.setColor("#d3ed10");
+      leaderboard_embed.setDescription("See the users with the most achievements!");
+      leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.length} achievements` })));
+      leaderboard_embed.setFooter({ text: "goodnight, texas" });
+      return leaderboard_embed;
+    }
+    let action_row = new discord.ActionRowBuilder();
+    let action_back = new discord.ButtonBuilder()
+      .setCustomId("-1")
+      .setLabel("Back")
+      .setEmoji("⬅️")
+      .setDisabled(true)
+      .setStyle("Primary");
+    let action_front = new discord.ButtonBuilder()
+      .setCustomId("1")
+      .setLabel("Foward")
+      .setEmoji("➡️")
+      .setStyle("Primary");
+    action_row.addComponents(action_back, action_front);
+    //components
+    await interaction.editReply({
+      embeds: [await gen_leaderboard_embed(0)],
+      components: [action_row],
+    });
+    while (true) {
+      try {
+        //button interaction
+        let dresp_bin = await dresp.awaitMessageComponent({ filter: (bin) => bin.user.id === interaction.user.id, time: 60000 });
+        await dresp_bin.deferUpdate();
+        //update
+        let action_row = new discord.ActionRowBuilder();
+        let action_back = new discord.ButtonBuilder()
+          .setCustomId(String(Number(dresp_bin.customId)-1))
+          .setEmoji("⬅️")
+          .setDisabled(Number(dresp_bin.customId) === 0)
+          .setStyle("Primary");
+        let action_front = new discord.ButtonBuilder()
+          .setCustomId(String(Number(dresp_bin.customId)+1))
+          .setEmoji("➡️")
+          .setDisabled(Number(dresp_bin.customId) === max_pages - 1)
+          .setStyle("Primary");
+        action_row.addComponents(action_back, action_front);
+        //dresp_bin.customId will be the page to move to
+        await interaction.editReply({
+          embeds: [await gen_leaderboard_embed(Number(dresp_bin.customId))],
+          components: [action_row],
+        });
+      } catch (e) {
+        return;
+      }
+    }
   }
 
   //admin command

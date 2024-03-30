@@ -38,6 +38,45 @@ const erc20_abi = [
   }
 ];
 
+const erc20_and_ftso_abi = [
+  ...erc20_abi,
+  //put in address of user, get those who they delegated to
+  {
+    "type": "function",
+    "stateMutability": "view",
+    "outputs": [
+      {
+        "type": "address[]",
+        "name": "_delegateAddresses",
+        "internalType": "address[]"
+      },
+      {
+        "type": "uint256[]",
+        "name": "_bips",
+        "internalType": "uint256[]"
+      },
+      {
+        "type": "uint256",
+        "name": "_count",
+        "internalType": "uint256"
+      },
+      {
+        "type": "uint256",
+        "name": "_delegationMode",
+        "internalType": "uint256"
+      }
+    ],
+    "name": "delegatesOf",
+    "inputs": [
+      {
+        "type": "address",
+        "name": "_owner",
+        "internalType": "address"
+      }
+    ]
+  }, 
+]
+
 const erc1155_abi = [
   {
 		"inputs": [
@@ -174,6 +213,7 @@ const sgb_domain_abi = [
 
 module.exports = {
   erc20_abi,
+  erc20_and_ftso_abi,
   erc1155_abi,
   domains_abi,
   sgb_domain_abi,
