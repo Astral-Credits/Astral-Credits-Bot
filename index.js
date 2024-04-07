@@ -16,6 +16,10 @@ const client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers, discord.GatewayIntentBits.GuildMessages]
 });
 
+const mod_client = new discord.Client({
+  intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers, discord.GatewayIntentBits.GuildMessages, discord.GatewayIntentBits.MessageContent]
+});
+
 const ADMINS = ["239770148305764352", "288612712680914954", "875942059503149066", "600071769721929746", "1074092955943571497", "486380942911471617"];
 
 //mods too
@@ -1067,7 +1071,8 @@ client.on('interactionCreate', async interaction => {
       //sort associates
       //probably, not everything needs to be sorted
       let sorted_associates = Object.entries(associates).sort((a, b) => b[1] - a[1]);
-      let content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
+      const initial_content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
+      let content = initial_content;
       let current_count = 0;
       let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
       for (let i=0; i < sorted_associates.length; i++) {
@@ -1087,6 +1092,9 @@ client.on('interactionCreate', async interaction => {
       if (content.length > 2000) {
         const attachment = new discord.AttachmentBuilder(Buffer.from(content), { name: `${address}.txt` });
         return interaction.editReply({ content: "Too big to send as embed, sending as text file", files: [attachment]});
+      }
+      if (content === initial_content) {
+        content += "No results.";
       }
       return await interaction.editReply(content);
     } catch (e) {
@@ -1393,7 +1401,6 @@ client.on('interactionCreate', async interaction => {
   } else if (command === "leaderboard") {
     //currently, achievement leaderboard. in future, maybe new parameter that specifies what kind of leaderboard
     const dresp = await interaction.deferReply();
-    let leaderboard_embeds = [];
     let user_count = await db.count_users();
     let max_pages = Math.ceil(user_count / 10);
     async function gen_leaderboard_embed(p) {
@@ -2196,4 +2203,23 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+mod_client.on('messageCreate', async (message) => {
+  const content = message.content.toLowerCase();
+  if (content.includes("discord.com/invite") || content.includes("discord.gg/") || content.includes("nudes") || (content.includes("airdrop") && content.length > 100)) {
+    await message.member.fetch();
+    //if unverified (and not self [todo: not bot?]), delete invite
+    if (!message.member.roles.cache.has("1100582916871958578") && message.member.id !== "1224934300244512789") {
+      await message.reply(`<@${message.member.id}> <a:siren:1105674561829228626> **Possible UNREGISTERED SECURITY (||scam/spam||) detected, message deleted** <a:siren:1105674561829228626>`);
+      await message.delete();
+      try {
+        mod_client.channels.cache.get("1087903395962179646").send(`__Log: Deleted Likely Spam__\nUser: <@${message.member.id}>\nChannel: <#${message.channel.id}>\nContent: ${ message.length > 1000 ? message.slice(0, 1000) + "..." : message }`);
+      } catch (e) {
+        console.log(e);
+      }
+    }
+  }
+});
+
 setTimeout(() => client.login(process.env.token), 3000);
+
+mod_client.login(process.env.mod_token);
