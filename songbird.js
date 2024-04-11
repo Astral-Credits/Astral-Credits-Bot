@@ -4,75 +4,111 @@ const { fetch } = require('cross-fetch');
 const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
 const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi } = require('./abi.js');
 
+const MAX_DECIMALS = 6; //astral credits has 18 but not the point
+
+//this file is deceptively named! flare is also supported
+
 const SUPPORTED_INFO = {
+  //songbird
   "sgb": {
     //no token address, ofc
     "id": "sgb",
     "name": "Songbird",
     "emoji": "<:SGB:1130360963636408350>",
+    "chain": "songbird",
+    "coingecko": "songbird",
   },
   "xac": {
     "id": "xac",
     "name": "Astral Credits",
     "emoji": "<:astral_creds:1000992673341120592>",
     "token_address": "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723",
+    "chain": "songbird",
+    "coingecko": "astral-credits",
   },
   "nishi": {
     "id": "nishi",
     "name": "Nishicoin",
     "emoji": "<:NISHI:1172309804677599263>",
     "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
+    "chain": "songbird",
   },
   "sphx": {
     "id": "sphx",
     "name": "Songbird Phoenix",
     "emoji": "<:sPHX:1130346027497558126>",
     "token_address": "0x7afDe1497da4AeDecFaf6CC32FB0D83572C10426",
+    "chain": "songbird",
   },
   "fthr": {
     "id": "fthr",
     "name": "FeatherSwap",
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
+    "chain": "songbird",
   },
   "bbx": {
     "id": "bbx",
     "name": "BlueBirdX",
     "emoji": "<:BBX:1142960050273521765>",
     "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
+    "chain": "songbird",
   },
   "sprk": {
     "id": "sprk",
     "name": "Spark",
     "emoji": "<:SPRK:1206369512396689488>",
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
+    "chain": "songbird",
   },
   "exusdt": {
     "id": "exusdt",
     "name": "exUSDT",
     "emoji": "<:exUSDT:1206369568696569986>",
     "token_address": "0x1a7b46656B2b8b29B1694229e122d066020503D0",
+    "chain": "songbird",
     "decimal_places": 6,
+    "coingecko": "tether", //I guess
   },
   "wsgb": {
     "id": "wsgb",
     "name": "Wrapped Songbird",
     "emoji": "<:WSGB:1175906483154722906>",
     "token_address": "0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED",
+    "chain": "songbird",
+    "coingecko": "wrapped-songbird",
+  },
+  //flare
+  "flr": {
+    //no token address, ofc
+    "id": "flr",
+    "name": "Flare",
+    "emoji": "<:FLR:1153124121048260789>",
+    "chain": "flare",
+    "coingecko": "flare-networks",
+  },
+  "wflr": {
+    "id": "wflr",
+    "name": "Wrapped Flare",
+    "emoji": "<:FLR:1153124121048260789>",
+    "token_address": "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d",
+    "chain": "flare",
+    "coingecko": "wrapped-flare",
   },
 };
 
 let SUPPORTED = Object.keys(SUPPORTED_INFO);
 
-const provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
+const songbird_provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
+const flare_provider = new ethers.providers.JsonRpcProvider("https://flare-api.flare.network/ext/C/rpc");
 
 //0x37987397aC240f0cbCaA10a669bC2C90A91C0d51 - tipping
 let wallet = new ethers.Wallet(process.env.privkey);
-wallet = wallet.connect(provider);
+wallet = wallet.connect(songbird_provider);
 
 //0xb1Db39De1d4DaEAFeAD4267E1CC5d30651b27833
 let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
-faucet_wallet = faucet_wallet.connect(provider);
+faucet_wallet = faucet_wallet.connect(songbird_provider);
 
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
@@ -83,7 +119,7 @@ let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_w
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_and_ftso_abi, faucet_wallet); //also includes FTSO functions!
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
-let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, provider);
+let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, songbird_provider);
 let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);
 
 //faucet requirements
@@ -104,9 +140,9 @@ if (hex_to_bigint(process.env.tipbot_derive_privkey)+BigInt(256)**BigInt(8) > Bi
   throw Error("Tipbot derive private key may overflow!! Generate a new one, please. This is incredibly improbable to happen.");
 }
 
-//get songbird balance
-async function get_bal(address) {
-  return Number(ethers.utils.formatEther(await provider.getBalance(address)));
+//get songbird/flare balance
+async function get_bal(address, chain="songbird") {
+  return Number(ethers.utils.formatEther(await get_provider(chain).getBalance(address)));
 }
 
 async function get_bal_astral(address) {
@@ -114,31 +150,44 @@ async function get_bal_astral(address) {
   return Number(ethers.utils.formatUnits(astral_bal.toString(), 18));
 }
 
+//will need to rewrite if expand beyond sgb and flr
 async function get_bal_generic_tokens(address) {
-  let resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokenlist&address=${address}`);
-  resp = await resp.json();
-  if (resp.result) {
-    let token_list = {};
-    for (let i=0; i < resp.result.length; i++) {
-      //sgb does not have token_address
-      let found_token = Object.values(SUPPORTED_INFO).find((c) => c.token_address?.toLowerCase() === resp.result[i].contractAddress);
-      if (found_token) {
-        token_list[found_token.id] = Number(ethers.utils.formatUnits(resp.result[i].balance, Number(resp.result[i].decimals)));
+  const block_explorers = ["songbird", "flare"];
+  let token_list = {};
+  for (const b of block_explorers) {
+    let resp = await fetch(`https://${b}-explorer.flare.network/api?module=account&action=tokenlist&address=${address}`);
+    resp = await resp.json();
+    if (resp.result) {
+      for (let i=0; i < resp.result.length; i++) {
+        //sgb does not have token_address
+        let found_token = Object.values(SUPPORTED_INFO).find((c) => c.token_address?.toLowerCase() === resp.result[i].contractAddress);
+        if (found_token) {
+          token_list[found_token.id] = Number(ethers.utils.formatUnits(resp.result[i].balance, Number(resp.result[i].decimals)));
+        }
       }
+    } else {
+      //shouldn't really happen I think
+      console.log("could not get token balance", address);
+      continue;
     }
-    return token_list;
-  } else {
-    //shouldn't really happen I think
-    console.log("could not get token balance", address);
-    return {};
+  }
+  return token_list;
+}
+
+function get_provider(chain) {
+  if (chain === "songbird") {
+    return songbird_provider;
+  } else if (chain === "flare") {
+    return flare_provider;
   }
 }
 
 //tipbot/coinflip functions
-async function derive_wallet(user_id) {
-  let derived_priv_key = "0x"+await hash(pad_hex(bigint_to_hex(hex_to_bigint(process.env.tipbot_derive_privkey)+BigInt(user_id))));
+async function derive_wallet(user_id, chain="songbird") {
+  let derived_priv_key = "0x" + hash(pad_hex(bigint_to_hex(hex_to_bigint(process.env.tipbot_derive_privkey) + BigInt(user_id))));
   let derived_wallet = new ethers.Wallet(derived_priv_key);
-  derived_wallet = derived_wallet.connect(provider);
+  let use_provider = get_provider(chain);
+  derived_wallet = derived_wallet.connect(use_provider);
   return derived_wallet;
 }
 
@@ -147,9 +196,9 @@ async function get_tipbot_address(user_id) {
   return derived_wallet.address;
 }
 
-async function user_withdraw_songbird(user_id, address, amount) {
+async function user_withdraw_native(user_id, address, amount, chain="songbird") {
   amount = ethers.utils.parseEther(String(amount));
-  let derived_wallet = await derive_wallet(user_id);
+  let derived_wallet = await derive_wallet(user_id, chain);
   try {
     return await derived_wallet.sendTransaction({
       to: address.toLowerCase(),
@@ -175,10 +224,11 @@ async function user_withdraw_astral(user_id, address, amount) {
 
 //withdraw any supported erc20 by name
 async function user_withdraw_generic_token(user_id, address, amount, currency) {
+  const currency_info = SUPPORTED_INFO[currency];
   //default to 18 decimal places if nothing specified
-  amount = ethers.utils.parseUnits(String(amount), isNaN(SUPPORTED_INFO[currency].decimal_places) ? 18 : SUPPORTED_INFO[currency].decimal_places);
-  let derived_wallet = await derive_wallet(user_id);
-  let derived_generic_token = new ethers.Contract(SUPPORTED_INFO[currency].token_address, erc20_abi, derived_wallet);
+  amount = ethers.utils.parseUnits(String(amount), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
+  let derived_wallet = await derive_wallet(user_id, currency_info.chain);
+  let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
   try {
     return await derived_generic_token.transfer(address, amount);
   } catch (e) {
@@ -200,7 +250,7 @@ async function enough_balance(address, holding_requirement) {
 }
 
 async function get_block_number() {
-  return await provider.getBlockNumber();
+  return await songbird_provider.getBlockNumber();
 }
 
 async function aged_enough(address, holding_requirement, wrapped_songbird_resp, wrapped_sgb_bal) {
@@ -351,6 +401,19 @@ async function get_coin_price(coin) {
   return resp.market_data.current_price.usd;
 }
 
+async function get_all_prices() {
+  let cs = [];
+  Object.keys(SUPPORTED_INFO).forEach((c) => SUPPORTED_INFO[c].coingecko ? cs.push(SUPPORTED_INFO[c].coingecko) : false);
+  let resp = await fetch(`https://api.coingecko.com/api/v3/simple/price?vs_currencies=usd&ids=${cs.join(",")}`);
+  resp = await resp.json();
+  //process
+  let prices = {};
+  for (const coingecko of Object.keys(resp)) {
+    prices[Object.values(SUPPORTED_INFO).find((s) => s.coingecko === coingecko).id] = resp[coingecko];
+  }
+  return prices;
+}
+
 async function get_historic() {
   //historic price data
   let resp = await fetch("https://api.geckoterminal.com/api/v2/networks/songbird/pools/0xa49259d33f8bea503e59f3e75af9d43a119598c0/ohlcv/day");
@@ -418,6 +481,7 @@ module.exports = {
   SUPPORTED_INFO,
   HOLDING_BLOCK_TIME,
   TRIFORCE_ADDRESS,
+  MAX_DECIMALS,
   nft_values,
   get_liquidity_blaze,
   enough_balance,
@@ -431,9 +495,10 @@ module.exports = {
   faucet_send_astral,
   get_price,
   get_coin_price,
+  get_all_prices,
   get_historic,
   get_tipbot_address,
-  user_withdraw_songbird,
+  user_withdraw_native,
   user_withdraw_astral,
   user_withdraw_generic_token,
   check_domain_owned,

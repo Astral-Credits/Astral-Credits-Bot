@@ -27,7 +27,6 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const CLAIM_FREQ = db.CLAIM_FREQ;
 const MAX_CLAIMS_PER_MONTH = 11111;
 const HOLDING_REQUIREMENT = 2000;
-const MAX_DECIMALS = 4; //astral credits has 18 but not the point
 
 let historic_data_cache;
 let liqudity_cache;
@@ -90,13 +89,17 @@ client.once('ready', async (info) => {
 });
 
 //automatically grants achievements on xac server only
-async function send_tip(interaction, user, target_id, amount, currency, type) {
+//if no_send is true, doesn't send any message, lets caller handle. returns tx.
+async function send_tip(interaction, user, target_id, amount, currency, type, no_send=false) {
+  const supported_info = songbird.SUPPORTED_INFO[currency];
   let target_address = await songbird.get_tipbot_address(target_id);
   //send
   let send;
   try {
     if (currency === "sgb") {
-      send = await songbird.user_withdraw_songbird(user.id, target_address, amount);
+      send = await songbird.user_withdraw_native(user.id, target_address, amount, "songbird");
+    } else if (currency === "flr") {
+      send = await songbird.user_withdraw_native(user.id, target_address, amount, "flare");
     } else {
       send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
     }
@@ -108,11 +111,11 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
   if (!send) {
     return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
   }
-  await interaction.editReply(`Sending tip${type}...\nTx: <https://songbird-explorer.flare.network/tx/${send.hash}>`);
+  await interaction.editReply(`Sending tip${type}...\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
   try {
     let receipt = await send.wait();
     if (!receipt || receipt?.status === 0) {
-      return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+      return await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
     } else {
       if (currency === "xac" && amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
         let user_info = await db.get_user(user.id);
@@ -144,11 +147,16 @@ async function send_tip(interaction, user, target_id, amount, currency, type) {
           //
         }
       }
-      return await interaction.editReply(`<@${user.id}> sent ${songbird.SUPPORTED_INFO[currency].emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://songbird-explorer.flare.network/tx/${send.hash}>)`);
+      if (no_send) {
+        return send.hash;
+      }
+      await interaction.editReply(`<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>)`);
+      return;
     }
   } catch (e) {
     console.log(e);
-    return await interaction.editReply("Transaction seems to have failed? Check the block explorer.\nTx: <https://songbird-explorer.flare.network/tx/"+send.hash+">");
+    await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
+    return;
   }
 }
 
@@ -1213,7 +1221,7 @@ client.on('interactionCreate', async interaction => {
     if (command === "send") {
       await interaction.deferReply();
       //two optional args: address or discord user, can only choose one
-      let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+      let amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
       if (amount <= 0) {
         return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
       }
@@ -1953,7 +1961,6 @@ client.on('interactionCreate', async interaction => {
 module.exports = {
   client,
   send_tip,
-  MAX_DECIMALS,
   //ADMINS,
   TEAM,
 };

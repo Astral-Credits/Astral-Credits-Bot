@@ -319,7 +319,7 @@ const tipbot_commands = [
   },
   {
     name: "withdraw",
-    description: "Withdraw your tipbot/gaming balance",
+    description: "Withdraw your tipbot balance",
     options: [
       {
         type: 3,
@@ -344,11 +344,11 @@ const tipbot_commands = [
   },
   {
     name: "deposit",
-    description: "Shows your tipbot/gaming deposit address",
+    description: "Shows your tipbot deposit address",
   },
   {
     name: "balance",
-    description: "Shows your tipbot/gaming balance",
+    description: "Shows your tipbot balance",
   },
   {
     name: "supported",
@@ -356,7 +356,7 @@ const tipbot_commands = [
   },
   {
     name: "tip",
-    description: "Tip XAC or another currency from your tipbot/gaming address to another user",
+    description: "Tip XAC or another currency from your tipbot address to another user",
     options: [
       {
         type: 10,
@@ -425,6 +425,11 @@ const tipbot_commands = [
       }
     ],
     contexts: [0] //guild only
+  },
+  {
+    name: "prices",
+    description: "Get the prices of supported currencies from coingecko",
+    options: []
   },
 ];
 

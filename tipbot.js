@@ -4,7 +4,10 @@ const discord = require("discord.js");
 
 const db = require("./db.js");
 const songbird = require("./songbird.js");
-const { send_tip, MAX_DECIMALS, TEAM } = require("./bot.js");
+const { send_tip, TEAM } = require("./bot.js");
+
+let price_cache = [];
+songbird.get_all_prices().then((p) => price_cache = p);
 
 const tipbot_client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers, discord.GatewayIntentBits.GuildMessages]
@@ -12,6 +15,9 @@ const tipbot_client = new discord.Client({
 
 tipbot_client.once('ready', async (info) => {
   console.log('Ready! as ' + info.user.tag);
+  setInterval(async () => {
+    price_cache = await songbird.get_all_prices();
+  }, 15 * 60 * 1000);
 });
 
 tipbot_client.on('interactionCreate', async interaction => {
@@ -42,27 +48,31 @@ tipbot_client.on('interactionCreate', async interaction => {
       },
       {
         name: "/deposit",
-        value: "Deposit to your custodial tipbot/game address"
+        value: "Deposit to your custodial tipbot address"
       },
       {
         name: "/balance",
-        value: "See the balance of your custodial tipbot/game address"
+        value: "See the balance of your custodial tipbot address"
       },
       {
         name: "/withdraw",
-        value: "Withdraw your tipbot/game balance to an address or .sgb domain"
+        value: "Withdraw your tipbot balance to an address or .sgb domain"
       },
       {
         name: "/tip",
-        value: "Tip other users XAC and other currencies from your tipbot/game balance"
+        value: "Tip other users XAC and other currencies from your tipbot balance"
       },
       {
         name: "/active_tip",
-        value: "Tip a random recently active user (in the channel) some XAC or other currencies from your tipbot/game balance"
+        value: "Tip a random recently active user (in the same channel) some XAC or other currencies from your tipbot balance"
       },
       {
         name: "/role_tip",
         value: "Tip a random user with a certain role some XAC or other currencies from your tipbot/game balance"
+      },
+      {
+        name: "/prices",
+        value: "Get the prices of supported currencies from coingecko"
       },
     ]);
     help_embed.setFooter({ text: "Programmed by prussia.dev" });
@@ -74,7 +84,7 @@ tipbot_client.on('interactionCreate', async interaction => {
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit ${songbird.SUPPORTED.filter((c) => c !== "sgb").map((c) => c.toUpperCase()).join(", ")}, or SGB. Also please ensure you have enough SGB to pay for gas fees when you wish to withdraw, tip or play games.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit ${songbird.SUPPORTED.filter((c) => c !== "sgb" && c !== "flr").map((c) => c.toUpperCase()).join(", ")}, FLR, SGB. Also please ensure you have enough FLR/SGB to pay for gas fees when you wish to withdraw, tip or play games.\n\n**DISCLAIMER:** The Astral Credits tipbot wallet is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any lost or stolen funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
@@ -97,16 +107,16 @@ tipbot_client.on('interactionCreate', async interaction => {
       } else {
         supported_embed.setTitle("Supported Currencies (cont.)");
       }
-      supported_embed.addFields(songbird.SUPPORTED.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c}` })));
+      supported_embed.addFields(songbird.SUPPORTED.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c} (${songbird.SUPPORTED_INFO[c].chain} chain)` })));
       supported_embed.setFooter({ text: "zutomayo" });
       embeds.push(supported_embed);
     }
     return await interaction.reply({ embeds, ephemeral: true });
   } else if (command === "balance") {
-    function bal_embed_furnish(bal_embed) {
+    function bal_embed_furnish(bal_embed, usd_value) {
       bal_embed.setColor("#7ad831");
       bal_embed.setTitle("View Balance");
-      bal_embed.setDescription("This is your current balance for the Astral Credits Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.");
+      bal_embed.setDescription(`This is your current balance for the Astral Credits Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here. [Link to Flare chain balances](https://flare-explorer.flare.network/address/${user_address}).\nEstimated value of balances: $${usd_value} USD`);
       bal_embed.setFooter({ text: "247 nishina" });
       bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
       return bal_embed;
@@ -114,29 +124,53 @@ tipbot_client.on('interactionCreate', async interaction => {
     const dresp = await interaction.deferReply({ ephemeral: true });
     let user_address = await songbird.get_tipbot_address(user.id);
     let sgb_bal = await songbird.get_bal(user_address);
+    let flr_bal = await songbird.get_bal(user_address, "flare");
     let astral_bal = await songbird.get_bal_astral(user_address);
     let generic_bals = await songbird.get_bal_generic_tokens(user_address);
     delete generic_bals.xac;
+    //calculate value of balances
+    const n_bals = { ...generic_bals, xac: astral_bal, flr: flr_bal, sgb: sgb_bal };
+    let usd_value = 0;
+    for (const c of Object.keys(price_cache)) {
+      if (n_bals[c]) {
+        usd_value += n_bals[c] * price_cache[c].usd;
+      }
+    }
+    usd_value = usd_value.toFixed(2);
     const g_num = Object.keys(generic_bals).length;
     if (g_num > 23) {
       const max_pages = Math.ceil(g_num / 10);
       let bal_embeds = [];
       for (let i=0; i < max_pages; i++) {
-        let bal_embed = bal_embed_furnish(new discord.EmbedBuilder());
+        let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value);
         if (i === 0) {
           bal_embed.addFields([
             {
               name: "Songbird (sgb)",
               //truncate if more than 5 decimals
-              value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" <:SGB:1130360963636408350>",
+              value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" "+songbird.SUPPORTED_INFO.sgb.emoji + (price_cache.sgb ? ` (≈$${(sgb_bal * price_cache.sgb.usd).toFixed(2)} USD)` : ""),
+              inline: true,
+            },
+            {
+              name: "Flare (flr)",
+              //truncate if more than 5 decimals
+              value: String(String(flr_bal).split(".")[1]?.length > 5 ? flr_bal.toFixed(5) : flr_bal)+" "+songbird.SUPPORTED_INFO.flr.emoji + (price_cache.flr ? ` (≈$${(flr_bal * price_cache.flr.usd).toFixed(2)} USD)` : ""),
+              inline: true,
             },
             {
               name: "Astral Credits (xac)",
-              value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
+              value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" "+songbird.SUPPORTED_INFO.xac.emoji + (price_cache.xac ? ` (≈$${(astral_bal * price_cache.xac.usd).toFixed(2)} USD)` : ""),
+              inline: true,
             },
           ]);
         }
-        //bal_embed.addFields(Object.keys(generic_bals).map((c) => ({ name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`, value: String(String(generic_bals[c]).split(".")[1]?.length > 5 ? generic_bals[c].toFixed(5) : generic_bals[c])+" "+songbird.SUPPORTED_INFO[c].emoji })));
+        bal_embed.addFields(Object.keys(generic_bals).map((c) => (
+          {
+            name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`,
+            value: String(String(generic_bals[c]).split(".")[1]?.length > 5 ? generic_bals[c].toFixed(5) : generic_bals[c])+" "+songbird.SUPPORTED_INFO[c].emoji + (price_cache[c] ? ` (≈$${(generic_bals[c] * price_cache[c].usd).toFixed(2)} USD)` : ""),
+            inline: true,
+          }
+        )));
         bal_embeds.push(bal_embed);
       }
       let action_row = new discord.ActionRowBuilder();
@@ -154,11 +188,11 @@ tipbot_client.on('interactionCreate', async interaction => {
       action_row.addComponents(action_back, action_front);
       //components
       let initial_embeds = [bal_embeds[0]];
-      if (astral_bal > 200000 || sgb_bal > 2000) {
+      if (usd_value > 25) {
         let warning_embed = new discord.EmbedBuilder();
         warning_embed.setColor("#ff0000");
         warning_embed.setTitle("⚠️ WARNING - High balance detected!");
-        warning_embed.setDescription("Your balance exceeds 200k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet!");
+        warning_embed.setDescription("Your balance exceeds $25 USD. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
         initial_embeds.push(warning_embed);
       }
       await interaction.editReply({
@@ -194,26 +228,40 @@ tipbot_client.on('interactionCreate', async interaction => {
       }
     } else if (Object.keys(generic_bals).length > 0) {
       let embeds = [];
-      let bal_embed = bal_embed_furnish(new discord.EmbedBuilder());
+      let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value);
       bal_embed.addFields([
         {
           name: "Songbird (sgb)",
           //truncate if more than 5 decimals
-          value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" <:SGB:1130360963636408350>",
+          value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" "+songbird.SUPPORTED_INFO.sgb.emoji + (price_cache.sgb ? ` (≈$${(sgb_bal * price_cache.sgb.usd).toFixed(2)} USD)` : ""),
+          inline: true,
+        },
+        {
+          name: "Flare (flr)",
+          //truncate if more than 5 decimals
+          value: String(String(flr_bal).split(".")[1]?.length > 5 ? flr_bal.toFixed(5) : flr_bal)+" "+songbird.SUPPORTED_INFO.flr.emoji + (price_cache.flr ? ` (≈$${(flr_bal * price_cache.flr.usd).toFixed(2)} USD)` : ""),
+          inline: true,
         },
         {
           name: "Astral Credits (xac)",
-          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
+          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" "+songbird.SUPPORTED_INFO.xac.emoji + (price_cache.xac ? ` (≈$${(astral_bal * price_cache.xac.usd).toFixed(2)} USD)` : ""),
+          inline: true,
         },
       ]);
       //generic_bals
-      bal_embed.addFields(Object.keys(generic_bals).map((c) => ({ name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`, value: String(String(generic_bals[c]).split(".")[1]?.length > 5 ? generic_bals[c].toFixed(5) : generic_bals[c])+" "+songbird.SUPPORTED_INFO[c].emoji })));
+      bal_embed.addFields(Object.keys(generic_bals).map((c) => (
+        {
+          name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`,
+          value: String(String(generic_bals[c]).split(".")[1]?.length > 5 ? generic_bals[c].toFixed(5) : generic_bals[c])+" "+songbird.SUPPORTED_INFO[c].emoji + (price_cache[c] ? ` (≈$${(generic_bals[c] * price_cache[c].usd).toFixed(2)} USD)` : ""),
+          inline: true,
+        }
+      )));
       embeds.push(bal_embed);
-      if (astral_bal > 200000 || sgb_bal > 2000) {
+      if (usd_value > 25) {
         let warning_embed = new discord.EmbedBuilder();
         warning_embed.setColor("#ff0000");
         warning_embed.setTitle("⚠️ WARNING - High balance detected!");
-        warning_embed.setDescription("Your balance exceeds 200k XAC and/or 2000 SGB. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
+        warning_embed.setDescription("Your balance exceeds $25 USD. It is strongly recommend that you withdraw funds to your self custody wallet immediately!");
         embeds.push(warning_embed);
       }
       return interaction.editReply({ embeds });
@@ -239,7 +287,7 @@ tipbot_client.on('interactionCreate', async interaction => {
       return await interaction.editReply(`Invalid address \`${withdraw_address}\` provided`);
     }
     //check options to see user withdraw amount
-    let withdraw_amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    let withdraw_amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (withdraw_amount <= 0) {
       return await interaction.editReply("Amount cannot be equal to or less than 0");
     }
@@ -249,7 +297,9 @@ tipbot_client.on('interactionCreate', async interaction => {
     let send;
     try {
       if (withdraw_currency === "sgb") {
-        send = await songbird.user_withdraw_songbird(user.id, withdraw_address, withdraw_amount);
+        send = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "songbird");
+      } else if (withdraw_currency === "flr") {
+        send = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "flare");
       } else {
         send = await songbird.user_withdraw_generic_token(user.id, withdraw_address, withdraw_amount, withdraw_currency);
       }
@@ -261,19 +311,20 @@ tipbot_client.on('interactionCreate', async interaction => {
     if (!send) {
       return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Please contact an admin if otherwise.");
     }
+    const supported_info = songbird.SUPPORTED_INFO[withdraw_currency];
     //send tx embed
     let withdraw_embed = new discord.EmbedBuilder();
-    withdraw_embed.setURL("https://songbird-explorer.flare.network/tx/"+send.hash);
+    withdraw_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}`);
     withdraw_embed.setTitle("Withdraw Requested");
     withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! If you have any issues, please contact an admin immediately.");
     withdraw_embed.addFields([
       {
         name: "Transaction",
-        value: "[Click here](https://songbird-explorer.flare.network/tx/"+send.hash+")",
+        value: `[Click here](https://${supported_info.chain}-explorer.flare.network/tx/${send.hash})`,
       },
       {
         name: "Withdrawal Amount",
-        value: `${String(withdraw_amount)} ${ withdraw_currency === "sgb" ? "<:SGB:1130360963636408350>" : songbird.SUPPORTED_INFO[withdraw_currency].emoji }`,
+        value: `${String(withdraw_amount)} ${ withdraw_currency === "sgb" ? "<:SGB:1130360963636408350>" : supported_info.emoji }`,
       },
     ]);
     await interaction.editReply({ embeds: [withdraw_embed] });
@@ -283,7 +334,7 @@ tipbot_client.on('interactionCreate', async interaction => {
       if (!receipt || receipt?.status === 0) {
         return interaction.followUp({
           ephemeral: true,
-          content: "Transaction seems to have failed? Check the block explorer.",
+          content: "Transaction may have failed? Check the block explorer.",
         });
       } else {
         return interaction.followUp({
@@ -295,7 +346,7 @@ tipbot_client.on('interactionCreate', async interaction => {
       console.log(e);
       return interaction.followUp({
         ephemeral: true,
-        content: "Transaction seems to have failed? Check the block explorer.",
+        content: "Transaction may have failed? Check the block explorer.",
       });
     }
   } else if (command === "tip") {
@@ -307,18 +358,18 @@ tipbot_client.on('interactionCreate', async interaction => {
     if (target.bot) {
       return await interaction.editReply("Failed, cannot tip bots.");
     }
-    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    let amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (amount <= 0) {
-      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+      return await interaction.editReply("Failed, cannot send 0 or negative of coin/token.");
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     await send_tip(interaction, user, target.id, amount, currency, "");
   } else if (command === "active_tip") {
     await interaction.deferReply();
-    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    let amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (amount <= 0) {
-      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+      return await interaction.editReply("Failed, cannot send 0 or negative of coin/token.");
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
@@ -332,9 +383,9 @@ tipbot_client.on('interactionCreate', async interaction => {
     await send_tip(interaction, user, target_id, amount, currency, " to random active user");
   } else if (command === "role_tip") {
     await interaction.deferReply();
-    let amount = Number((await params.get("amount")).value.toFixed(MAX_DECIMALS));
+    let amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (amount <= 0) {
-      return await interaction.editReply("Failed, cannot send 0 or negative XAC.");
+      return await interaction.editReply("Failed, cannot send 0 or negative coin/token.");
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
@@ -351,8 +402,34 @@ tipbot_client.on('interactionCreate', async interaction => {
     }
     let random_member = role_members[Math.floor(Math.random() * role_members.length)];
     let target_id = random_member[1].user.id;
-    await send_tip(interaction, user, target_id, amount, currency, " to random user with role");
-  }  
+    let tx = await send_tip(interaction, user, target_id, amount, currency, " to random user with role", true);
+    //if !tx, send_tip should have replied with error message
+    if (tx) {
+      const supported_info = songbird.SUPPORTED_INFO[currency];
+      let role_tip_embed = new discord.EmbedBuilder();
+      role_tip_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${tx}`);
+      role_tip_embed.setColor(role.color);
+      role_tip_embed.setTitle("Role Tip 🎉");
+      role_tip_embed.setDescription(`Random tip of ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@&${role.id}>`);
+      return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [role_tip_embed] });
+    }
+  } else if (command === "prices") {
+    let embeds = [];
+    //25 fields max per embed
+    for (let i=0; i < Math.ceil(songbird.SUPPORTED.length / 25); i++) {
+      let price_embed = new discord.EmbedBuilder();
+      price_embed.setColor("#056072");
+      if (i === 0) {
+        price_embed.setTitle("Prices");
+      } else {
+        price_embed.setTitle("Prices (cont.)");
+      }
+      price_embed.addFields(Object.keys(price_cache).slice(i * 25, i * 25 + 25).map((c) => ({ name: `${songbird.SUPPORTED_INFO[c].emoji} ${songbird.SUPPORTED_INFO[c].name}`, value: `$${String(price_cache[c].usd)} USD` })));
+      price_embed.setFooter({ text: "listen to yorushika and nbuna instrumentals" });
+      embeds.push(price_embed);
+    }
+    return await interaction.reply({ embeds, ephemeral: true });
+  }
 });
 
 module.exports = {
