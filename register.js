@@ -4,42 +4,6 @@ const dotenv = require('dotenv');
 
 dotenv.config();
 
-const global_commands = [
-  {
-    name: "withdraw",
-    description: "Withdraw your tipbot/gaming balance",
-    options: [
-      {
-        type: 3,
-        name: "address",
-        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
-        required: true
-      },
-      {
-        type: 10,
-        name: "amount",
-        description: "Amount of currency to withdraw",
-        required: true
-      },
-      {
-        type: 3,
-        name: "currency",
-        description: "Coin/token to send",
-        autocomplete: true,
-        required: true
-      }
-    ]
-  },
-  {
-    name: "deposit",
-    description: "Shows your tipbot/gaming deposit address"
-  },
-  {
-    name: "balance",
-    description: "Shows your tipbot/gaming balance"
-  },
-];
-
 const commands = [
   {
     name: "help",
@@ -240,79 +204,6 @@ const commands = [
     description: "Get a count of all registered users"
   },
   {
-    name: "supported",
-    description: "See all supported currencies of the tipbot"
-  },
-  {
-    name: "tip",
-    description: "Tip XAC or another currency from your tipbot/gaming address to another user",
-    options: [
-      {
-        type: 10,
-        name: "amount",
-        description: "Amount of currency to tip",
-        required: true
-      },
-      {
-        type: 3,
-        name: "currency",
-        description: "Coin/token to send",
-        required: true,
-        autocomplete: true
-      },
-      {
-        type: 6,
-        name: "target",
-        description: "@ mention of user to give tip to",
-        required: true
-      }
-    ]
-  },
-  {
-    name: "active_tip",
-    description: "Tip a random recently active user some XAC or other currencies from your tipbot/game balance",
-    options: [
-      {
-        type: 10,
-        name: "amount",
-        description: "Amount of currency to tip",
-        required: true
-      },
-      {
-        type: 3,
-        name: "currency",
-        description: "Coin/token to send",
-        required: true,
-        autocomplete: true
-      }
-    ]
-  },
-  {
-    name: "role_tip",
-    description: "Tip a random user with a role some XAC or other currencies from your tipbot/game balance",
-    options: [
-      {
-        type: 10,
-        name: "amount",
-        description: "Amount of currency to tip",
-        required: true
-      },
-      {
-        type: 8,
-        name: "role",
-        description: "Role to randomly tip",
-        required: true
-      },
-      {
-        type: 3,
-        name: "currency",
-        description: "Coin/token to send",
-        required: true,
-        autocomplete: true
-      }
-    ]
-  },
-  {
     name: "crawl",
     //admin only
     default_member_permissions: String(268435456),
@@ -420,7 +311,125 @@ const commands = [
   },
 ];
 
+const tipbot_commands = [
+  {
+    name: "help",
+    description: "Get list of commands for this bot",
+    options: []
+  },
+  {
+    name: "withdraw",
+    description: "Withdraw your tipbot/gaming balance",
+    options: [
+      {
+        type: 3,
+        name: "address",
+        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
+        required: true
+      },
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to withdraw",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        autocomplete: true,
+        required: true
+      },
+    ],
+  },
+  {
+    name: "deposit",
+    description: "Shows your tipbot/gaming deposit address",
+  },
+  {
+    name: "balance",
+    description: "Shows your tipbot/gaming balance",
+  },
+  {
+    name: "supported",
+    description: "See all supported currencies of the tipbot"
+  },
+  {
+    name: "tip",
+    description: "Tip XAC or another currency from your tipbot/gaming address to another user",
+    options: [
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      },
+      {
+        type: 6,
+        name: "target",
+        description: "@ mention of user to give tip to",
+        required: true
+      }
+    ],
+    contexts: [0] //guild only
+  },
+  {
+    name: "active_tip",
+    description: "Tip a random recently active user some XAC or other currencies from your tipbot/game balance",
+    options: [
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      }
+    ],
+    contexts: [0] //guild only
+  },
+  {
+    name: "role_tip",
+    description: "Tip a random user with a role some XAC or other currencies from your tipbot/game balance",
+    options: [
+      {
+        type: 10,
+        name: "amount",
+        description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 8,
+        name: "role",
+        description: "Role to randomly tip",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      }
+    ],
+    contexts: [0] //guild only
+  },
+];
+
 const rest = new REST({ version: "9" }).setToken(process.env.token);
+const rest_tipbot = new REST({ version: "9" }).setToken(process.env.tipbot_token);
 
 (async () => {
   try {
@@ -431,9 +440,16 @@ const rest = new REST({ version: "9" }).setToken(process.env.token);
       { body: commands },
     );
 
+    /*
     await rest.put(
       Routes.applicationCommands("1087862421290492019"),
       { body: global_commands },
+    );
+    */
+
+    await rest_tipbot.put(
+      Routes.applicationCommands("1227462655535616020"),
+      { body: tipbot_commands },
     );
     
 
