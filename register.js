@@ -356,7 +356,7 @@ const tipbot_commands = [
   },
   {
     name: "tip",
-    description: "Tip XAC or another currency from your tipbot address to another user",
+    description: "Tip another user some coins/tokens from your tipbot balance",
     options: [
       {
         type: 10,
@@ -382,7 +382,7 @@ const tipbot_commands = [
   },
   {
     name: "active_tip",
-    description: "Tip a random recently active user some XAC or other currencies from your tipbot/game balance",
+    description: "Tip a random recently active user some coins/tokens from your tipbot balance",
     options: [
       {
         type: 10,
@@ -402,12 +402,44 @@ const tipbot_commands = [
   },
   {
     name: "role_tip",
-    description: "Tip a random user with a role some XAC or other currencies from your tipbot/game balance",
+    description: "Tip a random user with a certain role some coin/token from your tipbot balance",
     options: [
       {
         type: 10,
         name: "amount",
         description: "Amount of currency to tip",
+        required: true
+      },
+      {
+        type: 8,
+        name: "role",
+        description: "Role to randomly tip",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      }
+    ],
+    contexts: [0] //guild only
+  },
+  {
+    name: "role_tip_multi",
+    description: "Tip multiple random users with a certain role some coin/token from your tipbot balance",
+    options: [
+      {
+        type: 10,
+        name: "split_amount",
+        description: "Total amount of currency to tip",
+        required: true
+      },
+      {
+        type: 4,
+        name: "num_users",
+        description: "# of users to split amount between",
         required: true
       },
       {

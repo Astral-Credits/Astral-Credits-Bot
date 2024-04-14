@@ -2,7 +2,7 @@ const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
 
 const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
-const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi } = require('./abi.js');
+const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi, multisend_abi } = require('./abi.js');
 
 const MAX_DECIMALS = 6; //astral credits has 18 but not the point
 
@@ -90,11 +90,17 @@ const SUPPORTED_INFO = {
   "wflr": {
     "id": "wflr",
     "name": "Wrapped Flare",
-    "emoji": "<:FLR:1153124121048260789>",
+    "emoji": "<:WFLR:1228098963060555819>",
     "token_address": "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d",
     "chain": "flare",
     "coingecko": "wrapped-flare",
   },
+};
+
+const SPECIAL_KNOWN = {
+  "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed": "WSGB Contract",
+  "0x61b64c643fccd6ff34fc58c8ddff4579a89e2723": "XAC Contract",
+  "0x93ca88ee506096816414078664641c07af731026": "Pixel Planet / Tiles Contract",
 };
 
 let SUPPORTED = Object.keys(SUPPORTED_INFO);
@@ -113,6 +119,9 @@ faucet_wallet = faucet_wallet.connect(songbird_provider);
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
+
+const sgb_multisend_contract_address = "0x6bDA41F88aDadF96F3149F75dc6ADB0351D4fa1b";
+const flr_multisend_contract_address = "0x93CA88Ee506096816414078664641C07aF731026";
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
@@ -182,8 +191,8 @@ function get_provider(chain) {
   }
 }
 
-//tipbot/coinflip functions
-async function derive_wallet(user_id, chain="songbird") {
+//tipbot/coinflip functions (why is this async?)
+function derive_wallet(user_id, chain="songbird") {
   let derived_priv_key = "0x" + hash(pad_hex(bigint_to_hex(hex_to_bigint(process.env.tipbot_derive_privkey) + BigInt(user_id))));
   let derived_wallet = new ethers.Wallet(derived_priv_key);
   let use_provider = get_provider(chain);
@@ -192,13 +201,13 @@ async function derive_wallet(user_id, chain="songbird") {
 }
 
 async function get_tipbot_address(user_id) {
-  let derived_wallet = await derive_wallet(user_id);
+  let derived_wallet = derive_wallet(user_id);
   return derived_wallet.address;
 }
 
 async function user_withdraw_native(user_id, address, amount, chain="songbird") {
   amount = ethers.utils.parseEther(String(amount));
-  let derived_wallet = await derive_wallet(user_id, chain);
+  let derived_wallet = derive_wallet(user_id, chain);
   try {
     return await derived_wallet.sendTransaction({
       to: address.toLowerCase(),
@@ -212,7 +221,7 @@ async function user_withdraw_native(user_id, address, amount, chain="songbird") 
 
 async function user_withdraw_astral(user_id, address, amount) {
   amount = ethers.utils.parseUnits(String(amount), 18);
-  let derived_wallet = await derive_wallet(user_id);
+  let derived_wallet = derive_wallet(user_id);
   let derived_astral_token = new ethers.Contract(token_contract_address, erc20_abi, derived_wallet);
   try {
     return await derived_astral_token.transfer(address, amount);
@@ -227,13 +236,61 @@ async function user_withdraw_generic_token(user_id, address, amount, currency) {
   const currency_info = SUPPORTED_INFO[currency];
   //default to 18 decimal places if nothing specified
   amount = ethers.utils.parseUnits(String(amount), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
-  let derived_wallet = await derive_wallet(user_id, currency_info.chain);
+  let derived_wallet = derive_wallet(user_id, currency_info.chain);
   let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
   try {
     return await derived_generic_token.transfer(address, amount);
   } catch (e) {
     //console.log(e);
     return false;
+  }
+}
+
+async function user_multisend_native(user_id, addresses, amount_split, currency) {
+  const currency_info = SUPPORTED_INFO[currency];
+  //default to 18 decimal places if nothing specified
+  amount_split = ethers.utils.parseUnits(String(amount_split), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
+  let amount_each = amount_split.div(addresses.length);
+  let derived_wallet = derive_wallet(user_id, currency_info.chain);
+  let derived_multisend = new ethers.Contract(currency_info.chain === "songbird" ? sgb_multisend_contract_address : flr_multisend_contract_address, multisend_abi, derived_wallet);
+  try {
+    return await derived_multisend.native_batch_send(addresses, amount_each, {
+      value: amount_split,
+    });
+  } catch (e) {
+    return false;
+  }
+}
+
+async function user_multisend_token(user_id, addresses, amount_split, currency) {
+  const currency_info = SUPPORTED_INFO[currency];
+  const multisend_contract_address = currency_info.chain === "songbird" ? sgb_multisend_contract_address : flr_multisend_contract_address;
+  //default to 18 decimal places if nothing specified
+  amount_split = ethers.utils.parseUnits(String(amount_split), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
+  let amount_each = amount_split.div(addresses.length);
+  let derived_wallet = derive_wallet(user_id, currency_info.chain);
+  let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
+  //approval
+  try {
+    let receipt = await (await derived_generic_token.approve(multisend_contract_address, amount_split)).wait();
+    //wait for approval to go through, ofc
+    if (receipt?.status === 1) {
+      let derived_multisend = new ethers.Contract(multisend_contract_address, multisend_abi, derived_wallet);
+      return await derived_multisend.token_batch_send(currency_info.token_address, addresses, amount_each);
+    } else {
+      return false;
+    }
+  } catch (e) {
+    console.log(e)
+    return false;
+  }
+}
+
+async function user_multisend(user_id, addresses, amount_split, currency) {
+  if (currency === "flr" || currency === "sgb") {
+    return await user_multisend_native(user_id, addresses, amount_split, currency);
+  } else {
+    return await user_multisend_token(user_id, addresses, amount_split, currency);
   }
 }
 
@@ -476,9 +533,15 @@ async function ftso_delegates_of(address) {
   return await wrapped_songbird_token.delegatesOf(address);
 }
 
+/*
+const rand_wallet = ethers.Wallet.createRandom();
+console.log(rand_wallet.privateKey);
+*/
+
 module.exports = {
   SUPPORTED,
   SUPPORTED_INFO,
+  SPECIAL_KNOWN,
   HOLDING_BLOCK_TIME,
   TRIFORCE_ADDRESS,
   MAX_DECIMALS,
@@ -501,6 +564,7 @@ module.exports = {
   user_withdraw_native,
   user_withdraw_astral,
   user_withdraw_generic_token,
+  user_multisend,
   check_domain_owned,
   find_associated,
   find_shared_txs,

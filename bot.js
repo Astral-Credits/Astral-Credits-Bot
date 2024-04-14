@@ -33,8 +33,8 @@ let liqudity_cache;
 let sgb_price_cache;
 let pptr_cache;
 
-client.once('ready', async (info) => {
-  console.log('Ready! as ' + info.user.tag);
+client.once("ready", async (info) => {
+  console.log("Ready! as " + info.user.tag);
   //set price status
   async function set_price_status() {
     let price;
@@ -52,11 +52,12 @@ client.once('ready', async (info) => {
     client.user.setPresence({
       activities: [
         {
-          name: 'Astral Price: $'+price,
-          type: 3
+          //name: "Astral Price: $" + price,
+          name: "XAC Price",
+          type: 3,
         }
       ],
-      status: 'online'
+      status: "online",
     });
     //change nickname
     try {
@@ -69,7 +70,7 @@ client.once('ready', async (info) => {
     }
   }
   set_price_status();
-  setInterval(set_price_status, 25*60*1000);
+  setInterval(set_price_status, 25 * 60 * 1000);
   //start milestone check
   async function send_announcement(text) {
     client.channels.cache.get("1000985458374873150").send(text);
@@ -79,86 +80,14 @@ client.once('ready', async (info) => {
   }, 7500);
   setInterval(async () => {
     await db.milestone_check(send_announcement);
-  }, 30*60*1000);
+  }, 30 * 60 * 1000);
   async function set_pptr_cache() {
     let token_resp = await (await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=0x93CA88Ee506096816414078664641C07aF731026")).json();
     pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
   }
   set_pptr_cache();
-  setInterval(set_pptr_cache, 3*60*1000)
+  setInterval(set_pptr_cache, 4 * 60 * 1000)
 });
-
-//automatically grants achievements on xac server only
-//if no_send is true, doesn't send any message, lets caller handle. returns tx.
-async function send_tip(interaction, user, target_id, amount, currency, type, no_send=false) {
-  const supported_info = songbird.SUPPORTED_INFO[currency];
-  let target_address = await songbird.get_tipbot_address(target_id);
-  //send
-  let send;
-  try {
-    if (currency === "sgb") {
-      send = await songbird.user_withdraw_native(user.id, target_address, amount, "songbird");
-    } else if (currency === "flr") {
-      send = await songbird.user_withdraw_native(user.id, target_address, amount, "flare");
-    } else {
-      send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
-    }
-  } catch (e) {
-    //shouldn't happen
-    console.log(e);
-    return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
-  }
-  if (!send) {
-    return await interaction.editReply("Tip failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB to pay for gas. Contact an admin if this seems wrong.");
-  }
-  await interaction.editReply(`Sending tip${type}...\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
-  try {
-    let receipt = await send.wait();
-    if (!receipt || receipt?.status === 0) {
-      return await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
-    } else {
-      if (currency === "xac" && amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
-        let user_info = await db.get_user(user.id);
-        if (user_info) {
-          await db.increment_xac_tips_achievement_info(user.id);
-          //check for achievements
-          switch (user_info.achievement_data.tips.xac_amount+1) {
-            case 1:
-              add_achievement(user.id, "tipper-1", user_info, interaction.member);
-              break;
-            case 10:
-              add_achievement(user.id, "tipper-2", user_info, interaction.member);
-              break;
-            case 25:
-              add_achievement(user.id, "tipper-3", user_info, interaction.member);
-              break;
-            case 100:
-              add_achievement(user.id, "tipper-4", user_info, interaction.member);
-              break;
-            case 200:
-              add_achievement(user.id, "tipper-5", user_info, interaction.member);
-              break;
-            case 300:
-              add_achievement(user.id, "tipper-6", user_info, interaction.member);
-              break;
-            default:
-              //nothing
-          }
-          //
-        }
-      }
-      if (no_send) {
-        return send.hash;
-      }
-      await interaction.editReply(`<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>)`);
-      return;
-    }
-  } catch (e) {
-    console.log(e);
-    await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
-    return;
-  }
-}
 
 async function add_achievement(user_id, achievement_id, cached_user, member) {
   //add_achievement_db returns false if user already has the acheivement
@@ -203,7 +132,7 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
 let message_xp_cooldown_cache = {};
 const MESSAGE_XP_COOLDOWN = 20 * 1000;
 
-client.on('messageCreate', async (message) => {
+client.on("messageCreate", async (message) => {
   //ignore message if not from xac server
   if (message.guildId !== "1000985457393422367") return;
   //Count a max of 1 message every 20 seconds toward the achievement (anti-spam)
@@ -240,7 +169,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-client.on('interactionCreate', async interaction => {
+client.on("interactionCreate", async interaction => {
   let command = interaction.commandName;
   let params = interaction.options;
   let user = interaction.user;
@@ -829,18 +758,21 @@ client.on('interactionCreate', async interaction => {
       const initial_content = `**Crawl Results${ known_only ? "" : " (Top 25)" }:**\n`;
       let content = initial_content;
       let current_count = 0;
-      let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"];
+      let ignore_list = ["0x61b64c643fccd6ff34fc58c8ddff4579a89e2723"]; //what is this, again? some exchange address mistakenly registered?
       for (let i=0; i < sorted_associates.length; i++) {
         //if known_only is true, more than 25 can be displayed
         if (current_count === 25 && !known_only) break;
-        let found_user = await db.get_user_by_address(sorted_associates[i][0]);
-        if (found_user && !ignore_list.includes(sorted_associates[i][0])) {
-          content += `<@${found_user.user}> (${sorted_associates[i][0]}): ${sorted_associates[i][1]} transactions\n`;
+        let found_address = sorted_associates[i][0];
+        let found_user = await db.get_user_by_address(found_address);
+        if (found_user && !ignore_list.includes(found_address)) {
+          content += `<@${found_user.user}> (${found_address}): ${sorted_associates[i][1]} transactions\n`;
         } else if (known_only) {
           //skip
           continue;
+        } else if (Object.keys(songbird.SPECIAL_KNOWN).includes(found_address.toLowerCase())) {
+          content += `${songbird.SPECIAL_KNOWN[found_address]} (${found_address}): ${sorted_associates[i][1]} transactions\n`;
         } else {
-          content += `${sorted_associates[i][0]}: ${sorted_associates[i][1]} transactions\n`;
+          content += `${found_address}: ${sorted_associates[i][1]} transactions\n`;
         }
         current_count++;
       }
@@ -1409,7 +1341,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-client.on('interactionCreate', async interaction => {
+client.on("interactionCreate", async interaction => {
   if (!interaction.isButton() && !interaction.isModalSubmit()) return;
 
   let customId = interaction.customId;
@@ -1960,7 +1892,7 @@ client.on('interactionCreate', async interaction => {
 
 module.exports = {
   client,
-  send_tip,
+  add_achievement,
   //ADMINS,
   TEAM,
 };
