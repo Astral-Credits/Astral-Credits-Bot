@@ -240,7 +240,7 @@ async function get_all_users() {
 }
 
 async function count_users() {
-  return await users.count({});
+  return await users.countDocuments({});
 }
 
 async function get_user_by_address(address) {
@@ -462,7 +462,7 @@ const ACHIEVEMENTS = {
     prize: 10000,
     role: "1211411950760632430", //Diamond Supporter
   },
-  //one offs (pixel planet user, discord booster)
+  //one offs (pixel planet user, discord booster, triforce delegator, xac millionaire)
   "pixel-planet": {
     id: "pixel-planet",
     name: "Pixel Planet Painter",
@@ -473,10 +473,25 @@ const ACHIEVEMENTS = {
   "booster": {
     id: "booster",
     name: "Team Rocket",
-    description: "Support by boosting the Discord server!",
+    description: "Support by boosting the Discord server. Thank you!",
     prize: 10000,
     role: false,
   },
+  "millionaire": {
+    id: "millionaire",
+    name: "XAC Millionaire",
+    description: "Hold 1 million XAC!",
+    prize: 0,
+    role: "1222007670199029800",
+  },
+  "triforce-delegator": {
+    id: "triforce-delegator",
+    name: "Triforce Delegator",
+    description: "Delegate at least 50% of your WSGB to the Triforce FTSO.", //currently doesn't require a minimum wsgb amount
+    prize: 1500,
+    role: "1222008917739962522",
+  },
+  //
 }
 
 //returns false is user already has achievement
@@ -516,7 +531,8 @@ async function add_claim_achievement_info(user_id, cached_user, last_claim) {
     }
   }
   //if their last claim was less than 2 days ago, streak continues
-  if (last_claim + CLAIM_FREQ * 2 > Date.now() || override) {
+  //claim freq is 23.5 hours, give them an extra 30 minutes to claim so 24 hours after they are eligible to claim, they can claim again
+  if (last_claim + CLAIM_FREQ * 2 > Date.now() + 30 * 60 * 1000 || override) {
     let update = {
       $inc: {
         "achievement_data.faucet.current_streak": override_days ?? 1,
@@ -793,7 +809,7 @@ async function get_all_linked_websites() {
 
 async function get_top_achievementeers() {
   //limit?
-  return await ((await users.aggregate([
+  return await users.aggregate([
     {
       $project: {
         _id: 0,
@@ -808,7 +824,7 @@ async function get_top_achievementeers() {
         length: -1,
       }
     }
-  ])).limit(10)).toArray();
+  ]);
 }
 
 module.exports = {
