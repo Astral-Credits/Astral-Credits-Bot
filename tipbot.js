@@ -169,7 +169,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let help_embed = new discord.EmbedBuilder();
     help_embed.setTitle("Help");
     help_embed.setColor("#08338e");
-    help_embed.setDescription("This is your friendly neighbourhood tipbot for the Flare and Songbird ecosystems, made by the [Astral Credits Team](https://astralcredits.xyz)!\nAll tips are on-chain, and each user has their own unique address.");
+    help_embed.setDescription("our friendly tipping companion for all tokens on the FLARE & SONGBIRD networks! Made by the [Astral Credits Team](https://astralcredits.xyz)!\nWhilst custodial in nature, all txns occur on-chain and each user has their own unique address.");
     help_embed.addFields([
       {
         name: "/help",
@@ -177,11 +177,11 @@ tipbot_client.on("interactionCreate", async interaction => {
       },
       {
         name: "/deposit",
-        value: "Deposit to your custodial tipbot address"
+        value: "Deposit to your tipbot address"
       },
       {
         name: "/balance",
-        value: "See the balance of your custodial tipbot address"
+        value: "See the balance of your tipbot address"
       },
       {
         name: "/withdraw",
@@ -200,7 +200,11 @@ tipbot_client.on("interactionCreate", async interaction => {
         value: "Tip a random user with a certain role some coin/token from your tipbot balance"
       },
       {
-        name: "/role_tip_multi",
+        name: "/active_rain",
+        value: "Tip multiple random recently active users some coins/tokens from your tipbot balance"
+      },
+      {
+        name: "/role_rain",
         value: "Tip multiple random users with a certain role some coin/token from your tipbot balance"
       },
       {
@@ -241,7 +245,7 @@ tipbot_client.on("interactionCreate", async interaction => {
         supported_embed.setTitle("Supported Currencies (cont.)");
       }
       supported_embed.addFields(songbird.SUPPORTED.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c} (${songbird.SUPPORTED_INFO[c].chain} chain)` })));
-      supported_embed.setFooter({ text: "zutomayo" });
+      supported_embed.setFooter({ text: "Interested in adding your token to Mr.Tipbot? Email: astralcredits@protonmail.com" });
       embeds.push(supported_embed);
     }
     return await interaction.reply({ embeds, ephemeral: true });
@@ -249,8 +253,8 @@ tipbot_client.on("interactionCreate", async interaction => {
     function bal_embed_furnish(bal_embed, usd_value) {
       bal_embed.setColor("#7ad831");
       bal_embed.setTitle("View Balance");
-      bal_embed.setDescription(`This is your current balance for the Astral Credits Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.\nView account on: [Songbird Explorer](https://songbird-explorer.flare.network/address/${user_address}) - [Flare Explorer](https://flare-explorer.flare.network/address/${user_address})\nEstimated value of balances: $${usd_value} USD`);
-      bal_embed.setFooter({ text: "247 nishina" });
+      bal_embed.setDescription(`This is your current balance with Mr.Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.\nView on Explorer: [Songbird](https://songbird-explorer.flare.network/address/${user_address}) | [Flare](https://flare-explorer.flare.network/address/${user_address})\nEstimated value of balances: $${usd_value} USD`);
+      bal_embed.setFooter({ text: "An Astral Credits Project" });
       //bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
       return bal_embed;
     }
@@ -408,7 +412,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       address_valid = true;
       withdraw_address = await songbird.lookup_domain_owner(withdraw_address);
       if (!withdraw_address || withdraw_address === "0x0000000000000000000000000000000000000000") {
-        return await interaction.editReply(`Could not find owner of that .sgb domain. Does it exist? Check the spelling.`);
+        return await interaction.editReply(`Could not find that .sgb domain. Please double check your spelling.`);
       }
     }
     try {
@@ -449,7 +453,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let withdraw_embed = new discord.EmbedBuilder();
     withdraw_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}`);
     withdraw_embed.setTitle("Withdraw Requested");
-    withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! If you have any issues, please contact an admin immediately.");
+    withdraw_embed.setDescription("Your withdraw tx has been submitted to the network! If you have any issues, please contact the Astral Credits Team.");
     withdraw_embed.addFields([
       {
         name: "Transaction",
@@ -579,13 +583,13 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     let num_users = (await params.get("num_users")).value;
     if (num_users > 30) {
-      return await interaction.editReply("For now, cannot multitip more than 30 users at once.");
+      return await interaction.editReply("For now, cannot multi-tip more than 30 users at once.");
     } else if (num_users <= 0) {
       return await interaction.editReply("Number of users must be more than 0.");
     }
     let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
     if (role_members.length < num_users) {
-      return await interaction.editReply(`Tried to tip ${num_users} users with the given role, but only ${role_members.length} non-bot (and non-you) users had that role.`);
+      return await interaction.editReply(`Tried to tip ${num_users} users with the given role, but only ${role_members.length} users excluding bots (and yourself) have that role.`);
     }
     let target_ids = [];
     for (let i = 0; i < num_users; i++) {
