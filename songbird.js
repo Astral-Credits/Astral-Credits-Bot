@@ -86,7 +86,7 @@ const SUPPORTED_INFO = {
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
     "chain": "songbird",
   },
-    "exusdt": {
+  "exusdt": {
     "id": "exusdt",
     "name": "exUSDT",
     "emoji": "<:exUSDT:1206369568696569986>",
