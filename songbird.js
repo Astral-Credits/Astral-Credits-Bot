@@ -9,6 +9,23 @@ const MAX_DECIMALS = 6; //astral credits has 18 but not the point
 //this file is deceptively named! flare is also supported
 
 const SUPPORTED_INFO = {
+  //flare
+  "flr": {
+    //no token address, ofc
+    "id": "flr",
+    "name": "Flare",
+    "emoji": "<:FLR:1153124121048260789>",
+    "chain": "flare",
+    "coingecko": "flare-networks",
+  },
+  "wflr": {
+    "id": "wflr",
+    "name": "Wrapped Flare",
+    "emoji": "<:WFLR:1228098963060555819>",
+    "token_address": "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d",
+    "chain": "flare",
+    "coingecko": "wrapped-flare",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
@@ -17,6 +34,14 @@ const SUPPORTED_INFO = {
     "emoji": "<:SGB:1130360963636408350>",
     "chain": "songbird",
     "coingecko": "songbird",
+  },
+    "wsgb": {
+    "id": "wsgb",
+    "name": "Wrapped Songbird",
+    "emoji": "<:WSGB:1175906483154722906>",
+    "token_address": "0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED",
+    "chain": "songbird",
+    "coingecko": "wrapped-songbird",
   },
   "xac": {
     "id": "xac",
@@ -61,7 +86,7 @@ const SUPPORTED_INFO = {
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
     "chain": "songbird",
   },
-  "exusdt": {
+    "exusdt": {
     "id": "exusdt",
     "name": "exUSDT",
     "emoji": "<:exUSDT:1206369568696569986>",
@@ -69,31 +94,6 @@ const SUPPORTED_INFO = {
     "chain": "songbird",
     "decimal_places": 6,
     "coingecko": "tether", //I guess
-  },
-  "wsgb": {
-    "id": "wsgb",
-    "name": "Wrapped Songbird",
-    "emoji": "<:WSGB:1175906483154722906>",
-    "token_address": "0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED",
-    "chain": "songbird",
-    "coingecko": "wrapped-songbird",
-  },
-  //flare
-  "flr": {
-    //no token address, ofc
-    "id": "flr",
-    "name": "Flare",
-    "emoji": "<:FLR:1153124121048260789>",
-    "chain": "flare",
-    "coingecko": "flare-networks",
-  },
-  "wflr": {
-    "id": "wflr",
-    "name": "Wrapped Flare",
-    "emoji": "<:WFLR:1228098963060555819>",
-    "token_address": "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d",
-    "chain": "flare",
-    "coingecko": "wrapped-flare",
   },
 };
 
