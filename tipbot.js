@@ -169,7 +169,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let help_embed = new discord.EmbedBuilder();
     help_embed.setTitle("Help");
     help_embed.setColor("#08338e");
-    help_embed.setDescription("our friendly tipping companion for all tokens on the FLARE & SONGBIRD networks! Made by the [Astral Credits Team](https://astralcredits.xyz)!\nWhilst custodial in nature, all txns occur on-chain and each user has their own unique address.");
+    help_embed.setDescription("Your friendly tipping companion for all tokens on the FLARE & SONGBIRD networks! Made by the [Astral Credits Team](https://astralcredits.xyz)!\nWhilst custodial in nature, all txns occur on-chain and each user has their own unique address.");
     help_embed.addFields([
       {
         name: "/help",
