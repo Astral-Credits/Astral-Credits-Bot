@@ -1,15 +1,15 @@
 const mongo = require('./mongo.js');
 const { exec } = require('child_process');
 
-let db = mongo.getDb();
+let db_wait = mongo.getDb();
 
-let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one;
+let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats;
 
 let ready = false;
 
 const MIN_ACHIEVEMENT_TIP = 50;
 
-db.then((db) => {
+db_wait.then(([db, tipbot_db]) => {
   ready = true;
   console.log("Connected to db")
   claims = db.collection("claims");
@@ -21,6 +21,7 @@ db.then((db) => {
   coinflip_pvp = db.collection("coinflip_pvp");
   coinflip_pvh = db.collection("coinflip_pvh");
   airdrop_one = db.collection("airdrop_one");
+  tip_stats = tipbot_db.collection("tip_stats");
 });
 
 const INITIAL_ACHIEVEMENT_DATA = {
@@ -827,7 +828,79 @@ async function get_top_achievementeers() {
   ]);
 }
 
+/*tip stats schema
+{
+  user: string (discord user id),
+  usd_value: number, //usd value tipped (in 1/10s of a cent)
+  //add up all the type_count to get total tips
+  type_count: {
+    tip: number,
+    active_tip: number,
+    role_tip: number,
+    active_rain: number,
+    role_rain: number,
+  },
+  currency_count: {
+    //tipped count of token, example:
+    sgb: number, //# of sgb tipped (hopefully no decimal precision problems, since we limit to 6 decimals atm)
+  },
+  //need this in case the arbitrary number of welcome tip is changed
+  received_welcome_tip: bool, //if this is false, type_count added up == 3 (or some other arbitrary number), and user is not registered in XAC server, give them a welcome tip and message
+}
+*/
+
+const INITIAL_TIP_STATS_DATA = {
+  usd_value: 0,
+  type_count: {
+    tip: 0,
+    active_tip: 0,
+    role_tip: 0,
+    active_rain: 0,
+    role_rain: 0,
+  },
+  currency_count: {},
+  received_welcome_tip: false,
+};
+
+async function get_tip_stats(user) {
+  return await tip_stats.findOne({ user }) ?? { user, ...INITIAL_TIP_STATS_DATA };
+}
+
+//usd_value in tenths of a cent
+async function update_tip_stats(user, type, currency, amount, usd_value) {
+  //"If the field does not exist, $inc creates the field and sets the field to the specified value." -https://www.mongodb.com/docs/manual/reference/operator/update/inc/
+  let update = {};
+  //for upsert, not very elegant, sorry
+  //received_welcome_tip will be undefined on creation, and that is ok
+  update.$set = {
+    user,
+  };
+  update.$inc = {
+    usd_value,
+    "type_count.tip": 0,
+    "type_count.active_tip": 0,
+    "type_count.role_tip": 0,
+    "type_count.active_rain": 0,
+    "type_count.role_rain": 0,
+  };
+  //actual changes
+  update.$inc[`type_count.${type}`] = 1;
+  update.$inc[`currency_count.${currency}`] = amount;
+  return await tip_stats.updateOne({ user }, update, { upsert: true });
+}
+
+async function received_welcome_tip(user) {
+  return await tip_stats.updateOne({ user }, {
+    $set: {
+      received_welcome_tip: true,
+    },
+  });
+}
+
 module.exports = {
+  ACHIEVEMENTS,
+  CLAIM_FREQ,
+  MIN_ACHIEVEMENT_TIP,
   get_month,
   get_amount,
   milestone_check,
@@ -840,7 +913,6 @@ module.exports = {
   get_user_by_address,
   get_user,
   register_user,
-  ACHIEVEMENTS,
   add_achievement_db,
   add_claim_achievement_info,
   increment_message_achievement_info,
@@ -866,7 +938,8 @@ module.exports = {
   airdrop_insert,
   get_all_linked_websites,
   set_month_end,
-  CLAIM_FREQ,
-  MIN_ACHIEVEMENT_TIP,
   get_top_achievementeers,
+  get_tip_stats,
+  update_tip_stats,
+  received_welcome_tip,
 };

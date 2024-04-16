@@ -108,7 +108,7 @@ let SUPPORTED = Object.keys(SUPPORTED_INFO);
 const songbird_provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
 const flare_provider = new ethers.providers.JsonRpcProvider("https://flare-api.flare.network/ext/C/rpc");
 
-//0x37987397aC240f0cbCaA10a669bC2C90A91C0d51 - tipping
+//0x37987397aC240f0cbCaA10a669bC2C90A91C0d51 - admin tipping, prizes, welcome
 let wallet = new ethers.Wallet(process.env.privkey);
 wallet = wallet.connect(songbird_provider);
 
@@ -129,7 +129,7 @@ let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
 let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, songbird_provider);
-let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, wallet);
+let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, songbird_provider);
 
 //faucet requirements
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
@@ -255,7 +255,8 @@ async function user_multisend_native(user_id, addresses, amount_split, currency)
   let derived_multisend = new ethers.Contract(currency_info.chain === "songbird" ? sgb_multisend_contract_address : flr_multisend_contract_address, multisend_abi, derived_wallet);
   try {
     return await derived_multisend.native_batch_send(addresses, amount_each, {
-      value: amount_split,
+      //since .div will round down, amount_each * addresses.length it not necessarily equal to amount_split
+      value: amount_each.mul(addresses.length), //value: amount_split,
     });
   } catch (e) {
     return false;
@@ -524,9 +525,9 @@ async function find_shared_txs(address1, address2) {
   return txs;
 }
 
-async function lookup_domain_owner(domain) {
+async function lookup_domain_owner(domain, tld=".sgb") {
   domain = domain.slice(0, -4)
-  return await sgb_domain_contract.getDomainHolder(domain, ".sgb");
+  return await sgb_domain_contract.getDomainHolder(domain, tld);
 }
 
 async function ftso_delegates_of(address) {

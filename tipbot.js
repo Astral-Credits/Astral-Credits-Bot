@@ -9,6 +9,8 @@ const { add_achievement, TEAM } = require("./bot.js");
 let price_cache = [];
 songbird.get_all_prices().then((p) => price_cache = p);
 
+const ASTRAL_GUILD = "1000985457393422367";
+
 const tipbot_client = new discord.Client({
   intents: [discord.GatewayIntentBits.Guilds, discord.GatewayIntentBits.GuildMembers, discord.GatewayIntentBits.GuildMessages]
 });
@@ -56,9 +58,35 @@ async function xac_tip_achievement_handle(user, user_info, interaction) {
   }
 }
 
+function update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, amount) {
+  db.update_tip_stats(user.id, formal_type, currency, amount, price_cache[currency] ? Math.floor((price_cache[currency].usd * amount) * (10 ** 3)) : 0).then(async () => {
+    //not tip in xac guild and 
+    if (interaction.guildId !== ASTRAL_GUILD && !user_info) {
+      const tip_stats = await db.get_tip_stats(user.id);
+      //if this is the 3rd tip
+      if (Object.values(tip_stats.type_count).reduce((a, c) => a + c) === 3 && !tip_stats.received_welcome_tip) {
+        //send 1000 xac
+        const welcome_gift = 1000;
+        const tx = await songbird.send_astral(await songbird.get_tipbot_address(user.id), welcome_gift);
+        await db.received_welcome_tip(user.id);
+        //send message
+        let welcome_embed = new discord.EmbedBuilder();
+        welcome_embed.setTitle("Successfully Sent! 🎁");
+        welcome_embed.setURL(`https://songbird-explorer.flare.network/tx/${tx}`);
+        welcome_embed.setColor("#003153"); //prussian blue
+        welcome_embed.setDescription(`Welcome gift of ${songbird.SUPPORTED_INFO.xac.emoji} ${welcome_gift} XAC sent to <@${user.id}>`);
+        await interaction.followUp({ content: `Thank you for using Mr.Tipbot. Here is ${songbird.SUPPORTED_INFO.xac.emoji} ${welcome_gift} XAC on the house!\nYou can earn XAC from the faucet FREE, play games and MORE!\nhttps://discord.gg/M2HSCeEsyp`, embeds: [welcome_embed], ephemeral: true });
+        let astral_guild = tipbot_client.guilds.cache.get("1000985457393422367");
+        await astral_guild.channels.fetch();
+        await astral_guild.channels.cache.get("1087903395962179646").send(`<@${user.id}> received welcome gift. [View Tx](https://songbird-explorer.flare.network/tx/${tx})`);
+      }
+    }
+  });
+}
+
 //automatically grants achievements on xac server only
 //if no_send is true, doesn't send any message, lets caller handle. returns tx.
-async function send_tip(interaction, user, target_id, amount, currency, type="", no_send_message=false) {
+async function send_tip(interaction, user, target_id, amount, currency, formal_type, type="", no_send_message=false) {
   const supported_info = songbird.SUPPORTED_INFO[currency];
   let target_address = await songbird.get_tipbot_address(target_id);
   //send
@@ -86,13 +114,15 @@ async function send_tip(interaction, user, target_id, amount, currency, type="",
       await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
       return;
     } else {
-      if (currency === "xac" && amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
-        let user_info = await db.get_user(user.id);
+      let user_info = await db.get_user(user.id);
+      if (currency === "xac" && amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === ASTRAL_GUILD) {
         if (user_info) {
           await xac_tip_achievement_handle(user, user_info, interaction);
           //
         }
       }
+      //also gives out welcome gifts
+      update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, amount);
       if (no_send_message) {
         return send.hash;
       }
@@ -107,7 +137,7 @@ async function send_tip(interaction, user, target_id, amount, currency, type="",
 }
 
 //let caller handle success messages
-async function send_multitip(interaction, user, target_ids, split_amount, currency, type="") {
+async function send_multitip(interaction, user, target_ids, split_amount, currency, formal_type, type="") {
   const supported_info = songbird.SUPPORTED_INFO[currency];
   let target_addresses = target_ids.map((target_id) => songbird.get_tipbot_address(target_id));
   target_addresses = await Promise.all(target_addresses);
@@ -131,13 +161,15 @@ async function send_multitip(interaction, user, target_ids, split_amount, curren
       await interaction.editReply(`Transaction may have failed? Check the block explorer.\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
       return;
     } else {
-      if (currency === "xac" && split_amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === "1000985457393422367") {
-        let user_info = await db.get_user(user.id);
+      let user_info = await db.get_user(user.id);
+      if (currency === "xac" && split_amount >= db.MIN_ACHIEVEMENT_TIP && interaction.guildId === ASTRAL_GUILD) {
         if (user_info) {
           await xac_tip_achievement_handle(user, user_info, interaction);
           //
         }
       }
+      //also gives out welcome gifts
+      update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, split_amount);
       return send.hash;
     }
   } catch (e) {
@@ -154,7 +186,7 @@ tipbot_client.on("interactionCreate", async interaction => {
 
   //autocomplete
   if (interaction.isAutocomplete()) {
-    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_tip_multi") {
+    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
         return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
@@ -211,8 +243,12 @@ tipbot_client.on("interactionCreate", async interaction => {
         name: "/prices",
         value: "Get the prices of supported currencies from coingecko"
       },
+      {
+        name: "/supported",
+        value: "See all currencies supported by the bot"
+      },
     ]);
-    help_embed.setFooter({ text: "Programmed by prussia.dev" });
+    help_embed.setFooter({ text: ["Programmed by prussia.dev", "247 nishina", "落下 落花"][Math.floor(Math.random() * 3)] });
     return await interaction.reply({ embeds: [ help_embed ], ephemeral: true });
   } else if (command === "deposit") {
     await interaction.deferReply({ ephemeral: true });
@@ -227,8 +263,8 @@ tipbot_client.on("interactionCreate", async interaction => {
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
     deposit_embed.setImage(`attachment://deposit_qr_code.png`);
     let user_info = await db.get_user(user.id);
-    if (!user_info) {
-      return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet." });
+    if (!user_info && interaction.guildId === ASTRAL_GUILD) {
+      return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet.", files: [attachment] });
     } else {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address, files: [attachment] });
     }
@@ -501,7 +537,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    await send_tip(interaction, user, target.id, amount, currency, "");
+    await send_tip(interaction, user, target.id, amount, currency, "tip", "");
   } else if (command === "active_tip") {
     await interaction.deferReply();
     let amount = Number((await params.get("amount")).value.toFixed(songbird.MAX_DECIMALS));
@@ -511,13 +547,13 @@ tipbot_client.on("interactionCreate", async interaction => {
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     //one of the last 25 messages, non-bot, non-self, non-admin, and sent in the last 24 hours
-    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === "1000985457393422367") && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
+    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD) && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
     if (recent_messages.length === 0) {
       return await interaction.editReply("Could not find enough recent messages in channel not sent by you, an team member, or a bot.");
     }
     let random_message = recent_messages[Math.floor(Math.random() * recent_messages.length)];
     let target_id = random_message.author.id;
-    let tx = await send_tip(interaction, user, target_id, amount, currency, " to random active user", true);
+    let tx = await send_tip(interaction, user, target_id, amount, currency, "active_tip", " to random active user", true);
     //if !tx, send_tip should have replied with error message
     if (tx) {
       const supported_info = songbird.SUPPORTED_INFO[currency];
@@ -555,7 +591,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     let random_member = role_members[Math.floor(Math.random() * role_members.length)];
     let target_id = random_member[1].user.id;
-    let tx = await send_tip(interaction, user, target_id, amount, currency, " to random user with role", true);
+    let tx = await send_tip(interaction, user, target_id, amount, currency, "role_tip", " to random user with role", true);
     //if !tx, send_tip should have replied with error message
     if (tx) {
       const supported_info = songbird.SUPPORTED_INFO[currency];
@@ -566,7 +602,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       role_tip_embed.setDescription(`Random tip of ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@&${role.id}>`);
       return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [role_tip_embed] });
     }
-  } else if (command === "role_tip_multi") {
+  } else if (command === "role_rain" || command === "active_rain") {
     await interaction.deferReply();
     let split_amount = Number((await params.get("split_amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (split_amount <= 0) {
@@ -574,40 +610,78 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    let role = (await params.get("role")).role;
-    try {
-      await interaction.guild.members.fetch();
-    } catch (e) {
-      console.log(e);
-      return await interaction.editReply("Something went wrong while fetching users. Sorry, try again later.");
-    }
     let num_users = (await params.get("num_users")).value;
     if (num_users > 30) {
       return await interaction.editReply("For now, cannot multi-tip more than 30 users at once.");
     } else if (num_users <= 0) {
       return await interaction.editReply("Number of users must be more than 0.");
     }
-    let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
-    if (role_members.length < num_users) {
-      return await interaction.editReply(`Tried to tip ${num_users} users with the given role, but only ${role_members.length} users excluding bots (and yourself) have that role.`);
-    }
-    let target_ids = [];
-    for (let i = 0; i < num_users; i++) {
-      let random_member = role_members[Math.floor(Math.random() * role_members.length)];
-      role_members = role_members.filter((m) => m !== random_member);
-      target_ids.push(random_member[1].user.id);
-    }
-    let tx = await send_multitip(interaction, user, target_ids, split_amount, currency, "");
-    //if !tx, send_tip should have replied with error message
-    if (tx) {
-      const supported_info = songbird.SUPPORTED_INFO[currency];
-      let role_tip_embed = new discord.EmbedBuilder();
-      role_tip_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${tx}`);
-      role_tip_embed.setColor(role.color);
-      role_tip_embed.setTitle("Role Tip 🎉");
-      let target_ids_stringfied = target_ids.map((tid) => `<@${tid}>`).join("");
-      role_tip_embed.setDescription(`Random tip of ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to <@&${role.id}> split between ${num_users} users`);
-      return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [role_tip_embed] });
+    if (command === "role_rain") {
+      let role = (await params.get("role")).role;
+      try {
+        await interaction.guild.members.fetch();
+      } catch (e) {
+        console.log(e);
+        return await interaction.editReply("Something went wrong while fetching users. Sorry, try again later.");
+      }
+      let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
+      if (role_members.length < num_users) {
+        return await interaction.editReply(`Tried to tip ${num_users} users with the given role, but only ${role_members.length} users excluding bots (and yourself) have that role.`);
+      }
+      let target_ids = [];
+      for (let i = 0; i < num_users; i++) {
+        let random_member = role_members[Math.floor(Math.random() * role_members.length)];
+        role_members = role_members.filter((m) => m !== random_member);
+        target_ids.push(random_member[1].user.id);
+      }
+      let tx = await send_multitip(interaction, user, target_ids, split_amount, currency, "role_rain", "");
+      //if !tx, send_tip should have replied with error message
+      if (tx) {
+        const supported_info = songbird.SUPPORTED_INFO[currency];
+        let role_tip_embed = new discord.EmbedBuilder();
+        role_tip_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${tx}`);
+        role_tip_embed.setColor(role.color);
+        role_tip_embed.setTitle("Role Tip 🎉");
+        let target_ids_stringfied = target_ids.map((tid) => `<@${tid}>`).join("");
+        role_tip_embed.setDescription(`Random tip of ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to <@&${role.id}> split between ${num_users} users`);
+        return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [role_tip_embed] });
+      }
+    } else if (command === "active_rain") {
+      //team members not ignored
+      let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000)); //&& !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD)
+      let recent_users = [];
+      for (const m of recent_messages) {
+        if (!recent_users.includes(m.author.id)) {
+          recent_users.push(m.author.id);
+        }
+      }
+      if (recent_users.length < num_users) {
+        return await interaction.editReply(`Tried to tip ${num_users} recently active users in this channel, but found only ${recent_users.length} non-bot (and non-you) recently active users.`);
+      }
+      let target_ids = [];
+      for (let i = 0; i < num_users; i++) {
+        let random_id = recent_users[Math.floor(Math.random() * recent_users.length)];
+        recent_users = recent_users.filter((m) => m !== random_id);
+        target_ids.push(random_id);
+      }
+      let tx = await send_multitip(interaction, user, target_ids, split_amount, currency, "active_rain", "");
+      //if !tx, send_tip should have replied with error message
+      if (tx) {
+        const supported_info = songbird.SUPPORTED_INFO[currency];
+        let active_tip_embed = new discord.EmbedBuilder();
+        active_tip_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${tx}`);
+        active_tip_embed.setColor("15e1ef");
+        active_tip_embed.setTitle("Active Tip 💬");
+        let potential_participants = [];
+        for (const m of recent_messages) {
+          if (!potential_participants.includes(m.author.id)) {
+            potential_participants.push(m.author.id);
+          }
+        }
+        let target_ids_stringfied = target_ids.map((tid) => `<@${tid}>`).join("");
+        active_tip_embed.setDescription(`\`${potential_participants.length}\` active participants found!\nRandom tip of ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} split between ${num_users} users!`);
+        return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [active_tip_embed] });
+      }
     }
   } else if (command === "prices") {
     let embeds = [];
