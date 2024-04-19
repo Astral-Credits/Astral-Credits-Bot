@@ -217,7 +217,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       },
       {
         name: "/withdraw",
-        value: "Withdraw your tipbot balance to an address or .sgb domain"
+        value: "Withdraw your tipbot balance to an address, .flr or .sgb domain"
       },
       {
         name: "/tip",
@@ -262,6 +262,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
     deposit_embed.setImage(`attachment://deposit_qr_code.png`);
+    deposit_embed.setFooter({ text: "Scan QR code to copy address" });
     let user_info = await db.get_user(user.id);
     if (!user_info && interaction.guildId === ASTRAL_GUILD) {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet.", files: [attachment] });
@@ -290,7 +291,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       bal_embed.setColor("#7ad831");
       bal_embed.setTitle("View Balance");
       bal_embed.setDescription(`This is your current balance with Mr.Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.\nView on Explorer: [Songbird](https://songbird-explorer.flare.network/address/${user_address}) | [Flare](https://flare-explorer.flare.network/address/${user_address})\nEstimated value of balances: $${usd_value} USD`);
-      bal_embed.setFooter({ text: "An Astral Credits Project" });
+      bal_embed.setFooter({ text: "An Astral Credits Project - https://www.astralcredits.xyz/" });
       //bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
       return bal_embed;
     }
