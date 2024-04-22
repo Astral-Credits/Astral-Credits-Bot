@@ -1446,32 +1446,6 @@ client.on("interactionCreate", async interaction => {
     await db.add_claim(user_info.address, send_amount);
     //update streak
     await db.add_claim_achievement_info(user.id, user_info, db_result?.last_claim);
-    //get updated user_info (current streak may increment by 1, or reset to 1)
-    user_info = await db.get_user(user.id);
-    //add_achievement does nothing if achievement already achieved
-    let user_cs = user_info.achievement_data.faucet.current_streak;
-    if (user_cs >= 2) {
-      let g1 = await add_achievement(user.id, "faucet-2", user_info, interaction.member);
-      if (user_cs >= 10) {
-        if (g1) await sleep(1500); //give time for nonce to increment (shouldn't there be a way to tell ethersjs to use nonce + 1...)
-        let g2 = await add_achievement(user.id, "faucet-10", user_info, interaction.member);
-        if (user_cs >= 30) {
-          if (g2) await sleep(1500);
-          let g3 = await add_achievement(user.id, "faucet-30", user_info, interaction.member);
-          if (user_cs >= 50) {
-            if (g3) await sleep(1500);
-            await add_achievement(user.id, "faucet-30", user_info, interaction.member);
-            if (user_cs >= 100) {
-              await add_achievement(user.id, "faucet-100", user_info, interaction.member);
-              if (user_cs >= 365) {
-                await add_achievement(user.id, "faucet-365", user_info, interaction.member);
-              }
-            }
-          }
-        }
-      }
-    }
-    //
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
@@ -1486,7 +1460,34 @@ client.on("interactionCreate", async interaction => {
     } else {
       faucet_embed.setFooter({ text: "Thank you for participating in the XAC distribution!" });
     }
-    return await interaction.editReply({ embeds: [faucet_embed] });
+    await interaction.editReply({ embeds: [faucet_embed] });
+    //get updated user_info (current streak may increment by 1, or reset to 1)
+    user_info = await db.get_user(user.id);
+    //add_achievement does nothing if achievement already achieved
+    let user_cs = user_info.achievement_data.faucet.current_streak;
+    if (user_cs >= 2) {
+      let g1 = await add_achievement(user.id, "faucet-2", user_info, interaction.member);
+      if (user_cs >= 10) {
+        if (g1) await sleep(1500); //give time for nonce to increment (shouldn't there be a way to tell ethersjs to use nonce + 1...)
+        let g2 = await add_achievement(user.id, "faucet-10", user_info, interaction.member);
+        if (user_cs >= 30) {
+          if (g2) await sleep(1500);
+          let g3 = await add_achievement(user.id, "faucet-30", user_info, interaction.member);
+          if (user_cs >= 50) {
+            if (g3) await sleep(1500);
+            //no sleep after this because not possible to get both faucet-50 and faucet-100, etc at same time
+            await add_achievement(user.id, "faucet-50", user_info, interaction.member);
+            if (user_cs >= 100) {
+              await add_achievement(user.id, "faucet-100", user_info, interaction.member);
+              if (user_cs >= 365) {
+                await add_achievement(user.id, "faucet-365", user_info, interaction.member);
+              }
+            }
+          }
+        }
+      }
+    }
+    return;
   } else if (customId.startsWith("cfpvpbtn-")) {
     async function disable_button_cfpvp() {
       try {

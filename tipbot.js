@@ -305,6 +305,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
     deposit_embed.setImage(`attachment://deposit_qr_code.png`);
+    deposit_embed.setFooter({ text: "Scan QR code to copy address" });
     let user_info = await db.get_user(user.id);
     if (!user_info && interaction.guildId === ASTRAL_GUILD) {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address+"\nUnrelated, but looks like you are not registered with the bot! You should `/register` in order to use the faucet.", files: [attachment] });
@@ -333,7 +334,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       bal_embed.setColor("#7ad831");
       bal_embed.setTitle("View Balance");
       bal_embed.setDescription(`This is your current balance with Mr.Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.\nView on Explorer: [Songbird](https://songbird-explorer.flare.network/address/${user_address}) | [Flare](https://flare-explorer.flare.network/address/${user_address})\nEstimated value of balances: $${usd_value} USD`);
-      bal_embed.setFooter({ text: "An Astral Credits Project" });
+      bal_embed.setFooter({ text: "An Astral Credits Project - https://www.astralcredits.xyz" });
       //bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
       return bal_embed;
     }
@@ -763,11 +764,11 @@ tipbot_client.on("interactionCreate", async interaction => {
       ]);
       settings_embed.setFooter({ text: "Have any suggestions or feedback? Join the XAC discord!" });
       return await interaction.editReply({ embeds: [settings_embed] });
-    } else if (subcommand === "change_tip_notify_dm") {
+    } else if (subcommand === "notification") {
       let tip_notify_dm = (await params.get("tip_notify_dm")).value;
       await db.change_user_settings(user.id, settings, "tip_notify_dm", tip_notify_dm);
       return await interaction.editReply(`Successfully changed setting! The tipbot will now ${ tip_notify_dm ? "" : "**not** " }notify you by DM when you are tipped.${ tip_notify_dm ? " Make sure the bot is able to DM you (you may need to allow 'Direct Messages' from members in this server)!" : "" }`);
-    } else if (subcommand === "change_tip_notify_dm_min") {
+    } else if (subcommand === "notify_value") {
       let min = Number((await params.get("min")).value.toFixed(3));
       await db.change_user_settings(user.id, settings, "tip_notify_dm_min", min * 1000);
       return await interaction.editReply(`Successfully changed setting! The tipbot will now notify you by DM when you are tipped only when the value of the tip is at least $${min} USD.${ settings.tip_notify_dm ? "" : " Please note that this setting will have no effect as you have disabled being notified by DM when tipped." }`);

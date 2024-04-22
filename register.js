@@ -365,7 +365,7 @@ const tipbot_commands = [
       },
       {
         type: 1,
-        name: "change_tip_notify_dm",
+        name: "notification",
         description: "Change whether or not to DM on tip",
         options: [
           {
@@ -378,7 +378,7 @@ const tipbot_commands = [
       },
       {
         type: 1,
-        name: "change_tip_notify_dm_min",
+        name: "notify_value",
         description: "Change the minimum USD value of a tip for the bot to DM",
         options: [
           {
