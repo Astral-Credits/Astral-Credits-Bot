@@ -324,7 +324,7 @@ const tipbot_commands = [
       {
         type: 3,
         name: "address",
-        description: "XAC address (0x...) or Songbird Domain (.sgb) to withdraw to",
+        description: "XAC address (0x...) or Songbird Domain (.sgb/.flr) to withdraw to",
         required: true
       },
       {
@@ -353,6 +353,43 @@ const tipbot_commands = [
   {
     name: "supported",
     description: "See all currencies supported by the bot"
+  },
+  {
+    name: "settings",
+    description: "View or change your tipbot settings",
+    options: [
+      {
+        type: 1,
+        name: "view",
+        description: "View your current settings",
+      },
+      {
+        type: 1,
+        name: "change_tip_notify_dm",
+        description: "Change whether or not to DM on tip",
+        options: [
+          {
+            type: 5,
+            name: "tip_notify_dm",
+            description: "Whether or not to DM on tip",
+            required: true
+          },
+        ]
+      },
+      {
+        type: 1,
+        name: "change_tip_notify_dm_min",
+        description: "Change the minimum USD value of a tip for the bot to DM",
+        options: [
+          {
+            type: 10,
+            name: "min",
+            description: "Min USD of tip before DM notification",
+            required: true
+          },
+        ]
+      },
+    ]
   },
   {
     name: "tip",

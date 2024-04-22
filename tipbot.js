@@ -58,8 +58,10 @@ async function xac_tip_achievement_handle(user, user_info, interaction) {
   }
 }
 
+const get_price_to_tenths = (currency, amount) => price_cache[currency] ? Math.floor((price_cache[currency].usd * amount) * (10 ** 3)) : 0;
+
 function update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, amount) {
-  db.update_tip_stats(user.id, formal_type, currency, amount, price_cache[currency] ? Math.floor((price_cache[currency].usd * amount) * (10 ** 3)) : 0).then(async () => {
+  db.update_tip_stats(user.id, formal_type, currency, amount, get_price_to_tenths(currency, amount)).then(async () => {
     //not tip in xac guild and 
     if (interaction.guildId !== ASTRAL_GUILD && !user_info) {
       const tip_stats = await db.get_tip_stats(user.id);
@@ -121,6 +123,23 @@ async function send_tip(interaction, user, target_id, amount, currency, formal_t
           //
         }
       }
+      db.get_user_settings(target_id).then(async (s) => {
+        if (s.tip_notify_dm) {
+          let above_min = false;
+          if (price_cache[currency]) {
+            above_min = get_price_to_tenths(currency, amount) >= s.tip_notify_dm_min;
+          } else if (s.tip_notify_dm_min === 0) {
+            above_min = true;
+          }
+          if (above_min) {
+            try {
+              tipbot_client.users.cache.get(target_id)?.send(`<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to you in ${(await interaction.fetchReply()).url}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>)`);
+            } catch (e) {
+              //
+            }
+          }
+        }
+      });
       //also gives out welcome gifts
       update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, amount);
       if (no_send_message) {
@@ -168,6 +187,26 @@ async function send_multitip(interaction, user, target_ids, split_amount, curren
           //
         }
       }
+      db.bulk_get_user_settings(target_ids).then(async (s_all) => {
+        const { amount_each_string } = songbird.calc_amount_each(split_amount, target_ids.length, supported_info);
+        for (const s of Object.values(s_all)) {
+          if (s.tip_notify_dm) {
+            let above_min = false;
+            if (price_cache[currency]) {
+              above_min = get_price_to_tenths(currency, Number(amount_each_string)) >= s.tip_notify_dm_min;
+            } else if (s.tip_notify_dm_min === 0) {
+              above_min = true;
+            }
+            if (above_min) {
+              try {
+                tipbot_client.users.cache.get(s.user)?.send(`<@${user.id}> sent ${supported_info.emoji} ${String(amount_each_string)} ${currency.toUpperCase()} to you in ${(await interaction.fetchReply()).url}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>)`);
+              } catch (e) {
+                //
+              }
+            }
+          }
+        }
+      });
       //also gives out welcome gifts
       update_tip_stats_wrapper(interaction, user, user_info, formal_type, currency, split_amount);
       return send.hash;
@@ -217,7 +256,11 @@ tipbot_client.on("interactionCreate", async interaction => {
       },
       {
         name: "/withdraw",
-        value: "Withdraw your tipbot balance to an address or .sgb domain"
+        value: "Withdraw your tipbot balance to an address or .sgb/.flr domain"
+      },
+      {
+        name: "/settings",
+        value: "View or change your tipbot settings (uses subcommands)"
       },
       {
         name: "/tip",
@@ -311,7 +354,8 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     usd_value = usd_value.toFixed(2);
     const g_num = Object.keys(generic_bals).length;
-    if (g_num > 23) {
+    if (g_num > 25 - 3) {
+      //untested
       const max_pages = Math.ceil(g_num / 10);
       let bal_embeds = [];
       for (let i=0; i < max_pages; i++) {
@@ -399,7 +443,8 @@ tipbot_client.on("interactionCreate", async interaction => {
           return;
         }
       }
-    } else if (Object.keys(generic_bals).length > 0) {
+    //} else if (Object.keys(generic_bals).length > 0) {
+    } else {
       let embeds = [];
       let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value);
       bal_embed.addFields([
@@ -444,11 +489,11 @@ tipbot_client.on("interactionCreate", async interaction => {
     //withdraw address
     let withdraw_address = (await params.get("address")).value.toLowerCase().trim();
     let address_valid;
-    if (withdraw_address.endsWith(".sgb")) {
+    if (withdraw_address.endsWith(".sgb") || withdraw_address.endsWith(".flr")) {
       address_valid = true;
       withdraw_address = await songbird.lookup_domain_owner(withdraw_address);
       if (!withdraw_address || withdraw_address === "0x0000000000000000000000000000000000000000") {
-        return await interaction.editReply(`Could not find that .sgb domain. Please double check your spelling.`);
+        return await interaction.editReply(`Could not find that .sgb/.flr domain. Please double check your spelling.`);
       }
     }
     try {
@@ -464,7 +509,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     if (withdraw_amount <= 0) {
       return await interaction.editReply("Amount cannot be equal to or less than 0");
     }
-    //check options to see if user withdrawing sgb or xac
+    //check withdrawal currency
     let withdraw_currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(withdraw_currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     let send;
@@ -699,6 +744,34 @@ tipbot_client.on("interactionCreate", async interaction => {
       embeds.push(price_embed);
     }
     return await interaction.reply({ embeds, ephemeral: true });
+  } else if (command === "settings") {
+    await interaction.deferReply({ ephemeral: true });
+    const subcommand = interaction.options.getSubcommand();
+    let settings = await db.get_user_settings(user.id);
+    if (subcommand === "view") {
+      let settings_embed = new discord.EmbedBuilder();
+      settings_embed.setTitle("Your Tipbot Settings");
+      settings_embed.addFields([
+        {
+          name: "Notify of tips by DM",
+          value: settings.tip_notify_dm ? "Yes" : "No",
+        },
+        {
+          name: "Min value of tip to notify by DM",
+          value: `$${settings.tip_notify_dm_min / 1000} USD`,
+        },
+      ]);
+      settings_embed.setFooter({ text: "Have any suggestions or feedback? Join the XAC discord!" });
+      return await interaction.editReply({ embeds: [settings_embed] });
+    } else if (subcommand === "change_tip_notify_dm") {
+      let tip_notify_dm = (await params.get("tip_notify_dm")).value;
+      await db.change_user_settings(user.id, settings, "tip_notify_dm", tip_notify_dm);
+      return await interaction.editReply(`Successfully changed setting! The tipbot will now ${ tip_notify_dm ? "" : "**not** " }notify you by DM when you are tipped.${ tip_notify_dm ? " Make sure the bot is able to DM you (you may need to allow 'Direct Messages' from members in this server)!" : "" }`);
+    } else if (subcommand === "change_tip_notify_dm_min") {
+      let min = Number((await params.get("min")).value.toFixed(3));
+      await db.change_user_settings(user.id, settings, "tip_notify_dm_min", min * 1000);
+      return await interaction.editReply(`Successfully changed setting! The tipbot will now notify you by DM when you are tipped only when the value of the tip is at least $${min} USD.${ settings.tip_notify_dm ? "" : " Please note that this setting will have no effect as you have disabled being notified by DM when tipped." }`);
+    }
   }
 });
 

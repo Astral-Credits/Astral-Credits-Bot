@@ -119,6 +119,7 @@ faucet_wallet = faucet_wallet.connect(songbird_provider);
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
+const flr_domain_contract_address = "0x2919f0bE09549814ADF72fb0387D1981699fc6D4";
 
 const sgb_multisend_contract_address = "0x6bDA41F88aDadF96F3149F75dc6ADB0351D4fa1b";
 const flr_multisend_contract_address = "0x93CA88Ee506096816414078664641C07aF731026";
@@ -129,6 +130,7 @@ let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
 let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, songbird_provider);
+let flr_domain_contract = new ethers.Contract(flr_domain_contract_address, sgb_domain_abi, flare_provider);
 let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, songbird_provider);
 
 //faucet requirements
@@ -246,11 +248,18 @@ async function user_withdraw_generic_token(user_id, address, amount, currency) {
   }
 }
 
-async function user_multisend_native(user_id, addresses, amount_split, currency) {
-  const currency_info = SUPPORTED_INFO[currency];
+//this is a mess
+function calc_amount_each(amount_split, num, currency_info) {
   //default to 18 decimal places if nothing specified
-  amount_split = ethers.utils.parseUnits(String(amount_split), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
-  let amount_each = amount_split.div(addresses.length);
+  const decimal_places = isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places;
+  amount_split = ethers.utils.parseUnits(String(amount_split), decimal_places);
+  let amount_each = amount_split.div(num);
+  return { amount_each, amount_split, amount_each_string: ethers.utils.formatUnits(amount_each.toString(), decimal_places) };
+}
+
+async function user_multisend_native(user_id, addresses, split_amount, currency) {
+  const currency_info = SUPPORTED_INFO[currency];
+  let { amount_each } = calc_amount_each(split_amount, addresses.length, currency_info);
   let derived_wallet = derive_wallet(user_id, currency_info.chain);
   let derived_multisend = new ethers.Contract(currency_info.chain === "songbird" ? sgb_multisend_contract_address : flr_multisend_contract_address, multisend_abi, derived_wallet);
   try {
@@ -263,12 +272,10 @@ async function user_multisend_native(user_id, addresses, amount_split, currency)
   }
 }
 
-async function user_multisend_token(user_id, addresses, amount_split, currency) {
+async function user_multisend_token(user_id, addresses, amount_split_, currency) {
   const currency_info = SUPPORTED_INFO[currency];
   const multisend_contract_address = currency_info.chain === "songbird" ? sgb_multisend_contract_address : flr_multisend_contract_address;
-  //default to 18 decimal places if nothing specified
-  amount_split = ethers.utils.parseUnits(String(amount_split), isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places);
-  let amount_each = amount_split.div(addresses.length);
+  let { amount_each, amount_split } = calc_amount_each(amount_split_, addresses.length, currency_info);
   let derived_wallet = derive_wallet(user_id, currency_info.chain);
   let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
   //approval
@@ -525,9 +532,16 @@ async function find_shared_txs(address1, address2) {
   return txs;
 }
 
-async function lookup_domain_owner(domain, tld=".sgb") {
-  domain = domain.slice(0, -4)
-  return await sgb_domain_contract.getDomainHolder(domain, tld);
+async function lookup_domain_owner(domain) {
+  let [name, tld, _] = domain.split(".");
+  if (_) return false;
+  if (tld === "sgb") {
+    return await sgb_domain_contract.getDomainHolder(name, ".sgb");
+  } else if (tld === "flr") {
+    return await flr_domain_contract.getDomainHolder(name, ".flr");
+  } else {
+    return false;
+  }
 }
 
 async function ftso_delegates_of(address) {
@@ -572,6 +586,7 @@ module.exports = {
   lookup_domain_owner,
   get_block_number,
   ftso_delegates_of,
+  calc_amount_each,
   is_valid: ethers.utils.isAddress,
   admin_address: wallet.address,
 };

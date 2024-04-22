@@ -3,7 +3,7 @@ const { exec } = require('child_process');
 
 let db_wait = mongo.getDb();
 
-let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats;
+let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings;
 
 let ready = false;
 
@@ -22,6 +22,7 @@ db_wait.then(([db, tipbot_db]) => {
   coinflip_pvh = db.collection("coinflip_pvh");
   airdrop_one = db.collection("airdrop_one");
   tip_stats = tipbot_db.collection("tip_stats");
+  user_settings = tipbot_db.collection("user_settings");
 });
 
 const INITIAL_ACHIEVEMENT_DATA = {
@@ -897,6 +898,44 @@ async function received_welcome_tip(user) {
   });
 }
 
+const DEFAULT_USER_SETTINGS = {
+  tip_notify_dm: false, //attempt to notify user in dms if they are tipped
+  tip_notify_dm_min: 0, //min value in usd (in tenths of a cent)
+  //
+};
+
+//user_settings
+async function get_user_settings(user) {
+  return await user_settings.findOne({ user }) ?? { user, ...DEFAULT_USER_SETTINGS };
+}
+
+async function bulk_get_user_settings(users) {
+  let found = await (await user_settings.find({
+    user: {
+      $in: users,
+    }
+  })).toArray();
+  let found_users = found.map((s) => s.user);
+  for (const user of users) {
+    if (!found_users.includes(user)) {
+      found.push({ user, ...DEFAULT_USER_SETTINGS });
+    }
+  }
+  let found_obj = {};
+  for (const s of found) {
+    found_obj[s.user] = s;
+  }
+  return found_obj;
+}
+
+async function change_user_settings(user, settings, field_name, new_value) {
+  if (!settings) {
+    settings = DEFAULT_USER_SETTINGS;
+  }
+  settings[field_name] = new_value;
+  return await user_settings.updateOne({ user }, { $set: { ...settings } }, { upsert: true });
+}
+
 module.exports = {
   ACHIEVEMENTS,
   CLAIM_FREQ,
@@ -942,4 +981,7 @@ module.exports = {
   get_tip_stats,
   update_tip_stats,
   received_welcome_tip,
+  get_user_settings,
+  bulk_get_user_settings,
+  change_user_settings,
 };
