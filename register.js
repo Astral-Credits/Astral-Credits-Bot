@@ -352,7 +352,16 @@ const tipbot_commands = [
   },
   {
     name: "supported",
-    description: "See all currencies supported by the bot"
+    description: "See all currencies supported by the bot",
+    options: [
+      {
+        type: 3,
+        name: "chain",
+        description: "Chain to show supported currencies for",
+        required: true,
+        autocomplete: true
+      },
+    ]
   },
   {
     name: "settings",

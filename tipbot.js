@@ -225,10 +225,12 @@ tipbot_client.on("interactionCreate", async interaction => {
 
   //autocomplete
   if (interaction.isAutocomplete()) {
-    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain") {
+    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
         return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
+      } else if (focused_option.name === "chain") {
+        return await interaction.respond(Object.keys(songbird.SUPPORTED_CHAINS).filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
       } else {
         return;
       }
@@ -313,18 +315,23 @@ tipbot_client.on("interactionCreate", async interaction => {
       return interaction.editReply({ embeds: [deposit_embed], content: user_address, files: [attachment] });
     }
   } else if (command === "supported") {
+    let chain = (await params.get("chain")).value.toLowerCase().trim();
+    if (!Object.keys(songbird.SUPPORTED_CHAINS).includes(chain)) {
+      return await interaction.reply(`Supported chains are: ${Object.keys(songbird.SUPPORTED_CHAINS).join(", ")}`);
+    }
     let embeds = [];
+    const supported_on_chain = songbird.SUPPORTED.filter((c) => songbird.SUPPORTED_INFO[c].chain === chain);
     //25 fields max per embed
-    for (let i=0; i < Math.ceil(songbird.SUPPORTED.length / 25); i++) {
+    for (let i=0; i < Math.ceil(supported_on_chain.length / 25); i++) {
       let supported_embed = new discord.EmbedBuilder();
-      supported_embed.setColor("#0bb3dd");
+      supported_embed.setColor(songbird.SUPPORTED_CHAINS[chain].color); //"#0bb3dd")
       if (i === 0) {
-        supported_embed.setTitle("Supported Currencies");
+        supported_embed.setTitle(`Supported Currencies (${chain})`);
         supported_embed.setDescription("These are the supported currencies of the tipbot:");
       } else {
-        supported_embed.setTitle("Supported Currencies (cont.)");
+        supported_embed.setTitle(`Supported Currencies (${chain}, cont.)`);
       }
-      supported_embed.addFields(songbird.SUPPORTED.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c} (${songbird.SUPPORTED_INFO[c].chain} chain)` })));
+      supported_embed.addFields(supported_on_chain.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c}` })));
       supported_embed.setFooter({ text: "Interested in adding your token to Mr.Tipbot? Email: astralcredits@protonmail.com" });
       embeds.push(supported_embed);
     }

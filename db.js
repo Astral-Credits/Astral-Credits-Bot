@@ -198,6 +198,12 @@ function get_next_month_timestamp() {
   return (new Date(`${next_year}-${next_calendar_month}-01`)).getTime();
 }
 
+function get_next_halving_timestamp() {
+  let current_date = new Date();
+  let months_till_halving = 6-(get_month()%6);
+  return (new Date(Date.UTC(current_date.getUTCFullYear(), current_date.getUTCMonth()+months_till_halving))).getTime();
+}
+
 async function get_month_end() {
   return (await month_end.findOne({
     month: get_month() - 1,
@@ -945,6 +951,7 @@ module.exports = {
   milestone_check,
   get_faucet_stats,
   get_claims_this_month,
+  get_next_halving_timestamp,
   get_next_month_timestamp,
   get_next_claim_time,
   get_all_users,

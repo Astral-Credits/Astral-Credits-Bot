@@ -8,6 +8,15 @@ const MAX_DECIMALS = 6; //astral credits has 18 but not the point
 
 //this file is deceptively named! flare is also supported
 
+const SUPPORTED_CHAINS = {
+  "flare": {
+    color: "#e42058",
+  },
+  "songbird": {
+    color: "#ffffff",
+  },
+};
+
 const SUPPORTED_INFO = {
   //flare
   "flr": {
@@ -555,6 +564,7 @@ console.log(rand_wallet.privateKey);
 
 module.exports = {
   SUPPORTED,
+  SUPPORTED_CHAINS,
   SUPPORTED_INFO,
   SPECIAL_KNOWN,
   HOLDING_BLOCK_TIME,

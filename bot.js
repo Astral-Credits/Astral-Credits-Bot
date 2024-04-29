@@ -430,7 +430,7 @@ client.on("interactionCreate", async interaction => {
     stats_embed.setColor("#d10dd8");
     const remaining_claims = 11111-await db.get_claims_this_month();
     if (remaining_claims <= 0) {
-      stats_embed.setDescription(`There are no more claims remaining this month! Faucet reset <t:${Math.floor(db.get_next_month_timestamp() / 1000)}:R>`);
+      stats_embed.setDescription(`There are no more claims remaining this month! Faucet reset <t:${Math.floor(db.get_next_month_timestamp() / 1000)}:R>, halving <t:${Math.floor(db.get_next_halving_timestamp() / 1000)}:R>`);
     } else {
       stats_embed.setDescription(`There are ${remaining_claims} claims remaining this month!`);
     }
@@ -1052,6 +1052,18 @@ client.on("interactionCreate", async interaction => {
     } else {
       return await interaction.editReply(`Yay! You got ${given.length} manually claimable achievements: ${given.join(", ")}`);
     }
+  } else if (command === "progress_achievements") {
+    await interaction.deferReply({ ephemeral: true });
+    let achievement_id = (await params.get("achievement_id")).value.toLowerCase().trim();
+    if (!Object.keys(db.ACHIEVEMENTS).includes(achievement_id)) {
+      //
+    }
+    //
+    let user_info = await db.get_user(user.id);
+    if (!user_info) {
+      return await interaction.editReply("Please do `/register` first!");
+    }
+    //
   } else if (command === "crawl_shared_txs") {
     //while not an admin id guarded command, mkzi still has this command hidden for most non-admin people and channels
     await interaction.deferReply({ ephemeral: true });
