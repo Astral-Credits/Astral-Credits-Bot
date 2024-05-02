@@ -35,6 +35,13 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "coingecko": "wrapped-flare",
   },
+  "bnz": {
+    "id": "bnz",
+    "name": "BonezCoin",
+    "emoji": "<:BNZ:1235385281230667847>",
+    "token_address": "0xfD3449E8Ee31117a848D41Ee20F497a9bCb53164",
+    "chain": "flare",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
