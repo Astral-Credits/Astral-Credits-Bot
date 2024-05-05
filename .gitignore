@@ -4,3 +4,5 @@ package-lock.json
 assets
 snapshot.json
 snapshot_formatted.txt
+utility_scripts/_*.js
+utility_scripts/*.json

@@ -69,7 +69,7 @@ function update_tip_stats_wrapper(interaction, user, user_info, formal_type, cur
       if (Object.values(tip_stats.type_count).reduce((a, c) => a + c) === 3 && !tip_stats.received_welcome_tip) {
         //send 1000 xac
         const welcome_gift = 1000;
-        const tx = await songbird.send_astral(await songbird.get_tipbot_address(user.id), welcome_gift);
+        const tx = await songbird.send_astral(songbird.get_tipbot_address(user.id), welcome_gift);
         await db.received_welcome_tip(user.id);
         //send message
         let welcome_embed = new discord.EmbedBuilder();
@@ -90,7 +90,7 @@ function update_tip_stats_wrapper(interaction, user, user_info, formal_type, cur
 //if no_send is true, doesn't send any message, lets caller handle. returns tx.
 async function send_tip(interaction, user, target_id, amount, currency, formal_type, type="", no_send_message=false) {
   const supported_info = songbird.SUPPORTED_INFO[currency];
-  let target_address = await songbird.get_tipbot_address(target_id);
+  let target_address = songbird.get_tipbot_address(target_id);
   //send
   let send;
   try {
@@ -297,7 +297,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     return await interaction.reply({ embeds: [ help_embed ], ephemeral: true });
   } else if (command === "deposit") {
     await interaction.deferReply({ ephemeral: true });
-    let user_address = await songbird.get_tipbot_address(user.id);
+    let user_address = songbird.get_tipbot_address(user.id);
     let deposit_embed = new discord.EmbedBuilder();
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
@@ -337,16 +337,37 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     return await interaction.reply({ embeds, ephemeral: true });
   } else if (command === "balance") {
-    function bal_embed_furnish(bal_embed, usd_value) {
+    function bal_embed_furnish(bal_embed, usd_value, first_page=false, sgb_bal=0, flr_bal=0, astral_bal=0) {
       bal_embed.setColor("#7ad831");
       bal_embed.setTitle("View Balance");
       bal_embed.setDescription(`This is your current balance with Mr.Tipbot. As this is a custodial service, we recommend you do not keep large amounts of funds here.\nView on Explorer: [Songbird](https://songbird-explorer.flare.network/address/${user_address}) | [Flare](https://flare-explorer.flare.network/address/${user_address})\nEstimated value of balances: $${usd_value} USD`);
       bal_embed.setFooter({ text: "An Astral Credits Project - https://www.astralcredits.xyz" });
+      if (first_page) {
+        bal_embed.addFields([
+          {
+            name: "Songbird (sgb)",
+            //truncate if more than 5 decimals
+            value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" "+songbird.SUPPORTED_INFO.sgb.emoji + (price_cache.sgb ? ` (≈$${(sgb_bal * price_cache.sgb.usd).toFixed(2)} USD)` : ""),
+            inline: true,
+          },
+          {
+            name: "Flare (flr)",
+            //truncate if more than 5 decimals
+            value: String(String(flr_bal).split(".")[1]?.length > 5 ? flr_bal.toFixed(5) : flr_bal)+" "+songbird.SUPPORTED_INFO.flr.emoji + (price_cache.flr ? ` (≈$${(flr_bal * price_cache.flr.usd).toFixed(2)} USD)` : ""),
+            inline: true,
+          },
+          {
+            name: "Astral Credits (xac)",
+            value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" "+songbird.SUPPORTED_INFO.xac.emoji + (price_cache.xac ? ` (≈$${(astral_bal * price_cache.xac.usd).toFixed(2)} USD)` : ""),
+            inline: true,
+          },
+        ]);
+      }
       //bal_embed.setURL("https://songbird-explorer.flare.network/address/"+user_address);
       return bal_embed;
     }
     const dresp = await interaction.deferReply({ ephemeral: true });
-    let user_address = await songbird.get_tipbot_address(user.id);
+    let user_address = songbird.get_tipbot_address(user.id);
     let sgb_bal = await songbird.get_bal(user_address);
     let flr_bal = await songbird.get_bal(user_address, "flare");
     let astral_bal = await songbird.get_bal_astral(user_address);
@@ -367,28 +388,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       const max_pages = Math.ceil(g_num / 10);
       let bal_embeds = [];
       for (let i=0; i < max_pages; i++) {
-        let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value);
-        if (i === 0) {
-          bal_embed.addFields([
-            {
-              name: "Songbird (sgb)",
-              //truncate if more than 5 decimals
-              value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" "+songbird.SUPPORTED_INFO.sgb.emoji + (price_cache.sgb ? ` (≈$${(sgb_bal * price_cache.sgb.usd).toFixed(2)} USD)` : ""),
-              inline: true,
-            },
-            {
-              name: "Flare (flr)",
-              //truncate if more than 5 decimals
-              value: String(String(flr_bal).split(".")[1]?.length > 5 ? flr_bal.toFixed(5) : flr_bal)+" "+songbird.SUPPORTED_INFO.flr.emoji + (price_cache.flr ? ` (≈$${(flr_bal * price_cache.flr.usd).toFixed(2)} USD)` : ""),
-              inline: true,
-            },
-            {
-              name: "Astral Credits (xac)",
-              value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" "+songbird.SUPPORTED_INFO.xac.emoji + (price_cache.xac ? ` (≈$${(astral_bal * price_cache.xac.usd).toFixed(2)} USD)` : ""),
-              inline: true,
-            },
-          ]);
-        }
+        let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value, i === 0, sgb_bal, flr_bal, astral_bal);
         bal_embed.addFields(Object.keys(generic_bals).map((c) => (
           {
             name: `${songbird.SUPPORTED_INFO[c].name} (${songbird.SUPPORTED_INFO[c].id})`,
@@ -454,26 +454,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     //} else if (Object.keys(generic_bals).length > 0) {
     } else {
       let embeds = [];
-      let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value);
-      bal_embed.addFields([
-        {
-          name: "Songbird (sgb)",
-          //truncate if more than 5 decimals
-          value: String(String(sgb_bal).split(".")[1]?.length > 5 ? sgb_bal.toFixed(5) : sgb_bal)+" "+songbird.SUPPORTED_INFO.sgb.emoji + (price_cache.sgb ? ` (≈$${(sgb_bal * price_cache.sgb.usd).toFixed(2)} USD)` : ""),
-          inline: true,
-        },
-        {
-          name: "Flare (flr)",
-          //truncate if more than 5 decimals
-          value: String(String(flr_bal).split(".")[1]?.length > 5 ? flr_bal.toFixed(5) : flr_bal)+" "+songbird.SUPPORTED_INFO.flr.emoji + (price_cache.flr ? ` (≈$${(flr_bal * price_cache.flr.usd).toFixed(2)} USD)` : ""),
-          inline: true,
-        },
-        {
-          name: "Astral Credits (xac)",
-          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" "+songbird.SUPPORTED_INFO.xac.emoji + (price_cache.xac ? ` (≈$${(astral_bal * price_cache.xac.usd).toFixed(2)} USD)` : ""),
-          inline: true,
-        },
-      ]);
+      let bal_embed = bal_embed_furnish(new discord.EmbedBuilder(), usd_value, true, sgb_bal, flr_bal, astral_bal);
       //generic_bals
       bal_embed.addFields(Object.keys(generic_bals).map((c) => (
         {
@@ -738,7 +719,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
   } else if (command === "prices") {
     let embeds = [];
-    //25 fields max per embed
+    //25 fields max per embed, 10 embeds per message, so shouldn't be a problem up till 250 listed currencies with coingeckos (ie, not a problem)
     for (let i=0; i < Math.ceil(songbird.SUPPORTED.length / 25); i++) {
       let price_embed = new discord.EmbedBuilder();
       price_embed.setColor("#056072");

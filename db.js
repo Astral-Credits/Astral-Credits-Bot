@@ -27,6 +27,7 @@ db_wait.then(([db, tipbot_db]) => {
 
 const INITIAL_ACHIEVEMENT_DATA = {
   faucet: {
+    total: 0,
     current_streak: 0,
     longest_streak: 0
   },
@@ -39,9 +40,15 @@ const INITIAL_ACHIEVEMENT_DATA = {
   }
 };
 
-setTimeout(function() {
-  //run this before deploying
+setTimeout(async function() {
+  //one off migrations
   //users.updateMany({}, { $set: { achievements: [], achievement_data: INITIAL_ACHIEVEMENT_DATA } });
+  /*const all = JSON.parse(require("fs").readFileSync("./utility_scripts/faucet_users_count.json"));
+  for (const u of await get_all_users()) {
+    console.log(all[u.address.toLowerCase()] ?? 0);
+    users.updateOne({ user: u.user }, { $set: { "achievement_data.faucet.total": all[u.address.toLowerCase() ?? 0] } });
+  }*/
+
   if (!ready) {
     exec("kill 1");
   }
@@ -470,6 +477,15 @@ const ACHIEVEMENTS = {
     prize: 10000,
     role: "1211411950760632430", //Diamond Supporter
   },
+  //tipbot related, non-tipbot
+  "coin-collector": {
+    id: "coin-collector",
+    name: "Numismatist",
+    description: "Hold 10 or more supported currencies in your tipbot wallet",
+    prize: 500,
+    role: false,
+  },
+  //
   //one offs (pixel planet user, discord booster, triforce delegator, xac millionaire)
   "pixel-planet": {
     id: "pixel-planet",
@@ -533,19 +549,20 @@ async function add_claim_achievement_info(user_id, cached_user, last_claim) {
   if ((new Date()).getUTCDate() === 1) {
     let month_end_timestamp = await get_month_end();
     //if last claim was made on last claiming day of the last month
-    if (last_claim > month_end_timestamp - CLAIM_FREQ) {
+    if (last_claim > month_end_timestamp - CLAIM_FREQ - 30 * 60 * 1000) {
       override = true;
       override_days = Math.floor((Date.now() - last_claim) / (24 * 60 * 60 * 1000));
     }
   }
   //if their last claim was less than 2 days ago, streak continues
-  //claim freq is 23.5 hours, give them an extra 30 minutes to claim so 24 hours after they are eligible to claim, they can claim again
-  if (last_claim + CLAIM_FREQ * 2 > Date.now() + 30 * 60 * 1000 || override) {
-    let update = {
-      $inc: {
-        "achievement_data.faucet.current_streak": override_days ?? 1,
-      }
-    };
+  //claim freq is 23.5 hours, give them an extra 30 minutes to claim; so up to 24 hours after they are eligible to claim, they can claim again without losing streak
+  let update = {
+    $inc: {
+      "achievement_data.faucet.total": 1,
+    },
+  };
+  if ((last_claim + CLAIM_FREQ * 2 + 30 * 60 * 1000 >= Date.now()) || override) {
+    update["$inc"]["achievement_data.faucet.current_streak"] = override_days ?? 1;
     if (cached_user.achievement_data.faucet.longest_streak < cached_user.achievement_data.faucet.current_streak + (override_days ?? 1)) {
       //new longest streak
       update["$inc"]["achievement_data.faucet.longest_streak"] = override_days ?? 1;
@@ -554,13 +571,12 @@ async function add_claim_achievement_info(user_id, cached_user, last_claim) {
       user: user_id,
     }, update);
   } else {
+    update["$set"] = {
+      "achievement_data.faucet.current_streak": 1,
+    };
     await users.updateOne({
       user: user_id,
-    }, {
-      $set: {
-        "achievement_data.faucet.current_streak": 1,
-      }
-    });
+    }, update);
   }
 }
 
@@ -835,6 +851,24 @@ async function get_top_achievementeers() {
   ]);
 }
 
+async function get_top_claimers() {
+  //limit?
+  return await users.aggregate([
+    {
+      $project: {
+        _id: 0,
+        user: 1,
+        "achievement_data.faucet.total": 1,
+      }
+    },
+    {
+      $sort: {
+        "achievement_data.faucet.total": -1,
+      }
+    }
+  ]);
+}
+
 /*tip stats schema
 {
   user: string (discord user id),
@@ -985,6 +1019,7 @@ module.exports = {
   get_all_linked_websites,
   set_month_end,
   get_top_achievementeers,
+  get_top_claimers,
   get_tip_stats,
   update_tip_stats,
   received_welcome_tip,

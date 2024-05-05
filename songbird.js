@@ -218,7 +218,7 @@ function derive_wallet(user_id, chain="songbird") {
   return derived_wallet;
 }
 
-async function get_tipbot_address(user_id) {
+function get_tipbot_address(user_id) {
   let derived_wallet = derive_wallet(user_id);
   return derived_wallet.address;
 }
@@ -231,18 +231,6 @@ async function user_withdraw_native(user_id, address, amount, chain="songbird") 
       to: address.toLowerCase(),
       value: amount,
     });
-  } catch (e) {
-    //console.log(e);
-    return false;
-  }
-}
-
-async function user_withdraw_astral(user_id, address, amount) {
-  amount = ethers.utils.parseUnits(String(amount), 18);
-  let derived_wallet = derive_wallet(user_id);
-  let derived_astral_token = new ethers.Contract(token_contract_address, erc20_abi, derived_wallet);
-  try {
-    return await derived_astral_token.transfer(address, amount);
   } catch (e) {
     //console.log(e);
     return false;
@@ -262,6 +250,10 @@ async function user_withdraw_generic_token(user_id, address, amount, currency) {
     //console.log(e);
     return false;
   }
+}
+
+async function user_withdraw_astral(user_id, address, amount) {
+  return await user_withdraw_generic_token(user_id, address, amount, "xac");
 }
 
 //this is a mess
@@ -324,7 +316,7 @@ async function enough_balance(address, holding_requirement) {
   wrapped_bal = Number(ethers.utils.formatUnits(wrapped_bal.toString(), 18));
   let reg_bal = await get_bal(address);
   return {
-    success: wrapped_bal >= holding_requirement || reg_bal >= holding_requirement,
+    success: (wrapped_bal + reg_bal) >= holding_requirement,
     wrapped_sgb_bal: wrapped_bal,
     sgb_bal: reg_bal
   };

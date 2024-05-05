@@ -307,7 +307,19 @@ const commands = [
   },
   {
     name: "leaderboard",
-    description: "See the users with the most achievements"
+    description: "See various rankings of our most impressive users!",
+    options: [
+      {
+        type: 1,
+        name: "achievements",
+        description: "See the users with the most achievements",
+      },
+      {
+        type: 1,
+        name: "claims",
+        description: "See the users with the most claims",
+      },
+    ]
   },
 ];
 

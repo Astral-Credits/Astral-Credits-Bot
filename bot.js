@@ -94,7 +94,7 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
   if (await db.add_achievement_db(user_id, achievement_id, cached_user)) {
     const achievement_info = db.ACHIEVEMENTS[achievement_id];
     //pay prize from team's collective tipping wallet to the user's tipping wallet
-    let user_tipbot_address = await songbird.get_tipbot_address(user_id);
+    let user_tipbot_address = songbird.get_tipbot_address(user_id);
     let tx = false;
     if (achievement_info.prize > 0) {
       tx = await songbird.send_astral(user_tipbot_address, achievement_info.prize);
@@ -632,7 +632,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("Must choose 'Heads' or 'Tails'.");
     }
     //check tipbot sgb and xac balance
-    let player1_address = await songbird.get_tipbot_address(user.id);
+    let player1_address = songbird.get_tipbot_address(user.id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
     if (player1_sgb_bal < MIN_SGB) {
       return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
@@ -684,7 +684,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("Must choose 'Heads' or 'Tails'.");
     }
     //check player balance
-    let player_address = await songbird.get_tipbot_address(user.id);
+    let player_address = songbird.get_tipbot_address(user.id);
     let player_sgb_bal = await songbird.get_bal(player_address);
     if (player_sgb_bal < MIN_SGB) {
       return await interaction.editReply(`Please deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
@@ -694,7 +694,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("You do not have enough XAC **in your tipbot wallet** to cover the wager.");
     }
     //check house balance (bet amount + 10k for safety)
-    let house_address = await songbird.get_tipbot_address(0);
+    let house_address = songbird.get_tipbot_address(0);
     if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
     } else if (await songbird.get_bal_astral(house_address) < 5000 + wager) {
@@ -1045,6 +1045,26 @@ client.on("interactionCreate", async interaction => {
         await sleep(2500);
       }
     }
+    //coin collector
+    let tipbot_address = songbird.get_tipbot_address(user_info.user);
+    let sgb_bal = await songbird.get_bal(tipbot_address);
+    let flr_bal = await songbird.get_bal(tipbot_address, "flare");
+    let generic_bals = await songbird.get_bal_generic_tokens(tipbot_address);
+    let token_count = Object.keys(generic_bals).length;
+    if (sgb_bal > 0) {
+      token_count++;
+    }
+    if (flr_bal > 0) {
+      token_count++;
+    }
+    if (token_count >= 10) {
+      let g = await add_achievement(user.id, "coin-collector", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["coin-collector"].name);
+        await sleep(2500);
+      }
+    }
+    //
     //check for liquidity provider
     //
     if (given.length === 0) {
@@ -1102,16 +1122,25 @@ client.on("interactionCreate", async interaction => {
     const dresp = await interaction.deferReply();
     let user_count = await db.count_users();
     let max_pages = Math.ceil(user_count / 10);
-    async function gen_leaderboard_embed(p) {
-      let sorted_top = await ((await db.get_top_achievementeers()).skip(p * 10).limit(10)).toArray();
+    async function gen_leaderboard_embed(p, type) {
       let leaderboard_embed = new discord.EmbedBuilder();
-      leaderboard_embed.setTitle("Achievements Leaderboard");
       leaderboard_embed.setColor("#d3ed10");
-      leaderboard_embed.setDescription("See the users with the most achievements!");
-      leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.length} achievements` })));
+      let sorted_top;
+      if (type === "achievements") {
+        sorted_top = await ((await db.get_top_achievementeers()).skip(p * 10).limit(10)).toArray();
+        leaderboard_embed.setTitle("Achievements Leaderboard");
+        leaderboard_embed.setDescription("See the users with the most achievements!");
+        leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.length} achievements` })));
+      } else if (type === "claims") {
+        sorted_top = await ((await db.get_top_claimers()).skip(p * 10).limit(10)).toArray();
+        leaderboard_embed.setTitle("Faucet Claimers Leaderboard");
+        leaderboard_embed.setDescription("See the users with the most faucet claims!");
+        leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.achievement_data.faucet.total} claims` })));
+      }
       leaderboard_embed.setFooter({ text: "goodnight, texas" });
       return leaderboard_embed;
     }
+    const subcommand = interaction.options.getSubcommand();
     let action_row = new discord.ActionRowBuilder();
     let action_back = new discord.ButtonBuilder()
       .setCustomId("-1")
@@ -1127,7 +1156,7 @@ client.on("interactionCreate", async interaction => {
     action_row.addComponents(action_back, action_front);
     //components
     await interaction.editReply({
-      embeds: [await gen_leaderboard_embed(0)],
+      embeds: [await gen_leaderboard_embed(0, subcommand)],
       components: [action_row],
     });
     while (true) {
@@ -1150,7 +1179,7 @@ client.on("interactionCreate", async interaction => {
         action_row.addComponents(action_back, action_front);
         //dresp_bin.customId will be the page to move to
         await interaction.editReply({
-          embeds: [await gen_leaderboard_embed(Number(dresp_bin.customId))],
+          embeds: [await gen_leaderboard_embed(Number(dresp_bin.customId), subcommand)],
           components: [action_row],
         });
       } catch (e) {
@@ -1207,7 +1236,7 @@ client.on("interactionCreate", async interaction => {
       } else if (target) {
         target = target.user;
         if (to_tipbot?.value) {
-          tx = await songbird.send_astral(await songbird.get_tipbot_address(target.id), amount);
+          tx = await songbird.send_astral(songbird.get_tipbot_address(target.id), amount);
           if (!tx) {
             return interaction.editReply("Failed, send error. Perhaps not enough balance?");
           }
@@ -1296,7 +1325,7 @@ client.on("interactionCreate", async interaction => {
       let target = await params.get("target");
       target = target.user;
       let user_info = await db.get_user(target.id);
-      let tipbot_address = await songbird.get_tipbot_address(target.id);
+      let tipbot_address = songbird.get_tipbot_address(target.id);
       let add_embed = new discord.EmbedBuilder();
       add_embed.setTitle(`Addresses of ${target.username}`);
       add_embed.addFields([
@@ -1421,12 +1450,13 @@ client.on("interactionCreate", async interaction => {
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
     if (db_result) {
-      if (Number(db_result.last_claim)+CLAIM_FREQ > Date.now()) {
+      if (Number(db_result.last_claim) + CLAIM_FREQ > Date.now()) {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
     //last few claims (only last is needed, but just in case) in the month will write the claim time to db,
     //show bot knows when the previous month claims ended, for faucet streaks
+    //todo: I think this will insert multiple (unintended)... but should only be a few minutes off so whatever
     if (claims_month > MAX_CLAIMS_PER_MONTH - 4) {
       await db.set_month_end();
     }
@@ -1528,7 +1558,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("There are already two players in this game, so you cannot join. Sorry! You can start your own coinflip game, or wait for someone else to start one.");
     }
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
-    let player1_address = await songbird.get_tipbot_address(coinflip_info.player1.player_id);
+    let player1_address = songbird.get_tipbot_address(coinflip_info.player1.player_id);
     let player1_sgb_bal = await songbird.get_bal(player1_address);
     if (player1_sgb_bal < MIN_SGB) {
       disable_button_cfpvp();
@@ -1543,7 +1573,7 @@ client.on("interactionCreate", async interaction => {
     }
     if (coinflip_info.player2?.player_id) {
       //is player 1 and player 2 exists
-      let player2_address = await songbird.get_tipbot_address(coinflip_info.player2.player_id);
+      let player2_address = songbird.get_tipbot_address(coinflip_info.player2.player_id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
       if (player2_sgb_bal < MIN_SGB) {
         disable_button_cfpvp();
@@ -1558,7 +1588,7 @@ client.on("interactionCreate", async interaction => {
       }
     } else if (coinflip_info.player1.player_id !== user.id) {
       //is player 2, check self
-      let player2_address = await songbird.get_tipbot_address(user.id);
+      let player2_address = songbird.get_tipbot_address(user.id);
       let player2_sgb_bal = await songbird.get_bal(player2_address);
       if (player2_sgb_bal < MIN_SGB) {
         return await interaction.editReply(`You should deposit more SGB **into your tipbot wallet** to cover any gas fees (${MIN_SGB} SGB minimum).`);
@@ -1652,7 +1682,7 @@ client.on("interactionCreate", async interaction => {
         }
       }
       //do last check
-      let playerwin_address = await songbird.get_tipbot_address(winner.id);
+      let playerwin_address = songbird.get_tipbot_address(winner.id);
       let playerwin_sgb_bal = await songbird.get_bal(playerwin_address);
       if (playerwin_sgb_bal < MIN_SGB) {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much SGB after submitting bet, the bet has been cancelled.`);
@@ -1673,19 +1703,24 @@ client.on("interactionCreate", async interaction => {
       let followMessage = await interaction.followUp({ content: "The coin is being flipped...\nhttps://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif" });
       await sleep(3500);
       let winner_info = await db.get_user(winner.id);
-      await db.increment_coinflip_wins_achievement_info(winner.id);
-      switch (winner_info.achievement_data.coinflip.wins + 1) {
-        case 1:
-          add_achievement(winner.id, "coinflip-1", winner_info, interaction.member);
-          break;
-        case 10:
-          add_achievement(winner.id, "coinflip-2", winner_info, interaction.member);
-          break;
-        case 50:
-          add_achievement(winner.id, "coinflip-3", winner_info, interaction.member);
-          break;
-        default:
-          break;
+      if (winner_info) {
+        await db.increment_coinflip_wins_achievement_info(winner.id);
+        switch (winner_info.achievement_data.coinflip.wins + 1) {
+          case 1:
+            add_achievement(winner.id, "coinflip-1", winner_info, interaction.member);
+            break;
+          case 10:
+            add_achievement(winner.id, "coinflip-2", winner_info, interaction.member);
+            break;
+          case 50:
+            add_achievement(winner.id, "coinflip-3", winner_info, interaction.member);
+            break;
+          default:
+            break;
+        }
+      } else {
+        //todo: send message telling them they are unregistered?
+        //
       }
       //send result: winner, players, each player's random input, reveal server nonce, tx
       let coinflip_result_embed = new discord.EmbedBuilder();
@@ -1720,7 +1755,7 @@ client.on("interactionCreate", async interaction => {
       } else {
         coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
       }
-      coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running \`/provably_fair_pvp\`" });
+      coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running `/provably_fair_pvp`" });
       return await followMessage.edit({ content: "", files: [], embeds: [coinflip_result_embed] });
     }
   } else if (customId.startsWith("cfpvhbtn-")) {
@@ -1775,7 +1810,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("Error, player random has already been submitted.");
     }
     //check balance of both players, cancel if either doesn't have enough. not very DRY but whatever I don't care right now, is just draft
-    let player_address = await songbird.get_tipbot_address(coinflip_info.player_id);
+    let player_address = songbird.get_tipbot_address(coinflip_info.player_id);
     let player_sgb_bal = await songbird.get_bal(player_address);
     if (player_sgb_bal < MIN_SGB) {
       disable_button_cfpvh();
@@ -1789,7 +1824,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.followUp(`Player (<@${coinflip_info.player_id}>) does not have enough XAC **in their tipbot wallet** to cover the wager.`);
     }
     //check house balance (bet amount + 10k for safety)
-    let house_address = await songbird.get_tipbot_address(0);
+    let house_address = songbird.get_tipbot_address(0);
     if (await songbird.get_bal(house_address) < MIN_SGB) {
       return await interaction.editReply("House does not have enough SGB to pay for fees.");
     } else if (await songbird.get_bal_astral(house_address) < 5000 + coinflip_info.wager) {
