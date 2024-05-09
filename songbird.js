@@ -597,5 +597,7 @@ module.exports = {
   ftso_delegates_of,
   calc_amount_each,
   is_valid: ethers.utils.isAddress,
+  to_raw: ethers.utils.parseUnits,
+  faucet_address: faucet_wallet.address,
   admin_address: wallet.address,
 };

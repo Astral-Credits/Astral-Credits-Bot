@@ -1478,8 +1478,17 @@ client.on("interactionCreate", async interaction => {
         }
       }
     }
-    //send XAC, check for send error
     let send_amount = db.get_amount();
+    if (token_tx_resp.result) {
+      for (const t of token_tx_resp.result) {
+        //If they got a faucet claim transaction in the last 23.5 hours it means it is too soon for them to claim again
+        //(this shouldn't be needed but is an additional safeguard in case the db check fails somehow, and is also an attempt to prevent the two device "race condition" problem)
+        if (t.from.toLowerCase() === songbird.faucet_address.toLowerCase() && Number(t.timeStamp) > (Math.round((Date.now() - db.CLAIM_FREQ) / 1000)) && t.value === songbird.to_raw(String(send_amount), 18).toString() && t.contractAddress.toLowerCase() === songbird.SUPPORTED_INFO.xac.token_address.toLowerCase()) {
+          return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be. Contact an admin if this doesn't seem right.`);
+        }
+      }
+    }
+    //send XAC, check for send error
     let tx = await songbird.faucet_send_astral(user_info.address, send_amount);
     if (!tx) {
       return await interaction.editReply(`<@${user.id}> Error, send failed! Probably gas issue, too many claims at once or faucet is out of funds. Try again in a few minutes.`);
@@ -1711,6 +1720,7 @@ client.on("interactionCreate", async interaction => {
       let followMessage = await interaction.followUp({ content: "The coin is being flipped...\nhttps://cdn.discordapp.com/attachments/1087903395962179646/1155719287844126771/Spin.gif" });
       await sleep(3500);
       let winner_info = await db.get_user(winner.id);
+      //they may not be registered, we can't assume they are
       if (winner_info) {
         await db.increment_coinflip_wins_achievement_info(winner.id);
         switch (winner_info.achievement_data.coinflip.wins + 1) {
