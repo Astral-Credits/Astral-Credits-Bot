@@ -228,7 +228,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
-        return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
+        return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).sort().map((c) => ({ name: c, value: c })));
       } else if (focused_option.name === "chain") {
         return await interaction.respond(Object.keys(songbird.SUPPORTED_CHAINS).filter((c) => c.startsWith(focused_option.value.toLowerCase())).map((c) => ({ name: c, value: c })));
       } else {

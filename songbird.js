@@ -562,9 +562,9 @@ console.log(rand_wallet.privateKey);
 */
 
 module.exports = {
-  SUPPORTED,
   SUPPORTED_CHAINS,
   SUPPORTED_INFO,
+  SUPPORTED,
   SPECIAL_KNOWN,
   HOLDING_BLOCK_TIME,
   TRIFORCE_ADDRESS,

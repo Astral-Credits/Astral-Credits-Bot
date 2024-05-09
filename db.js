@@ -390,6 +390,20 @@ const ACHIEVEMENTS = {
     prize: 25000,
     role: "1211426853055758396", //Faucet 365
   },
+  "claims-250": {
+    id: "claims-250",
+    name: "Planet Express",
+    description: "Claim from the faucet 250 times! Don't get frozen for 1000 years, cause the faucet only lasts for 15.5.",
+    prize: 5000,
+    role: false,
+  },
+  "claims-500": {
+    id: "claims-500",
+    name: "Speaker for the Dead",
+    description: "Claim from the faucet 500 times! Thank you.",
+    prize: 10000,
+    role: false,
+  },
   //tipping achievements
   "tipper-1": {
     id: "tipper-1",

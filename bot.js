@@ -1130,12 +1130,12 @@ client.on("interactionCreate", async interaction => {
         sorted_top = await ((await db.get_top_achievementeers()).skip(p * 10).limit(10)).toArray();
         leaderboard_embed.setTitle("Achievements Leaderboard");
         leaderboard_embed.setDescription("See the users with the most achievements!");
-        leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.length} achievements` })));
+        if (sorted_top.length > 0) leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.length} achievements` })));
       } else if (type === "claims") {
         sorted_top = await ((await db.get_top_claimers()).skip(p * 10).limit(10)).toArray();
         leaderboard_embed.setTitle("Faucet Claimers Leaderboard");
         leaderboard_embed.setDescription("See the users with the most faucet claims!");
-        leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.achievement_data.faucet.total} claims` })));
+        if (sorted_top.length > 0) leaderboard_embed.addFields(sorted_top.map((s, i) => ({ value: `<@${s.user}>`, name: `${p * 10 + i + 1}. ${s.achievement_data.faucet.total} claims` })));
       }
       leaderboard_embed.setFooter({ text: "goodnight, texas" });
       return leaderboard_embed;
@@ -1527,6 +1527,14 @@ client.on("interactionCreate", async interaction => {
             }
           }
         }
+      }
+    }
+    let user_tc = user_info.achievement_data.faucet.total;
+    if (user_tc >= 250) {
+      let g1 = await add_achievement(user.id, "claims-250", user_info, interaction.member);
+      if (user_tc >= 500) {
+        if (g1) await sleep(1500); //give time for nonce to increment (shouldn't there be a way to tell ethersjs to use nonce + 1...)
+        await add_achievement(user.id, "claims-500", user_info, interaction.member);
       }
     }
     return;
