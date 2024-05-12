@@ -9,7 +9,8 @@ Type `/help` - Get a list of commands.
 
 
 <img src="https://raw.githubusercontent.com/HelloMokuzai/AstralCredits/main/images/MrTipbot.png" alt="drawing" width="200"/>
-# Mr.Tipbot
+
+## Mr.Tipbot
 Your friendly tipping companion for tokens on the FLARE & SONGBIRD networks!
 
 [astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
