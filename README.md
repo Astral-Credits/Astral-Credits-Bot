@@ -49,7 +49,7 @@ View a targeted users registered and tipbot addresses.
 `/remove_linked_website`
 Admins can remove a registered user's linked website, if they linked.
 
-<img src="(https://raw.githubusercontent.com/HelloMokuzai/AstralCredits/main/images/MrTipbot.png" alt="drawing" width="200" height="200"/>
+<img src="https://raw.githubusercontent.com/HelloMokuzai/AstralCredits/main/images/MrTipbot.png" alt="drawing" width="200" height="200"/>
 
 **MR.TIPBOT COMMANDS:**
 
