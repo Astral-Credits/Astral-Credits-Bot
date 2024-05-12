@@ -13,7 +13,7 @@ Type `/help` - Get a list of commands.
 ## Mr.Tipbot
 Your friendly tipping companion for tokens on the FLARE & SONGBIRD networks!
 
-[astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
+Website: [astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
 
 **COMMANDS LIST:**
 
@@ -40,3 +40,15 @@ Your friendly tipping companion for tokens on the FLARE & SONGBIRD networks!
 `/prices` - Get the price of supported currencies from coingecko
 
 `/supported` - See all currencies supported by Mr.Tipbot (Specify chain - `flare` or `songbird`)
+
+## Installation Instructions
+
+1. Add Mr.Tipbot to your server - [Click to Install](https://discord.com/oauth2/authorize?client_id=1227462655535616020&scope=bot)
+2. Provide Mr.Tipbot with the appropriate privileges:
+  [x] Send/manage/read messages
+  [x] Mention roles
+  [x] Use external emoji
+4. Provide your users with access to the tipbot commands:
+  [x] Use application commands
+5. Congratulations, you can now send & receive tips! 🎉
+
