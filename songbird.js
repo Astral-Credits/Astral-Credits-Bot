@@ -227,13 +227,13 @@ async function user_withdraw_native(user_id, address, amount, chain="songbird") 
   amount = ethers.utils.parseEther(String(amount));
   let derived_wallet = derive_wallet(user_id, chain);
   try {
-    return await derived_wallet.sendTransaction({
+    return [true, await derived_wallet.sendTransaction({
       to: address.toLowerCase(),
       value: amount,
-    });
+    })];
   } catch (e) {
     //console.log(e);
-    return false;
+    return [false, e];
   }
 }
 
@@ -245,10 +245,10 @@ async function user_withdraw_generic_token(user_id, address, amount, currency) {
   let derived_wallet = derive_wallet(user_id, currency_info.chain);
   let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
   try {
-    return await derived_generic_token.transfer(address, amount);
+    return [true, await derived_generic_token.transfer(address, amount)];
   } catch (e) {
     //console.log(e);
-    return false;
+    return [false, e];
   }
 }
 

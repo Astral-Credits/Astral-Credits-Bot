@@ -1201,10 +1201,13 @@ client.on("interactionCreate", async interaction => {
       let address = await params.get("address");
       let target = await params.get("target");
       let to_tipbot = await params.get("to_tipbot");
+      let gatcha_payout = await params.get("gatcha_payout");
       let tx;
       let receiver;
       let sgb_domain = false;
-      if (to_tipbot && address) {
+      if (gatcha_payout && address) {
+        return await interaction.editReply("Failed, `gatcha_payout` can only be an option when using target, not address.");
+      } if (to_tipbot && address) {
         return await interaction.editReply("Failed, `to_tipbot` can only be an option when using target, not address.");
       } else if (address && target) {
         return await interaction.editReply("Failed, both address and target cannot be specified, only put in one.");
@@ -1235,6 +1238,7 @@ client.on("interactionCreate", async interaction => {
         receiver = "`"+address+"`";
       } else if (target) {
         target = target.user;
+        let user_info = await db.get_user(target.id);
         if (to_tipbot?.value) {
           tx = await songbird.send_astral(songbird.get_tipbot_address(target.id), amount);
           if (!tx) {
@@ -1243,7 +1247,6 @@ client.on("interactionCreate", async interaction => {
           receiver = "<@"+target.id+">";
         } else {
           //get address
-          let user_info = await db.get_user(target.id);
           if (!user_info) {
             return await interaction.editReply("Failed, target user has not registered with bot, try address instead?");
           }
@@ -1252,6 +1255,26 @@ client.on("interactionCreate", async interaction => {
             return interaction.editReply("Failed, send error. Perhaps not enough balance?");
           }
           receiver = "<@"+target.id+">";
+        }
+        //check for gatcha achievements
+        //safe to assume people who are getting gatcha payouts are registered, so no need for error message
+        if (gatcha_payout?.value && user_info) {
+          await db.increase_gatcha_achievement_info(target.id, amount);
+          if (amount >= 7500) {
+            let g = await add_achievement(user.id, "gatcha-jackpot", user_info, target.member);
+            if (g) await sleep(1000);
+          }
+          if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 1000) {
+            let g1 = await add_achievement(user.id, "gatcha-1", user_info, target.member);
+            if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 10000) {
+              if (g1) await sleep(1000);
+              let g2 = await add_achievement(user.id, "gatcha-2", user_info, target.member);
+              if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 50000) {
+                if (g2) await sleep(1000);
+                await add_achievement(user.id, "gatcha-3", user_info, target.member);
+              }
+            }
+          }
         }
       } else {
         return await interaction.editReply("Failed, neither address or target to send to was specified.");
@@ -1568,7 +1591,7 @@ client.on("interactionCreate", async interaction => {
     let bet_id = customId.split("-")[1];
     let coinflip_info = await db.get_coinflip_pvp(bet_id);
     if (coinflip_info.player1.player_id === user.id && coinflip_info.player1.random) {
-      return await interaction.editReply({ ephemeral: true, content: "You have already submitted your random input." });
+      return await interaction.editReply("You have already submitted your random input.");
     }
     //if player 2, make sure player 2 doesn't exist yet
     if (coinflip_info.player1.player_id !== user.id && coinflip_info.player2) {

@@ -18,7 +18,7 @@ mod_client.once("ready", async (info) => {
 });
 
 mod_client.on("messageCreate", async (message) => {
-  const blacklist = ["community manager", "nudes", "discord.com/invite", "discord.gg/"];
+  const blacklist = ["community manager", "nudes", "discord.com/invite", "discord.gg/", "free mint"];
   const content = message.content.toLowerCase();
   if (blacklist.some((b) => content.includes(b)) || (content.includes("airdrop") && content.length > 100)) {
     await message.member.fetch();

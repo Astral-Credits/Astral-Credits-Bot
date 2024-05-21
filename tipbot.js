@@ -92,12 +92,12 @@ async function send_tip(interaction, user, target_id, amount, currency, formal_t
   const supported_info = songbird.SUPPORTED_INFO[currency];
   let target_address = songbird.get_tipbot_address(target_id);
   //send
-  let send;
+  let success, send;
   try {
     if (currency === "sgb" || currency === "flr") {
-      send = await songbird.user_withdraw_native(user.id, target_address, amount, currency === "sgb" ? "songbird" : "flare");
+      [success, send] = await songbird.user_withdraw_native(user.id, target_address, amount, currency === "sgb" ? "songbird" : "flare");
     } else {
-      send = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
+      [success, send] = await songbird.user_withdraw_generic_token(user.id, target_address, amount, currency);
     }
   } catch (e) {
     //shouldn't happen
@@ -105,9 +105,9 @@ async function send_tip(interaction, user, target_id, amount, currency, formal_t
     await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
     return;
   }
-  if (!send) {
-    await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB/FLR to pay for gas. You may also be sending tips too fast.");
-    return;
+  if (!success) {
+    //todo: figure out why send failed (eg lack of gas or nonce error or not enough balance)
+    return await interaction.editReply(`Send failed - common reasons why are because you are withdrawing more than your balance, or **don't have enough ${currency.toUpperCase()} to pay for gas**. You may also be sending tips too fast.`);
   }
   await interaction.editReply(`Sending tip${type}...\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
   try {
@@ -501,14 +501,14 @@ tipbot_client.on("interactionCreate", async interaction => {
     //check withdrawal currency
     let withdraw_currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(withdraw_currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    let send;
+    let success, send;
     try {
       if (withdraw_currency === "sgb") {
-        send = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "songbird");
+        [success, send] = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "songbird");
       } else if (withdraw_currency === "flr") {
-        send = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "flare");
+        [success, send] = await songbird.user_withdraw_native(user.id, withdraw_address, withdraw_amount, "flare");
       } else {
-        send = await songbird.user_withdraw_generic_token(user.id, withdraw_address, withdraw_amount, withdraw_currency);
+        [success, send] = await songbird.user_withdraw_generic_token(user.id, withdraw_address, withdraw_amount, withdraw_currency);
       }
     } catch (e) {
       //shouldn't happen
@@ -581,7 +581,12 @@ tipbot_client.on("interactionCreate", async interaction => {
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     //one of the last 25 messages, non-bot, non-self, non-admin, and sent in the last 24 hours
-    let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD) && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
+    let recent_messages;
+    try {
+      recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD) && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
+    } catch (_) {
+      return await interaction.editReply("Could not fetch recent messages in this channel, ask an admin to check that the bot has the right permissions, or try again later.");
+    }
     if (recent_messages.length === 0) {
       return await interaction.editReply("Could not find enough recent messages in channel not sent by you, an team member, or a bot.");
     }
@@ -637,19 +642,19 @@ tipbot_client.on("interactionCreate", async interaction => {
       return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(amount)} ${currency.toUpperCase()} to <@${target_id}>!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [role_tip_embed] });
     }
   } else if (command === "role_rain" || command === "active_rain") {
-    await interaction.deferReply();
     let split_amount = Number((await params.get("split_amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (split_amount <= 0) {
-      return await interaction.editReply("Failed, cannot send 0 or negative coin/token.");
+      return await interaction.reply("Failed, cannot send 0 or negative coin/token.");
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
-    if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
     let num_users = (await params.get("num_users")).value;
     if (num_users > 30) {
-      return await interaction.editReply("For now, cannot multi-tip more than 30 users at once.");
+      return await interaction.reply("For now, cannot multi-tip more than 30 users at once.");
     } else if (num_users <= 0) {
-      return await interaction.editReply("Number of users must be more than 0.");
+      return await interaction.reply({ content: "Number of users must be more than 0.", ephemeral: true });
     }
+    await interaction.deferReply();
     if (command === "role_rain") {
       let role = (await params.get("role")).role;
       try {
@@ -682,7 +687,12 @@ tipbot_client.on("interactionCreate", async interaction => {
       }
     } else if (command === "active_rain") {
       //team members not ignored
-      let recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000)); //&& !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD)
+      let recent_messages;
+      try {
+        recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000)); //&& !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD)
+      } catch (_) {
+        return await interaction.editReply("Could not fetch recent messages in this channel, ask an admin to check that the bot has the right permissions, or try again later.");
+      }
       let recent_users = [];
       for (const m of recent_messages) {
         if (!recent_users.includes(m.author.id)) {

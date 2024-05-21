@@ -37,7 +37,8 @@ const INITIAL_ACHIEVEMENT_DATA = {
   },
   coinflip: {
     wins: 0
-  }
+  },
+  gatcha_won_xac_amount: 0,
 };
 
 setTimeout(async function() {
@@ -46,7 +47,15 @@ setTimeout(async function() {
   /*const all = JSON.parse(require("fs").readFileSync("./utility_scripts/faucet_users_count.json"));
   for (const u of await get_all_users()) {
     console.log(all[u.address.toLowerCase()] ?? 0);
-    users.updateOne({ user: u.user }, { $set: { "achievement_data.faucet.total": all[u.address.toLowerCase() ?? 0] } });
+    users.updateOne({ user: u.user }, { $set: { "achievement_data.faucet.total": all[u.address.toLowerCase()] ?? 0 } });
+  }*/
+  /*for (const u of await get_all_users()) {
+    if (u.achievement_data.faucet.total === null) {
+      console.log("fix");
+      users.updateOne({ user: u.user }, { $set: { "achievement_data.gatcha_won_xac_amount": 0,"achievement_data.faucet.total": 0 } });
+    } else {
+      users.updateOne({ user: u.user }, { $set: { "achievement_data.gatcha_won_xac_amount": 0 } });
+    }
   }*/
 
   if (!ready) {
@@ -491,6 +500,35 @@ const ACHIEVEMENTS = {
     prize: 10000,
     role: "1211411950760632430", //Diamond Supporter
   },
+  //captcha gatcha related
+  "gatcha-jackpot": {
+    id: "gatcha-jackpot",
+    name: "Lucky Pull",
+    description: "Win 7500 XAC or more from one captcha gatcha payout",
+    prize: 2500,
+    role: false,
+  },
+  "gatcha-1": {
+    id: "gatcha-1",
+    name: "W0rd5 4 C45h",
+    description: "Win 1000 XAC total through captcha gatcha",
+    prize: 500,
+    role: false,
+  },
+  "gatcha-2": {
+    id: "gatcha-2",
+    name: "Nishi's Gatcha",
+    description: "Win 10000 XAC total through captcha gatcha",
+    prize: 1000,
+    role: false,
+  },
+  "gatcha-3": {
+    id: "gatcha-3",
+    name: "Gotta Keep Pulling",
+    description: "Win 50000 XAC total through captcha gatcha",
+    prize: 5000,
+    role: false,
+  },
   //tipbot related, non-tipbot
   "coin-collector": {
     id: "coin-collector",
@@ -624,7 +662,15 @@ async function increment_coinflip_wins_achievement_info(user_id) {
   });
 }
 
-//TODO: db functions to add the achievement data to users
+async function increase_gatcha_achievement_info(user_id, amount) {
+  await users.updateOne({
+    user: user_id,
+  }, {
+    $inc: {
+      "achievement_data.gatcha_won_xac_amount": amount,
+    }
+  });
+}
 
 //insert or replace
 async function add_claim(address, amount) {
@@ -1012,6 +1058,7 @@ module.exports = {
   increment_message_achievement_info,
   increment_xac_tips_achievement_info,
   increment_coinflip_wins_achievement_info,
+  increase_gatcha_achievement_info,
   find_claim,
   add_claim,
   get_linked_website,
