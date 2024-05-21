@@ -302,7 +302,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for the Astral Credits Tipbot. Please only deposit FLR, SGB, ${songbird.SUPPORTED.filter((c) => c !== "sgb" && c !== "flr").map((c) => c.toUpperCase()).join(", ")}. Also please ensure you have enough FLR/SGB to pay for gas fees when you wish to send tips or withdraw.\n\n**DISCLAIMER:** Mr.Tipbot by Astral Credits is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any loss of funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for Mr. Tipbot. Please only deposit FLR, SGB and other supported tokens (Use the `/supported` command to get a list of supported tokens!). Also please ensure you have enough FLR/SGB to pay for gas fees when sending tips or making withdrawals.\n\n**DISCLAIMER:** Mr.Tipbot by Astral Credits is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any loss of funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });
@@ -332,7 +332,7 @@ tipbot_client.on("interactionCreate", async interaction => {
         supported_embed.setTitle(`Supported Currencies (${chain}, cont.)`);
       }
       supported_embed.addFields(supported_on_chain.slice(i * 25, i * 25 + 25).map((c) => ({ name: songbird.SUPPORTED_INFO[c].name, value: `${songbird.SUPPORTED_INFO[c].emoji} ${c}` })));
-      supported_embed.setFooter({ text: "Interested in adding your token to Mr.Tipbot? Email: astralcredits@protonmail.com" });
+      supported_embed.setFooter({ text: "Interested in adding your token to Mr.Tipbot? Visit: astralcredits.xyz/tipbot" });
       embeds.push(supported_embed);
     }
     return await interaction.reply({ embeds, ephemeral: true });

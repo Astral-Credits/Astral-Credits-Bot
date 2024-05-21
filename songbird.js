@@ -42,6 +42,13 @@ const SUPPORTED_INFO = {
     "token_address": "0xfD3449E8Ee31117a848D41Ee20F497a9bCb53164",
     "chain": "flare",
   },
+  "phx": {
+    "id": "phx",
+    "name": "Phoenix Token",
+    "emoji": "<:PHX:1241907517819191307>",
+    "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
+    "chain": "flare",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
@@ -95,11 +102,32 @@ const SUPPORTED_INFO = {
     "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
     "chain": "songbird",
   },
+  "wbbx": {
+    "id": "wbbx",
+    "name": "Wrapped BlueBirdX",
+    "emoji": "<:WBBX:1241910668483887135>",
+    "token_address": "0x1005dF5400EE5f4C1378becF513833cBc4A6EF53",
+    "chain": "songbird",
+  },
   "sprk": {
     "id": "sprk",
-    "name": "Spark",
+    "name": "SparkCoin",
     "emoji": "<:SPRK:1206369512396689488>",
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
+    "chain": "songbird",
+  },
+  "chirp": {
+    "id": "chirp",
+    "name": "CHIRP",
+    "emoji": "<:CHIRP:1242246775952379964>",
+    "token_address": "0x81aDd7359f2B95276F8542f2a0acD7ECD2Ae9349",
+    "chain": "songbird",
+  },
+  "sfort": {
+    "id": "sfort",
+    "name": "sFortuna",
+    "emoji": "<:SFORT:1242253063125991503>",
+    "token_address": "0x9E2E6c16803878C18E54Ed74F05AeafCCe464626",
     "chain": "songbird",
   },
   "exusdt": {

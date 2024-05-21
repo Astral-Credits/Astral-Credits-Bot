@@ -1,73 +1,54 @@
-# Astral-Credits-Bot
-Bot made for and commissioned by the Astral Credits Discord server by [Prussia](https://github.com/jetstream0)
+<img src="https://raw.githubusercontent.com/HelloMokuzai/AstralCredits/main/images/XAC.png" alt="drawing" width="200" height="200"/>
 
-Please not that I (jetstream0) do not hold any of the copyright for anything in the `/assets_compressed` directory. That belongs to MKZI.
+# AstralCredits Bot
+Bot made for and commissioned by the [Astral Credits Discord](https://discord.gg/AJd4YDZSqD) server by [Prussia](https://github.com/jetstream0)
 
-**GENERAL COMMANDS:**
+_Please not that I (jetstream0) do not hold any of the copyright for anything in the `/assets_compressed` directory. That belongs to MKZI._
 
-`/help`
-Get a list of commands.
+Type `/help` - Get a list of commands.
 
-`/price`
-Get XAC price info.
 
-`/pools`
-Get information about all the pools XAC is tradable on.
+<img src="https://raw.githubusercontent.com/HelloMokuzai/AstralCredits/main/images/MrTipbot.png" alt="drawing" width="200"/>
 
-`/next_claim`
-Check to see if your next faucet claim is ready.
+## Mr.Tipbot
+Your friendly tipping companion for tokens on the FLARE & SONGBIRD networks!
 
-`/faucet_stats`
-See some neat faucet metrics.
+Website: [astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
 
-`/register`
-Register your address with the bot so admins can send you XAC for tips, giveaways and prizes more easily.
+**COMMANDS LIST:**
 
-`/add_website`
-Link a website to your address, which will show up in any pixels you place in the XAC pixel billboard.
+`/help` - Get a list of commands
 
-`/pixels`
-Get the link to the Pixel Planet dApp
+`/deposit` - Deposit supported tokens to your tipbot address (Note: This address is unique to you - so you can save it to your address book for future deposits!)
 
-**TIPBOT COMMANDS:**
+`/balance` - See the current balance of your tipbot address
 
-`/deposit`
-View your Tipbot Wallet deposit address.
+`/withdraw` - Withdraw your tipbot balance to an address (0x..) or a .sgb or .flr domain
 
-`/withdraw`
-Withdraw SGB or XAC from your Tipbot Wallet.
+`/settings` - View or change your tipbot notification settings (Available subcommands - `view`, `notification` & `notify_value`)
 
-`/balance`
-Check the current balance of your Tipbot Wallet.
+`/tip` - Tip another user some coins/tokens from your tipbot balance
 
-`/tip`
-Send XAC to another community member.
+`/active_tip` - Tip a random recently active user some coins/tokens from your tipbot balance (Note: must be active in the same channel in the last 24HRs)
 
-`/active_tip`
-Send a tip to a random user who has been active in the current channel within the last 12HR's.
+`/role_tip` - Tip a random user with a certain role some coins/tokens from your tipbot balance
 
-`/role_tip`
-Send a tip to a random user with the specified role. (Discord wide.)
+`/active_rain` - Tip multiple random recently active users some coins/tokens from your tipbot balance (Note: must be active in the same channel in the last 24HRs)
 
-`/coinflip_pvp`
-Play provably fair coinflip against other players.
+`/role_rain` - Tip multiple random users with a certain role some coins/tokens from your tipbot balance
 
-`/coinflip_pvh`
-Play provably fair coinflip against the house.
+`/prices` - Get the price of supported currencies from coingecko
 
-`/supported`
-See all supported tipbot currencies.
+`/supported` - See all currencies supported by Mr.Tipbot (Specify chain - `flare` or `songbird`)
 
-**ADMIN ONLY COMMANDS:**
+## Installation Instructions
 
-`/send`
-Admins can send XAC to discord users or addresses
+1. Add Mr.Tipbot to your server - [Click to Install](https://discord.com/oauth2/authorize?client_id=1227462655535616020&scope=bot)
+2. Provide Mr.Tipbot with the appropriate privileges: 
+- [x]  Send/manage/read messages
+- [x] Mention roles
+- [x] Use external emoji
+3. Provide your users with access to the tipbot commands:
+-  [x] Use application commands
+4. Congratulations, you can now send & receive tips! 🎉
 
-`/change_register`
-Admins can change a registered user's address.
-
-`/view_addresses`
-View a targeted users registered and tipbot addresses.
-
-`/remove_linked_website`
-Admins can remove a registered user's linked website, if they linked.
