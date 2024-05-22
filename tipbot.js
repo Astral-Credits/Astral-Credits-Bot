@@ -302,7 +302,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     deposit_embed.setColor("#1dd3f7");
     deposit_embed.setTitle("Deposit");
     deposit_embed.setDescription(
-      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for Mr. Tipbot. Please only deposit FLR, SGB and other supported tokens (Use the `/supported` command to get a list of supported tokens!). Also please ensure you have enough FLR/SGB to pay for gas fees when sending tips or making withdrawals.\n\n**DISCLAIMER:** Mr.Tipbot by Astral Credits is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any loss of funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
+      `Deposit Address:\n\`${user_address}\`\n\nThis is your deposit address for Mr. Tipbot. Please only deposit FLR, SGB and other supported tokens (Use the \`/supported\` command to get a list of supported tokens!). Also please ensure you have enough FLR/SGB to pay for gas fees when sending tips or making withdrawals.\n\n**DISCLAIMER:** Mr.Tipbot by Astral Credits is experimental software and a custodial service. Remember - **Not your keys, not your coins!** It's creators shall not be held liable for any loss of funds as a result of your use of this service. Please proceed at your own risk.\n[Terms of Service](https://www.astralcredits.xyz/docs/Terms-of-Service-Tipbot.pdf)`
     );
     let data_buffer = await QRCode.toBuffer(user_address);
     const attachment = new discord.AttachmentBuilder(data_buffer, { name: "deposit_qr_code.png" });

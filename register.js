@@ -83,12 +83,6 @@ const commands = [
         description: "If true (and target is used instead of address), sends to tipbot wallet",
         required: false
       },
-      {
-        type: 5,
-        name: "gatcha_payout",
-        description: "If true, counts toward gatcha related achievements",
-        required: false
-      }
     ]
   },
   {

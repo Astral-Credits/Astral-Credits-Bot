@@ -1201,13 +1201,10 @@ client.on("interactionCreate", async interaction => {
       let address = await params.get("address");
       let target = await params.get("target");
       let to_tipbot = await params.get("to_tipbot");
-      let gatcha_payout = await params.get("gatcha_payout");
       let tx;
       let receiver;
       let sgb_domain = false;
-      if (gatcha_payout && address) {
-        return await interaction.editReply("Failed, `gatcha_payout` can only be an option when using target, not address.");
-      } if (to_tipbot && address) {
+      if (to_tipbot && address) {
         return await interaction.editReply("Failed, `to_tipbot` can only be an option when using target, not address.");
       } else if (address && target) {
         return await interaction.editReply("Failed, both address and target cannot be specified, only put in one.");
@@ -1258,20 +1255,20 @@ client.on("interactionCreate", async interaction => {
         }
         //check for gatcha achievements
         //safe to assume people who are getting gatcha payouts are registered, so no need for error message
-        if (gatcha_payout?.value && user_info) {
+        if (interaction.channel.id === "1159300901320806451" && user_info) {
           await db.increase_gatcha_achievement_info(target.id, amount);
           if (amount >= 7500) {
-            let g = await add_achievement(user.id, "gatcha-jackpot", user_info, target.member);
+            let g = await add_achievement(target.id, "gatcha-jackpot", user_info, target.member);
             if (g) await sleep(1000);
           }
           if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 1000) {
-            let g1 = await add_achievement(user.id, "gatcha-1", user_info, target.member);
+            let g1 = await add_achievement(target.id, "gatcha-1", user_info, target.member);
             if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 10000) {
               if (g1) await sleep(1000);
-              let g2 = await add_achievement(user.id, "gatcha-2", user_info, target.member);
+              let g2 = await add_achievement(target.id, "gatcha-2", user_info, target.member);
               if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 50000) {
                 if (g2) await sleep(1000);
-                await add_achievement(user.id, "gatcha-3", user_info, target.member);
+                await add_achievement(target.id, "gatcha-3", user_info, target.member);
               }
             }
           }
