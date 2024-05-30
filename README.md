@@ -33,7 +33,7 @@ Website: [astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
 
 `/role_tip` - Tip a random user with a certain role some coins/tokens from your tipbot balance
 
-`/active_rain` - Tip multiple random recently active users some coins/tokens from your tipbot balance (Note: must be active in the same channel in the last 24HRs). YHou can set `num_users: max` to tip all active users!
+`/active_rain` - Tip multiple random recently active users some coins/tokens from your tipbot balance (Note: must be active in the same channel in the last 24HRs). You can set `num_users: max` to tip all active users!
 
 `/role_rain` - Tip multiple random users with a certain role some coins/tokens from your tipbot balance
 
