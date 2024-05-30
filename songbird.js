@@ -130,6 +130,13 @@ const SUPPORTED_INFO = {
     "token_address": "0x9E2E6c16803878C18E54Ed74F05AeafCCe464626",
     "chain": "songbird",
   },
+  "jsc": {
+    "id": "jsc",
+    "name": "JS Coin",
+    "emoji": "<:JSC:1245869320081375333>",
+    "token_address": "0x2d2b39a036c3C02D50e2353061898E04433dd8Fa",
+    "chain": "songbird",
+  },
   "exusdt": {
     "id": "exusdt",
     "name": "exUSDT",
