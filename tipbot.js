@@ -107,7 +107,7 @@ async function send_tip(interaction, user, target_id, amount, currency, formal_t
   }
   if (!success) {
     //todo: figure out why send failed (eg lack of gas or nonce error or not enough balance)
-    return await interaction.editReply(`Send failed - common reasons why are because you are withdrawing more than your balance, or **don't have enough ${currency.toUpperCase()} to pay for gas**. You may also be sending tips too fast.`);
+    return await interaction.editReply(`Send failed - common reasons why are because you are withdrawing more than your balance, or **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. You may also be sending tips too fast.`);
   }
   await interaction.editReply(`Sending tip${type}...\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
   try {
@@ -170,7 +170,7 @@ async function send_multitip(interaction, user, target_ids, split_amount, curren
     return;
   }
   if (!send) {
-    await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB/FLR to pay for gas. You may also be sending tips too fast.");
+    await interaction.editReply(`Send failed - common reasons why are because you are withdrawing more than your balance, or **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. You may also be sending tips too fast.`);
     return;
   }
   await interaction.editReply(`Sending tip${type}...\nTx: <https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}>`);
@@ -515,10 +515,10 @@ tipbot_client.on("interactionCreate", async interaction => {
       console.log(e);
       return await interaction.editReply("Uh oh! This shouldn't happen - encountered an unexpected error.");
     }
-    if (!send) {
-      return await interaction.editReply("Send failed - common reasons why are because you are withdrawing more than your balance, or don't have enough SGB/FLR to pay for gas. You may also be sending tips too fast.");
-    }
     const supported_info = songbird.SUPPORTED_INFO[withdraw_currency];
+    if (!send) {
+      return await interaction.editReply(`Send failed - common reasons why are because you are withdrawing more than your balance, or **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. You may also be sending tips too fast.`);
+    }
     //send tx embed
     let withdraw_embed = new discord.EmbedBuilder();
     withdraw_embed.setURL(`https://${supported_info.chain}-explorer.flare.network/tx/${send.hash}`);
@@ -644,13 +644,18 @@ tipbot_client.on("interactionCreate", async interaction => {
   } else if (command === "role_rain" || command === "active_rain") {
     let split_amount = Number((await params.get("split_amount")).value.toFixed(songbird.MAX_DECIMALS));
     if (split_amount <= 0) {
-      return await interaction.reply("Failed, cannot send 0 or negative coin/token.");
+      return await interaction.reply({ content: "Failed, cannot send 0 or negative coin/token.", ephemeral: true});
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
-    if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply({ content: "Currency must be one of the following: "+songbird.SUPPORTED.join(", "), ephemeral: true});
     let num_users = (await params.get("num_users")).value;
+    if (isNaN(Number(num_users)) && num_users !== "max") {
+      return await interaction.reply({ content: "Number of users must be a positive integer less than or equal to 30, or 'max' (for as many users as possible up to 30).", ephemeral: true});
+    } else if (!isNaN(Number(num_users))) {
+      num_users = Number(num_users);
+    }
     if (num_users > 30) {
-      return await interaction.reply("For now, cannot multi-tip more than 30 users at once.");
+      return await interaction.reply({ content: "For now, cannot multi-tip more than 30 users at once.", ephemeral: true});
     } else if (num_users <= 0) {
       return await interaction.reply({ content: "Number of users must be more than 0.", ephemeral: true });
     }
@@ -664,6 +669,11 @@ tipbot_client.on("interactionCreate", async interaction => {
         return await interaction.editReply("Something went wrong while fetching users. Sorry, try again later.");
       }
       let role_members = Array.from(role.members).filter((m) => m[1].user.id !== user.id && !m[1].user.bot);
+      if (role_members.length === 0) {
+        return await interaction.editReply("Failed, found 0 users with that role (excluding bots and yourself).");
+      } else if (num_users === "max") {
+        num_users = role_members.length > 30 ? 30 : role_members.length;
+      }
       if (role_members.length < num_users) {
         return await interaction.editReply(`Tried to tip ${num_users} users with the given role, but only ${role_members.length} users excluding bots (and yourself) have that role.`);
       }
@@ -698,6 +708,11 @@ tipbot_client.on("interactionCreate", async interaction => {
         if (!recent_users.includes(m.author.id)) {
           recent_users.push(m.author.id);
         }
+      }
+      if (recent_users.length === 0) {
+        return await interaction.editReply("Failed, found 0 recently active users in this channel (excluding bots and yourself).");
+      } else if (num_users === "max") {
+        num_users = recent_users.length > 30 ? 30 : recent_users.length;
       }
       if (recent_users.length < num_users) {
         return await interaction.editReply(`Tried to tip ${num_users} recently active users in this channel, but found only ${recent_users.length} non-bot (and non-you) recently active users.`);
