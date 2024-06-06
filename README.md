@@ -41,6 +41,8 @@ Website: [astralcredits.xyz/tipbot](https://astralcredits.xyz/tipbot)
 
 `/supported` - See all currencies supported by Mr.Tipbot (Specify chain - `flare` or `songbird`)
 
+`/info` - Get basic information about supported currencies
+
 ## Installation Instructions
 
 1. Add Mr.Tipbot to your server - [Click to Install](https://discord.com/oauth2/authorize?client_id=1227462655535616020&scope=bot)
