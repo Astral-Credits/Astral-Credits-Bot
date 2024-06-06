@@ -495,9 +495,9 @@ const tipbot_commands = [
         required: true
       },
       {
-        type: 4,
+        type: 3,
         name: "num_users",
-        description: "# of users to split amount between",
+        description: "# of users to split amount between (or 'max' for max up to 30)",
         required: true
       },
       {
@@ -527,9 +527,9 @@ const tipbot_commands = [
         required: true
       },
       {
-        type: 4,
+        type: 3,
         name: "num_users",
-        description: "# of users to split amount between",
+        description: "# of users to split amount between (or 'max' for max up to 30)",
         required: true
       },
       {

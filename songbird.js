@@ -148,6 +148,8 @@ const SUPPORTED_INFO = {
   },
 };
 
+const full_to_abbr = (full) => Object.values(SUPPORTED_INFO).find((c) => c.name.toLowerCase() === full.toLowerCase());
+
 const SPECIAL_KNOWN = {
   "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed": "WSGB Contract",
   "0x61b64c643fccd6ff34fc58c8ddff4579a89e2723": "XAC Contract",
@@ -605,6 +607,7 @@ module.exports = {
   TRIFORCE_ADDRESS,
   MAX_DECIMALS,
   nft_values,
+  full_to_abbr,
   get_liquidity_blaze,
   enough_balance,
   get_bal,

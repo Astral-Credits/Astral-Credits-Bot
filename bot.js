@@ -1204,6 +1204,7 @@ client.on("interactionCreate", async interaction => {
       let tx;
       let receiver;
       let sgb_domain = false;
+      let send_embed = new discord.EmbedBuilder();
       if (to_tipbot && address) {
         return await interaction.editReply("Failed, `to_tipbot` can only be an option when using target, not address.");
       } else if (address && target) {
@@ -1256,6 +1257,7 @@ client.on("interactionCreate", async interaction => {
         //check for gatcha achievements
         //safe to assume people who are getting gatcha payouts are registered, so no need for error message
         if (interaction.channel.id === "1159300901320806451" && user_info) {
+          send_embed.setThumbnail("https://fonts.gstatic.com/s/e/notoemoji/latest/1f38a/512.gif");
           await db.increase_gatcha_achievement_info(target.id, amount);
           if (amount >= 7500) {
             let g = await add_achievement(target.id, "gatcha-jackpot", user_info, target.member);
@@ -1277,7 +1279,6 @@ client.on("interactionCreate", async interaction => {
         return await interaction.editReply("Failed, neither address or target to send to was specified.");
       }
       //Successfully sent, now send embed
-      let send_embed = new discord.EmbedBuilder();
       send_embed.setTitle("Successfully Sent!");
       send_embed.setColor("#0940e5");
       send_embed.setDescription(`${String(amount)} XAC sent to ${receiver}${ to_tipbot?.value ? " (sent to tipbot wallet)" : ""}${ sgb_domain ? ` (${sgb_domain})` : "" }. [View tx](https://songbird-explorer.flare.network/tx/${tx}).`);
@@ -1729,9 +1730,9 @@ client.on("interactionCreate", async interaction => {
         return await interaction.followUp(`<@${winner.id}> seemingly withdrew/sent too much XAC after submitting bet, the bet has been cancelled.`);
       }
       //send tx
-      let tx;
+      let _success, tx;
       try {
-        tx = await songbird.user_withdraw_astral(loser.id, playerwin_address, coinflip_info.wager);
+        [_success, tx] = await songbird.user_withdraw_astral(loser.id, playerwin_address, coinflip_info.wager);
       } catch (e) {
         console.log(e);
         return await interaction.followUp(`<@${winner.id}> won, but send from <@${loser.id}> to the winner failed for some reason. This shouldn't happen. Contact admin.`);
@@ -1911,12 +1912,12 @@ client.on("interactionCreate", async interaction => {
       }
     }
     //send tx
-    let tx;
+    let _success, tx;
     try {
       if (won) {
-        tx = await songbird.user_withdraw_astral(0, player_address, coinflip_info.wager);
+        [_success, tx] = await songbird.user_withdraw_astral(0, player_address, coinflip_info.wager);
       } else {
-        tx = await songbird.user_withdraw_astral(coinflip_info.player_id, house_address, coinflip_info.wager);
+        [_success, tx] = await songbird.user_withdraw_astral(coinflip_info.player_id, house_address, coinflip_info.wager);
       }
     } catch (e) {
       console.log(e);
