@@ -376,6 +376,19 @@ const tipbot_commands = [
     ]
   },
   {
+    name: "info",
+    description: "View some basic information about supported currencies",
+    options: [
+      {
+        type: 3,
+        name: "currency",
+        description: "Select coin/token",
+        required: true,
+        autocomplete: true
+      },
+    ]
+  },
+  {
     name: "settings",
     description: "View or change your tipbot settings",
     options: [

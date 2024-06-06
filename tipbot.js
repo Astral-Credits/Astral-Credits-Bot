@@ -78,7 +78,7 @@ function update_tip_stats_wrapper(interaction, user, user_info, formal_type, cur
         welcome_embed.setColor("#003153"); //prussian blue
         welcome_embed.setDescription(`Welcome gift of ${songbird.SUPPORTED_INFO.xac.emoji} ${welcome_gift} XAC sent to <@${user.id}>`);
         await interaction.followUp({ content: `Thank you for using Mr.Tipbot. Here is ${songbird.SUPPORTED_INFO.xac.emoji} ${welcome_gift} XAC on the house!\nYou can earn XAC from the faucet FREE, play games and MORE!\nhttps://discord.gg/M2HSCeEsyp`, embeds: [welcome_embed], ephemeral: true });
-        let astral_guild = tipbot_client.guilds.cache.get("1000985457393422367");
+        let astral_guild = tipbot_client.guilds.cache.get(ASTRAL_GUILD);
         await astral_guild.channels.fetch();
         await astral_guild.channels.cache.get("1087903395962179646").send(`<@${user.id}> received welcome gift. [View Tx](https://songbird-explorer.flare.network/tx/${tx})`);
       }
@@ -225,7 +225,7 @@ tipbot_client.on("interactionCreate", async interaction => {
 
   //autocomplete
   if (interaction.isAutocomplete()) {
-    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported") {
+    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported" || command === "info") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
         return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).sort().map((c) => ({ name: c, value: c })));
@@ -292,6 +292,10 @@ tipbot_client.on("interactionCreate", async interaction => {
         name: "/supported",
         value: "See all currencies supported by the bot"
       },
+      {
+        name: "/info",
+        value: "Get basic information about supported currencies"
+      },
     ]);
     help_embed.setFooter({ text: ["Programmed by prussia.dev", "247 nishina", "落下 落花"][Math.floor(Math.random() * 3)] });
     return await interaction.reply({ embeds: [ help_embed ], ephemeral: true });
@@ -336,6 +340,29 @@ tipbot_client.on("interactionCreate", async interaction => {
       embeds.push(supported_embed);
     }
     return await interaction.reply({ embeds, ephemeral: true });
+  } else if (command === "info") {
+    let info_currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(info_currency)) return await interaction.reply({ content: "Currency must be one of the following: "+songbird.SUPPORTED.join(", "), ephemeral: true });
+    let ci = songbird.SUPPORTED_INFO[info_currency];
+    let info_embed = new discord.EmbedBuilder();
+    let astral_guild = tipbot_client.guilds.cache.get(ASTRAL_GUILD);
+    info_embed.setTitle("Token Details");
+    info_embed.setThumbnail((await astral_guild.emojis.fetch(ci.emoji.split(":")[2].slice(0, -1))).toJSON().url);
+    let sci = songbird.SUPPORTED_CHAINS[ci.chain];
+    let description = `**Name:** ${ci.name}\n**Symbol:** ${ci.id.toUpperCase()}\n**Network:** ${sci.full_name}`;
+    if (info_currency === "flr" || info_currency === "sgb") {
+      description += ` (Native Token)\n**RPC:** \`${sci.rpc}\`\n**Chain ID:** ${sci.chain_id}`;
+    } else {
+      description += `\n**Address:** \`${ci.token_address}\`\n**Decimals:** ${ ci.decimal_places ?? 18 }`;
+    }
+    if (ci.coingecko) {
+      description += `\n**Price:** [$${price_cache[info_currency].usd}](https://coingecko.com/coins/${ci.coingecko})`;
+    }
+    if (ci.website) {
+      description += `\n${ci.website}`;
+    }
+    info_embed.setDescription(description);
+    return await interaction.reply({ embeds: [info_embed], ephemeral: true });
   } else if (command === "balance") {
     function bal_embed_furnish(bal_embed, usd_value, first_page=false, sgb_bal=0, flr_bal=0, astral_bal=0) {
       bal_embed.setColor("#7ad831");
@@ -580,10 +607,10 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
     let currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.editReply("Currency must be one of the following: "+songbird.SUPPORTED.join(", "));
-    //one of the last 25 messages, non-bot, non-self, non-admin, and sent in the last 24 hours
+    //one of the last 50 messages, non-bot, non-self, non-admin, and sent in the last 24 hours
     let recent_messages;
     try {
-      recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 25 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD) && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
+      recent_messages = Array.from((await interaction.channel.messages.fetch({ limit: 50 })).values()).filter((m) => m.author.id !== user.id && !(TEAM.includes(m.author.id) && interaction.guildId === ASTRAL_GUILD) && !m.author.bot && m.createdTimestamp > (Date.now() - 24 * 60 * 60 * 1000));
     } catch (_) {
       return await interaction.editReply("Could not fetch recent messages in this channel, ask an admin to check that the bot has the right permissions, or try again later.");
     }
