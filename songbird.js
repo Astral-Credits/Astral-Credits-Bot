@@ -11,9 +11,15 @@ const MAX_DECIMALS = 6; //astral credits has 18 but not the point
 const SUPPORTED_CHAINS = {
   "flare": {
     color: "#e42058",
+    full_name: "Flare Network",
+    rpc: "https://flare-api.flare.network/ext/C/rpc",
+    chain_id: 14,
   },
   "songbird": {
     color: "#ffffff",
+    full_name: "Songbird",
+    rpc: "https://songbird-api.flare.network/ext/C/rpc",
+    chain_id: 19,
   },
 };
 
@@ -26,6 +32,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:FLR:1153124121048260789>",
     "chain": "flare",
     "coingecko": "flare-networks",
+    "website": "https://flare.network/",
   },
   "wflr": {
     "id": "wflr",
@@ -34,6 +41,7 @@ const SUPPORTED_INFO = {
     "token_address": "0x1d80c49bbbcd1c0911346656b529df9e5c2f783d",
     "chain": "flare",
     "coingecko": "wrapped-flare",
+    "website": "https://flare.network/",
   },
   "bnz": {
     "id": "bnz",
@@ -41,6 +49,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:BNZ:1235385281230667847>",
     "token_address": "0xfD3449E8Ee31117a848D41Ee20F497a9bCb53164",
     "chain": "flare",
+    "website": "https://www.blockbonez.com/bnz",
   },
   "phx": {
     "id": "phx",
@@ -48,6 +57,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:PHX:1241907517819191307>",
     "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
     "chain": "flare",
+    "website": "https://www.thephoenixproject.xyz/",
   },
   //songbird
   "sgb": {
@@ -57,6 +67,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:SGB:1130360963636408350>",
     "chain": "songbird",
     "coingecko": "songbird",
+    "website": "https://flare.network/songbird/",
   },
     "wsgb": {
     "id": "wsgb",
@@ -65,14 +76,16 @@ const SUPPORTED_INFO = {
     "token_address": "0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED",
     "chain": "songbird",
     "coingecko": "wrapped-songbird",
+    "website": "https://flare.network/songbird/",
   },
   "xac": {
     "id": "xac",
     "name": "Astral Credits",
-    "emoji": "<:astral_creds:1000992673341120592>",
+    "emoji": "<:XAC:1228104930464895106>",
     "token_address": "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723",
     "chain": "songbird",
     "coingecko": "astral-credits",
+    "website": "https://www.astralcredits.xyz/",
   },
   "nishi": {
     "id": "nishi",
@@ -80,6 +93,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:NISHI:1172309804677599263>",
     "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
     "chain": "songbird",
+    "website": "https://www.astralcredits.xyz/",
   },
   "sphx": {
     "id": "sphx",
@@ -87,6 +101,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:sPHX:1130346027497558126>",
     "token_address": "0x7afDe1497da4AeDecFaf6CC32FB0D83572C10426",
     "chain": "songbird",
+    "website": "https://www.thephoenixproject.xyz/",
   },
   "fthr": {
     "id": "fthr",
@@ -94,6 +109,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
     "chain": "songbird",
+    "website": "https://fthrswap.xyz/swap/",
   },
   "bbx": {
     "id": "bbx",
@@ -101,6 +117,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:BBX:1142960050273521765>",
     "token_address": "0x29d3dfb4bd040f04bd0e01c28a4cb9de14b47e13",
     "chain": "songbird",
+    "website": "https://bluebirdx.xyz/",
   },
   "wbbx": {
     "id": "wbbx",
@@ -108,6 +125,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:WBBX:1241910668483887135>",
     "token_address": "0x1005dF5400EE5f4C1378becF513833cBc4A6EF53",
     "chain": "songbird",
+    "website": "https://bluebirdx.xyz/",
   },
   "sprk": {
     "id": "sprk",
@@ -115,6 +133,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:SPRK:1206369512396689488>",
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
     "chain": "songbird",
+    "website": "https://www.sparkcoin.io/",
   },
   "chirp": {
     "id": "chirp",
@@ -122,6 +141,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:CHIRP:1242246775952379964>",
     "token_address": "0x81aDd7359f2B95276F8542f2a0acD7ECD2Ae9349",
     "chain": "songbird",
+    "website": "https://sgb.chat/",
   },
   "sfort": {
     "id": "sfort",
@@ -129,6 +149,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:SFORT:1242253063125991503>",
     "token_address": "0x9E2E6c16803878C18E54Ed74F05AeafCCe464626",
     "chain": "songbird",
+    "website": "https://pixelchainolympics.com/",
   },
   "jsc": {
     "id": "jsc",
@@ -136,19 +157,21 @@ const SUPPORTED_INFO = {
     "emoji": "<:JSC:1245869320081375333>",
     "token_address": "0x2d2b39a036c3C02D50e2353061898E04433dd8Fa",
     "chain": "songbird",
+    "website": "https://discord.gg/a4X7YpxguS",
   },
-  "exusdt": {
-    "id": "exusdt",
-    "name": "exUSDT",
-    "emoji": "<:exUSDT:1206369568696569986>",
+  "eusdt": {
+    "id": "eusdt",
+    "name": "eUSDT",
+    "emoji": "<:eUSDT:1206369568696569986>",
     "token_address": "0x1a7b46656B2b8b29B1694229e122d066020503D0",
     "chain": "songbird",
     "decimal_places": 6,
     "coingecko": "tether", //I guess
+    "website": "https://enosys.global/",
   },
 };
 
-const full_to_abbr = (full) => Object.values(SUPPORTED_INFO).find((c) => c.name.toLowerCase() === full.toLowerCase());
+const full_to_abbr = (full) => Object.values(SUPPORTED_INFO).find((c) => c.name.toLowerCase() === full.toLowerCase()).id;
 
 const SPECIAL_KNOWN = {
   "0x02f0826ef6ad107cfc861152b32b52fd11bab9ed": "WSGB Contract",
@@ -158,8 +181,8 @@ const SPECIAL_KNOWN = {
 
 let SUPPORTED = Object.keys(SUPPORTED_INFO);
 
-const songbird_provider = new ethers.providers.JsonRpcProvider("https://songbird-api.flare.network/ext/C/rpc");
-const flare_provider = new ethers.providers.JsonRpcProvider("https://flare-api.flare.network/ext/C/rpc");
+const songbird_provider = new ethers.providers.JsonRpcProvider(SUPPORTED_CHAINS.songbird.rpc);
+const flare_provider = new ethers.providers.JsonRpcProvider(SUPPORTED_CHAINS.flare.rpc);
 
 //0x37987397aC240f0cbCaA10a669bC2C90A91C0d51 - admin tipping, prizes, welcome
 let wallet = new ethers.Wallet(process.env.privkey);
