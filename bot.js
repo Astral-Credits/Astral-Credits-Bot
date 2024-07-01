@@ -32,6 +32,7 @@ let historic_data_cache;
 let liqudity_cache;
 let sgb_price_cache;
 let pptr_cache;
+let burned_cache;
 
 client.once("ready", async (info) => {
   console.log("Ready! as " + info.user.tag);
@@ -86,7 +87,9 @@ client.once("ready", async (info) => {
     pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
   }
   set_pptr_cache();
-  setInterval(set_pptr_cache, 4 * 60 * 1000)
+  setInterval(set_pptr_cache, 4 * 60 * 1000);
+  burned_cache = await db.calculate_burned();
+  setInterval(async () => burned_cache = await db.calculate_burned(), 12 * 60 * 60 * 1000);
 });
 
 async function add_achievement(user_id, achievement_id, cached_user, member) {
@@ -463,6 +466,11 @@ client.on("interactionCreate", async interaction => {
       {
         name: "Total Unique Claimers",
         value: String(faucet_stats.unique_claimers),
+        inline: true
+      },
+      {
+        name: "Total Burned",
+        value: String(burned_cache) + " XAC",
         inline: true
       }
     ]);
@@ -1476,7 +1484,8 @@ client.on("interactionCreate", async interaction => {
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
     if (db_result) {
-      if (Number(db_result.last_claim) + CLAIM_FREQ > Date.now()) {
+      //special exception for first day of month
+      if (Number(db_result.last_claim) + CLAIM_FREQ > Date.now() && Number(db_result.last_claim) > db.get_month_start_timestamp(db.get_month())) {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
@@ -1509,7 +1518,8 @@ client.on("interactionCreate", async interaction => {
       for (const t of token_tx_resp.result) {
         //If they got a faucet claim transaction in the last 23.5 hours it means it is too soon for them to claim again
         //(this shouldn't be needed but is an additional safeguard in case the db check fails somehow, and is also an attempt to prevent the two device "race condition" problem)
-        if (t.from.toLowerCase() === songbird.faucet_address.toLowerCase() && Number(t.timeStamp) > (Math.round((Date.now() - db.CLAIM_FREQ) / 1000)) && t.value === songbird.to_raw(String(send_amount), 18).toString() && t.contractAddress.toLowerCase() === songbird.SUPPORTED_INFO.xac.token_address.toLowerCase()) {
+        //special exception for first day of month
+        if (t.from.toLowerCase() === songbird.faucet_address.toLowerCase() && Number(t.timeStamp) > (Math.round((Date.now() - db.CLAIM_FREQ) / 1000)) && t.value === songbird.to_raw(String(send_amount), 18).toString() && t.contractAddress.toLowerCase() === songbird.SUPPORTED_INFO.xac.token_address.toLowerCase() && Number(db_result.last_claim) > db.get_month_start_timestamp(db.get_month())) {
           return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be. Contact an admin if this doesn't seem right.`);
         }
       }
@@ -1523,6 +1533,11 @@ client.on("interactionCreate", async interaction => {
     await db.add_claim(user_info.address, send_amount);
     //update streak
     await db.add_claim_achievement_info(user.id, user_info, db_result?.last_claim);
+    //update month claim count if last 3 claims or last two hours of the month
+    let claims_month_now = await db.get_claims_this_month();
+    if (claims_month_now > MAX_CLAIMS_PER_MONTH - 4 || Date.now() > db.get_next_month_timestamp() - 2 * 60 * 60 * 1000) {
+      await db.set_month_claim_count(claims_month_now);
+    }
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
