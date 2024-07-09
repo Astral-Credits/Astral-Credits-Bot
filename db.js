@@ -3,7 +3,7 @@ const { exec } = require('child_process');
 
 let db_wait = mongo.getDb();
 
-let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings;
+let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings, month_claim_count;
 
 let ready = false;
 
@@ -23,6 +23,7 @@ db_wait.then(([db, tipbot_db]) => {
   airdrop_one = db.collection("airdrop_one");
   tip_stats = tipbot_db.collection("tip_stats");
   user_settings = tipbot_db.collection("user_settings");
+  month_claim_count = db.collection("month_claim_count");
 });
 
 const INITIAL_ACHIEVEMENT_DATA = {
@@ -82,16 +83,29 @@ function get_month() {
   return years*12+months;
 }
 
-//get amount to payout, for current month
-function get_amount() {
-  let month = get_month();
-  let halvings = Math.floor(month/6);
+function get_amount_for_month(month_num) {
+  let halvings = Math.floor(month_num/6);
   let payout = START_PAYOUT;
   //payout halves every six months
   for (let i=0; i < halvings; i++) {
     payout = payout/2;
   }
   return payout;
+}
+
+//get amount to payout, for current month
+function get_amount() {
+  return get_amount_for_month(get_month());
+}
+
+async function get_claims_this_month() {
+  let claims_array = await claims.find({"month": get_month()});
+	claims_array = await claims_array.toArray();
+	let claims_num = 0;
+	for (let i=0; i < claims_array.length; i++) {
+		claims_num += claims_array[i].claims_this_month;
+	}
+  return claims_num;
 }
 
 async function milestone_check(send_announcement) {
@@ -135,7 +149,7 @@ async function milestone_check(send_announcement) {
     };
   }
   if (last_uses.month !== current_month) {
-    let remaining_claims = 11111-await get_claims_this_month();
+    let remaining_claims = MAX_CLAIMS_PER_MONTH - await get_claims_this_month();
     if (remaining_claims <= 500) {
       await send_announcement("Less than 500 claims remaining this month!");
       last_uses.month = current_month;
@@ -144,17 +158,6 @@ async function milestone_check(send_announcement) {
       }, last_uses);
     }
   }
-}
-
-async function get_claims_this_month() {
-	let current_month = get_month();
-	let claims_array = await claims.find({"month": current_month});
-	claims_array = await claims_array.toArray();
-	let claims_num = 0;
-	for (let i=0; i < claims_array.length; i++) {
-		claims_num += claims_array[i].claims_this_month;
-	}
-  return claims_num;
 }
 
 async function get_claims_all_time() {
@@ -188,7 +191,7 @@ async function find_claim(address) {
   return await claims.findOne({"address": address});
 }
 
-async function get_faucet_stats(_address) {
+async function get_faucet_stats() {
   /*
     - total claims this month
     - month #
@@ -203,15 +206,18 @@ async function get_faucet_stats(_address) {
     claims_this_month: await get_claims_this_month(),
     unique_claimers: await get_unique_claimers(),
     total_claims: await get_claims_all_time(),
-    claims_last_day: await get_claims_last_day()
+    claims_last_day: await get_claims_last_day(),
   };
 }
 
-function get_next_month_timestamp() {
-  let current_month = get_month();
-  let next_year = START_YEAR+Math.floor((current_month+START_MONTH+1)/12);
-  let next_calendar_month = (current_month+START_MONTH+2)%12 || 12; //if 0, that means it is 12th month, not 0th
+function get_month_start_timestamp(month_num) {
+  let next_year = START_YEAR+Math.floor((month_num+START_MONTH)/12);
+  let next_calendar_month = (month_num+START_MONTH+1)%12 || 12; //if 0, that means it is 12th month, not 0th
   return (new Date(`${next_year}-${next_calendar_month}-01`)).getTime();
+}
+
+function get_next_month_timestamp() {
+  return get_month_start_timestamp(get_month() + 1);
 }
 
 function get_next_halving_timestamp() {
@@ -220,10 +226,27 @@ function get_next_halving_timestamp() {
   return (new Date(Date.UTC(current_date.getUTCFullYear(), current_date.getUTCMonth()+months_till_halving))).getTime();
 }
 
+//won't work for current month, or before month 15 (before month 15 should all be 11111 anyways, iirc)
+async function get_month_claim_count(month) {
+  let result = (await month_claim_count.findOne({
+    month,
+  }));
+  return result.count;
+}
+
+async function set_month_claim_count(count) {
+  let month = get_month();
+  await month_claim_count.insertOne({ month }, {
+    month,
+    count,
+  }, { upsert: true });
+}
+
 async function get_month_end() {
-  return (await month_end.findOne({
+  let result = (await month_end.findOne({
     month: get_month() - 1,
-  })).end;
+  }));
+  return result ? result.end : get_month_start_timestamp(get_month());
 }
 
 async function set_month_end() {
@@ -249,6 +272,10 @@ async function get_next_claim_time(address) {
         next_claim_time = user_info.last_claim+CLAIM_FREQ;
       }
       enough_time = false;
+      //when new month starts claim cooldown resets no matter what
+      if (Number(user_info.last_claim) < get_month_start_timestamp(get_month())) {
+        enough_time = true;
+      }
     }
   }
   next_claim_time = Math.ceil(next_claim_time/1000);
@@ -257,6 +284,19 @@ async function get_next_claim_time(address) {
     under_claim_limit,
     next_claim_time
   };
+}
+
+async function calculate_burned() {
+  let burned = 0;
+  //first burn was month 15 so start from there
+  let c_month = get_month(); //current month
+  for (let m = 15; m < c_month; m++) {
+    let claims = await get_month_claim_count(m);
+    if (claims !== MAX_CLAIMS_PER_MONTH) {
+      burned += (MAX_CLAIMS_PER_MONTH - claims) * get_amount_for_month(m);
+    }
+  }
+  return burned;
 }
 
 async function get_all_users() {
@@ -604,6 +644,9 @@ async function add_claim_achievement_info(user_id, cached_user, last_claim) {
     if (last_claim > month_end_timestamp - CLAIM_FREQ - 30 * 60 * 1000) {
       override = true;
       override_days = Math.floor((Date.now() - last_claim) / (24 * 60 * 60 * 1000));
+      if (override_days === 0) {
+        override_days = 1;
+      }
     }
   }
   //if their last claim was less than 2 days ago, streak continues
@@ -1045,9 +1088,12 @@ module.exports = {
   milestone_check,
   get_faucet_stats,
   get_claims_this_month,
+  get_month_start_timestamp,
   get_next_halving_timestamp,
+  set_month_claim_count,
   get_next_month_timestamp,
   get_next_claim_time,
+  calculate_burned,
   get_all_users,
   count_users,
   get_user_by_address,

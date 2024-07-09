@@ -32,6 +32,7 @@ let historic_data_cache;
 let liqudity_cache;
 let sgb_price_cache;
 let pptr_cache;
+let burned_cache;
 
 client.once("ready", async (info) => {
   console.log("Ready! as " + info.user.tag);
@@ -86,7 +87,9 @@ client.once("ready", async (info) => {
     pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
   }
   set_pptr_cache();
-  setInterval(set_pptr_cache, 4 * 60 * 1000)
+  setInterval(set_pptr_cache, 4 * 60 * 1000);
+  burned_cache = await db.calculate_burned();
+  setInterval(async () => burned_cache = await db.calculate_burned(), 12 * 60 * 60 * 1000);
 });
 
 async function add_achievement(user_id, achievement_id, cached_user, member) {
@@ -464,6 +467,11 @@ client.on("interactionCreate", async interaction => {
         name: "Total Unique Claimers",
         value: String(faucet_stats.unique_claimers),
         inline: true
+      },
+      {
+        name: "Total Burned",
+        value: String(burned_cache) + " XAC",
+        inline: true
       }
     ]);
     let user_info = await db.get_user(user.id);
@@ -525,7 +533,12 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply(`<@${user.id}> We already reached this month's max claim limit (${claims_month} claims globally)! Please return when the faucet resets in the new month to claim again: <t:${next_claim_info.next_claim_time}:R>`);
     }
     //send captcha and modal thing with id set to code and nonce
-    let captcha_info = await util.get_text_captcha();
+    let captcha_info;
+    try {
+      captcha_info = await util.get_text_captcha();
+    } catch (e) {
+      return await interaction.editReply("Captcha service appears to be down. Contact an admin if this not resolve within 15 minutes, or if your streak is lost as a result of this. If that is the case, an admin will restore your streak. Thank you for your patience.");
+    }
     if (!captcha_info) {
       return await interaction.editReply("Error, captcha probably currently down. Wait a bit and/or notify admins.");
     }
@@ -1471,7 +1484,8 @@ client.on("interactionCreate", async interaction => {
     //make sure they aren't claiming too soon
     let db_result = await db.find_claim(address);
     if (db_result) {
-      if (Number(db_result.last_claim) + CLAIM_FREQ > Date.now()) {
+      //special exception for first day of month
+      if (Number(db_result.last_claim) + CLAIM_FREQ > Date.now() && Number(db_result.last_claim) > db.get_month_start_timestamp(db.get_month())) {
         return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be.`);
       }
     }
@@ -1504,7 +1518,8 @@ client.on("interactionCreate", async interaction => {
       for (const t of token_tx_resp.result) {
         //If they got a faucet claim transaction in the last 23.5 hours it means it is too soon for them to claim again
         //(this shouldn't be needed but is an additional safeguard in case the db check fails somehow, and is also an attempt to prevent the two device "race condition" problem)
-        if (t.from.toLowerCase() === songbird.faucet_address.toLowerCase() && Number(t.timeStamp) > (Math.round((Date.now() - db.CLAIM_FREQ) / 1000)) && t.value === songbird.to_raw(String(send_amount), 18).toString() && t.contractAddress.toLowerCase() === songbird.SUPPORTED_INFO.xac.token_address.toLowerCase()) {
+        //special exception for first day of month
+        if (t.from.toLowerCase() === songbird.faucet_address.toLowerCase() && Number(t.timeStamp) > (Math.round((Date.now() - db.CLAIM_FREQ) / 1000)) && t.value === songbird.to_raw(String(send_amount), 18).toString() && t.contractAddress.toLowerCase() === songbird.SUPPORTED_INFO.xac.token_address.toLowerCase() && Number(db_result.last_claim) > db.get_month_start_timestamp(db.get_month())) {
           return await interaction.editReply(`<@${user.id}> Error, your last claim was too soon! Run \`/next_claim\` to see when your next claim will be. Contact an admin if this doesn't seem right.`);
         }
       }
@@ -1518,6 +1533,11 @@ client.on("interactionCreate", async interaction => {
     await db.add_claim(user_info.address, send_amount);
     //update streak
     await db.add_claim_achievement_info(user.id, user_info, db_result?.last_claim);
+    //update month claim count if last 3 claims or last two hours of the month
+    let claims_month_now = await db.get_claims_this_month();
+    if (claims_month_now > MAX_CLAIMS_PER_MONTH - 4 || Date.now() > db.get_next_month_timestamp() - 2 * 60 * 60 * 1000) {
+      await db.set_month_claim_count(claims_month_now);
+    }
     //reply with embed that includes tx link
     let faucet_embed = new discord.EmbedBuilder();
     //let month = db.get_month();
@@ -1570,7 +1590,10 @@ client.on("interactionCreate", async interaction => {
     return;
   } else if (customId.startsWith("cfpvpbtn-")) {
     async function disable_button_cfpvp() {
+      //also change the colour of the embed
       try {
+        let pvp_embed = interaction.message.embeds[0];
+        pvp_embed = discord.EmbedBuilder.from(pvp_embed).setColor("#e07c35");
         let bet_button = new discord.ButtonBuilder()
           .setCustomId("cfpvpbtn-"+interaction.id)
           .setLabel("Bet!")
@@ -1579,7 +1602,7 @@ client.on("interactionCreate", async interaction => {
         let action_row = new discord.ActionRowBuilder();
         action_row.addComponents(bet_button);
         await interaction.channel.fetch();
-        await interaction.message.edit({ embeds: interaction.message.embeds, components: [action_row] });
+        await interaction.message.edit({ embeds: [pvp_embed], components: [action_row] });
       } catch (e) {
         console.log(e);
       }
@@ -1795,6 +1818,8 @@ client.on("interactionCreate", async interaction => {
         coinflip_result_embed.setThumbnail("https://cdn.discordapp.com/attachments/1087903395962179646/1155746538786656356/Tails.gif");
       }
       coinflip_result_embed.setFooter({ text: "Learn how to prove these results by running `/provably_fair_pvp`" });
+      let winner_user = client.users.cache.get(winner.id);
+      if (winner_user) coinflip_result_embed.setAuthor({ name: winner_user.username, iconURL: winner_user.displayAvatarURL() });
       return await followMessage.edit({ content: "", files: [], embeds: [coinflip_result_embed] });
     }
   } else if (customId.startsWith("cfpvhbtn-")) {
