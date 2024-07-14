@@ -149,6 +149,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:SFORT:1242253063125991503>",
     "token_address": "0x9E2E6c16803878C18E54Ed74F05AeafCCe464626",
     "chain": "songbird",
+    "coingecko": "sfortuna-token",
     "website": "https://pixelchainolympics.com/",
   },
   "jsc": {
