@@ -133,7 +133,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:SPRK:1206369512396689488>",
     "token_address": "0xfd2a0fD402828fDB86F9a9D5a760242AD7526cC0",
     "chain": "songbird",
-    "website": "https://www.sparkcoin.io/",
+    "website": "https://nftclashgame.com/",
   },
   "chirp": {
     "id": "chirp",
