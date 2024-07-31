@@ -62,6 +62,14 @@ const SUPPORTED_INFO = {
     "coingecko": "tether", //temporary
     "website": "https://enosys.global/",
   },
+  "joule": {
+    "id": "joule",
+    "name": "Joule",
+    "emoji": "<:JOULE:1268347557747363891>",
+    "token_address": "0xe6505f92583103af7ed9974dec451a7af4e3a3be",
+    "chain": "flare",
+    "website": "https://kinetic.market/",
+  },
   "bnz": {
     "id": "bnz",
     "name": "BonezCoin",
