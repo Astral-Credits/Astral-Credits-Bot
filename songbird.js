@@ -116,7 +116,7 @@ const SUPPORTED_INFO = {
     "coingecko": "astral-credits",
     "website": "https://www.astralcredits.xyz/",
   },
-    "bbx": {
+  "bbx": {
     "id": "bbx",
     "name": "BlueBirdX",
     "emoji": "<:BBX:1142960050273521765>",
@@ -562,7 +562,10 @@ async function get_all_prices() {
   //process
   let prices = {};
   for (const coingecko of Object.keys(resp)) {
-    prices[Object.values(SUPPORTED_INFO).find((s) => s.coingecko === coingecko).id] = resp[coingecko];
+    //support multiple coins/tokens have the same coingecko ticker
+    for (const scc of Object.values(SUPPORTED_INFO).filter((s) => s.coingecko === coingecko)) {
+      prices[scc.id] = resp[coingecko];
+    }
   }
   return prices;
 }

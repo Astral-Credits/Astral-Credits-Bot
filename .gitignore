@@ -3,6 +3,7 @@ node_modules
 package-lock.json
 assets
 snapshot.json
+percent.json
 snapshot_formatted.txt
 utility_scripts/_*.js
 utility_scripts/*.json

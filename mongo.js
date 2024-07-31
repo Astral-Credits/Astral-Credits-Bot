@@ -5,6 +5,7 @@ const tipbot_client = new MongoClient(process.env.tipbot_mongo_connection_string
 
 module.exports = {
   getDb: async function() {
+    tipbot_client.connect();
     await client.connect();
     return [client.db("db"), tipbot_client.db("db")];
   },
