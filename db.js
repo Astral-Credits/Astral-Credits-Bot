@@ -1,6 +1,8 @@
 const mongo = require('./mongo.js');
 const { exec } = require('child_process');
 
+const songbird = require("./songbird.js");
+
 let db_wait = mongo.getDb();
 
 let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings, month_claim_count;
@@ -129,6 +131,14 @@ async function milestone_check(send_announcement) {
     if (current_month % 6 === 0) {
       await send_announcement("Payouts have been halved! The faucet now gives out "+String(get_amount())+" XAC.");
     }
+    //calculate burn
+    let claims = await get_month_claim_count(current_month - 1);
+    if (claims < MAX_CLAIMS_PER_MONTH && !isNaN(claims)) {
+      const burn_amount = (MAX_CLAIMS_PER_MONTH - claims) * get_amount_for_month(current_month - 1);
+      const burn_address = "0x1111111111111111111111111111111111111111";
+      const tx = await songbird.faucet_send_astral(burn_address, burn_amount);
+      await send_announcement(`Burned ${burn_amount} excess XAC: https://songbird-explorer.flare.network/tx/${tx}`);
+    }
     month_reset.month = current_month;
     await milestones.replaceOne({
       type: "month_reset"
@@ -236,10 +246,14 @@ async function get_month_claim_count(month) {
 
 async function set_month_claim_count(count) {
   let month = get_month();
-  await month_claim_count.insertOne({ month }, {
+  await month_claim_count.replaceOne({
+    month
+  }, {
     month,
     count,
-  }, { upsert: true });
+  }, {
+    upsert: true
+  });
 }
 
 async function get_month_end() {
