@@ -112,7 +112,7 @@ async function add_achievement(user_id, achievement_id, cached_user, member) {
     achievement_notif_embed.setThumbnail("https://cdn.discordapp.com/attachments/1070194353768775761/1212874280430215249/Medal.png?ex=65f36c32&is=65e0f732&hm=6c53aaec349530422678d6bd5a2ab020c16761b8bf9566b8d7361c3759cce539&");
     let notif_description = `Congratulations! <@${user_id}> has earned the achievement **"${achievement_info.name}" (${achievement_info.description})**`;
     if (achievement_info.prize > 0) {
-      notif_description += `\nPrize: ${achievement_info.prize} <:astral_creds:1000992673341120592>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`;
+      notif_description += `\nPrize: ${achievement_info.prize} <:XAC:1228104930464895106>\n[View Tx](https://songbird-explorer.flare.network/tx/${tx}) (sent to tipbot wallet)`;
     }
     achievement_notif_embed.setDescription(notif_description);
     achievement_notif_embed.setFooter({ text: "Do /unlocked_achievements to see a list of your unlocked achievements" });
@@ -1407,7 +1407,7 @@ client.on("interactionCreate", async interaction => {
         },
         {
           name: "Astral Credits (xac)",
-          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:astral_creds:1000992673341120592>",
+          value: String(String(astral_bal).split(".")[1]?.length > 5 ? astral_bal.toFixed(5) : astral_bal)+" <:XAC:1228104930464895106>",
         },
       ]);
       bal_embed.setURL("https://songbird-explorer.flare.network/address/"+songbird.admin_address);
