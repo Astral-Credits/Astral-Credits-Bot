@@ -62,6 +62,26 @@ const SUPPORTED_INFO = {
     "coingecko": "tether", //temporary
     "website": "https://enosys.global/",
   },
+  "usdt": {
+    "id": "usdt",
+    "name": "Tether USD (Flare)",
+    "emoji": "<:USDT_stargate:1270199327976984597>",
+    "token_address": "0x0B38e83B86d491735fEaa0a791F65c2B99535396",
+    "chain": "flare",
+    "decimal_places": 6,
+    "coingecko": "tether", //temporary
+    "website": "https://stargate.finance/",
+  },
+  "usdc.e": {
+    "id": "usdc.e",
+    "name": "Bridged USDC (Flare)",
+    "emoji": "<:USDT_stargate:1270199327976984597>",
+    "token_address": "0xFbDa5F676cB37624f28265A144A48B0d6e87d3b6",
+    "chain": "flare",
+    "decimal_places": 6,
+    "coingecko": "usd-coin", //temporary
+    "website": "https://stargate.finance/",
+  },
   "joule": {
     "id": "joule",
     "name": "Joule",
