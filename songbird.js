@@ -75,7 +75,7 @@ const SUPPORTED_INFO = {
   "usdc.e": {
     "id": "usdc.e",
     "name": "Bridged USDC (Flare)",
-    "emoji": "<:USDT_stargate:1270199327976984597>",
+    "emoji": "<:USDC_stargate:1270199704168169562>",
     "token_address": "0xFbDa5F676cB37624f28265A144A48B0d6e87d3b6",
     "chain": "flare",
     "decimal_places": 6,
