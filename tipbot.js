@@ -285,6 +285,10 @@ tipbot_client.on("interactionCreate", async interaction => {
         value: "Tip multiple random users with a certain role some coin/token from your tipbot balance"
       },
       {
+        name: "/airdrop",
+        value: "Airdrop tokens to participating users"
+      },
+      {
         name: "/prices",
         value: "Get the prices of supported currencies from coingecko"
       },
@@ -347,7 +351,7 @@ tipbot_client.on("interactionCreate", async interaction => {
     let info_embed = new discord.EmbedBuilder();
     let astral_guild = tipbot_client.guilds.cache.get(ASTRAL_GUILD);
     info_embed.setTitle("Token Details");
-    info_embed.setThumbnail((await astral_guild.emojis.fetch(ci.emoji.split(":")[2].slice(0, -1))).toJSON().url);
+    info_embed.setThumbnail((await astral_guild.emojis.fetch(ci.emoji.split(":")[2].slice(0, -1))).toJSON().imageURL);
     let sci = songbird.SUPPORTED_CHAINS[ci.chain];
     let description = `**Name:** ${ci.name}\n**Symbol:** ${ci.id.toUpperCase()}\n**Network:** ${sci.full_name}`;
     if (info_currency === "flr" || info_currency === "sgb") {
@@ -769,6 +773,20 @@ tipbot_client.on("interactionCreate", async interaction => {
         return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [active_tip_embed] });
       }
     }
+  } else if (command === "airdrop") {
+    const amount_each = Number((await params.get("amount_each")).value.toFixed(songbird.MAX_DECIMALS));
+    if (split_amount <= 0) {
+      return await interaction.reply({ content: "Failed, cannot send 0 or negative coin/token.", ephemeral: true});
+    }
+    const currency = (await params.get("currency")).value.toLowerCase().trim();
+    if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply({ content: "Currency must be one of the following: "+songbird.SUPPORTED.join(", "), ephemeral: true});
+    const max_participants = (await params.get("max_participants")).value;
+    if (max_participants < 1) return await interaction.reply({ content: "Max users cannot be 0 or negative", ephemeral: true });
+    if (num_users > 30) {
+      return await interaction.reply({ content: "For now, cannot airdrop to more than 30 users at once.", ephemeral: true});
+    }
+    await interaction.deferReply();
+    //
   } else if (command === "prices") {
     let embeds = [];
     //25 fields max per embed, 10 embeds per message, so shouldn't be a problem up till 250 listed currencies with coingeckos (ie, not a problem)
