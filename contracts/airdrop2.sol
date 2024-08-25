@@ -29,12 +29,13 @@ contract AstralCreditsAirdrop {
     signer_address = _signer_address;
   }
 
-  function native_start(uint64 end_timestamp, uint256 amount_each, uint256 max) external payable {
+  function native_start(uint64 end_timestamp, uint256 amount_each, uint256 max) external payable returns (uint256) {
     require(amount_each * max == msg.value, "Sent too much or too little");
     counter++;
     address[] memory empty;
     airdrops[counter] = Airdrop(msg.sender, 0x0000000000000000000000000000000000000000, amount_each, max, end_timestamp, empty, false);
     emit AirdropStart(counter);
+    return counter;
   }
 
   function token_start(uint64 end_timestamp, uint256 amount_each, uint256 max, address token_address) external returns (uint256) {
@@ -56,10 +57,9 @@ contract AstralCreditsAirdrop {
   }
 
   function verify_signature(uint256 id, uint8 _v, bytes32 _r, bytes32 _s) internal view returns (bool) {
-    bytes memory prefix = "\x19Ethereum Signed Message:\n32";
-    bytes32 hash = keccak256(abi.encodePacked(prefix, msg.sender, " is approved for ", id)); //mixed string and address
+    bytes32 hash = keccak256(abi.encodePacked(msg.sender, " is approved for ", id)); //mixed address, string, uint256
     //change r and s into bytes
-    return ecrecover(hash, _v, _r, _s) == signer_address;
+    return ecrecover(keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", hash)), _v, _r, _s) == signer_address;
   }
 
   //claim: requires signature

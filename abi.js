@@ -734,5 +734,5 @@ module.exports = {
   sgb_domain_abi,
   multisend_abi,
   airdrop_abi,
-  aridrop2_abi,
+  airdrop2_abi,
 };

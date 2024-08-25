@@ -225,7 +225,7 @@ tipbot_client.on("interactionCreate", async interaction => {
 
   //autocomplete
   if (interaction.isAutocomplete()) {
-    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported" || command === "info") {
+    if (command === "tip" || command === "withdraw" || command === "active_tip" || command === "role_tip" || command === "role_rain" || command === "active_rain" || command === "supported" || command === "info" || command === "airdrop") {
       const focused_option = interaction.options.getFocused(true);
       if (focused_option.name === "currency") {
         return await interaction.respond(songbird.SUPPORTED.filter((c) => c.startsWith(focused_option.value.toLowerCase())).sort().map((c) => ({ name: c, value: c })));
@@ -775,18 +775,53 @@ tipbot_client.on("interactionCreate", async interaction => {
     }
   } else if (command === "airdrop") {
     const amount_each = Number((await params.get("amount_each")).value.toFixed(songbird.MAX_DECIMALS));
-    if (split_amount <= 0) {
+    if (amount_each <= 0) {
       return await interaction.reply({ content: "Failed, cannot send 0 or negative coin/token.", ephemeral: true});
     }
     const currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply({ content: "Currency must be one of the following: "+songbird.SUPPORTED.join(", "), ephemeral: true});
     const max_participants = (await params.get("max_participants")).value;
     if (max_participants < 1) return await interaction.reply({ content: "Max users cannot be 0 or negative", ephemeral: true });
-    if (num_users > 30) {
+    if (max_participants > 30) {
       return await interaction.reply({ content: "For now, cannot airdrop to more than 30 users at once.", ephemeral: true});
     }
+    const minutes = Number(Number((await params.get("end_minutes")).value).toFixed(1));
+    if (minutes <= 0) {
+      return await interaction.reply({ content: "End time cannot be in zero minutes or in the past.", ephemeral: true});
+    } else if (minutes > 7*24*60) {
+      return await interaction.reply({ content: "For now, airdrops cannot last more than a week", ephemeral: true});
+    }
+    const end_timestamp = Math.ceil(Date.now() / 1000 + minutes * 60);
     await interaction.deferReply();
-    //
+    const airdrop_receipt = await songbird.start_airdrop(user.id, currency, amount_each, max_participants, end_timestamp);
+    const airdrop_log_data = airdrop_receipt.logs[0].data;
+    const airdrop_id = Number(airdrop_log_data);
+    if (!airdrop_id) {
+      return await interaction.editReply(`Onchain airdrop starting failed - common reasons why are because you are airdropping more than your balance, or **don't have enough ${songbird.full_to_abbr(songbird.SUPPORTED_INFO[currency].chain)} to pay for gas**. You may also be creating transactions too quickly.`);
+    }
+    //make embed
+    let airdrop_embed = new discord.EmbedBuilder();
+    airdrop_embed.setTitle("Airdrop!");
+    airdrop_embed.setDescription(`<@${user.id}> started an airdrop! Every participant will receive ${amount_each} ${currency}. Limit of ${max_participants} participant(s). Ends <t:${end_timestamp}:R>`);
+    airdrop_embed.setFooter({ text: "Click the 'Claim Airdrop' button below! Quick!" });
+    //make buttons
+    let action_row = new discord.ActionRowBuilder();
+    let action_claim = new discord.ButtonBuilder()
+      .setCustomId(`airdropclaim-${currency}-${airdrop_id}`)
+      .setLabel("Claim Airdrop")
+      .setEmoji("🪂")
+      .setDisabled(false)
+      .setStyle("Success");
+    let action_refund = new discord.ButtonBuilder()
+      .setCustomId(`airdroprefund-${currency}-${airdrop_id}`)
+      .setLabel("Refund Remaining (After Airdrop Ended)")
+      .setDisabled(false)
+      .setStyle("Secondary");
+    action_row.addComponents(action_claim, action_refund);
+    return await interaction.editReply({
+      embeds: [airdrop_embed],
+      components: [action_row],
+    });
   } else if (command === "prices") {
     let embeds = [];
     //25 fields max per embed, 10 embeds per message, so shouldn't be a problem up till 250 listed currencies with coingeckos (ie, not a problem)
@@ -831,6 +866,42 @@ tipbot_client.on("interactionCreate", async interaction => {
       await db.change_user_settings(user.id, settings, "tip_notify_dm_min", min * 1000);
       return await interaction.editReply(`Successfully changed setting! The tipbot will now notify you by DM when you are tipped only when the value of the tip is at least $${min} USD.${ settings.tip_notify_dm ? "" : " Please note that this setting will have no effect as you have disabled being notified by DM when tipped." }`);
     }
+  }
+});
+
+//handle airdrop buttons
+tipbot_client.on("interactionCreate", async interaction => {
+  if (!interaction.isButton()) return;
+
+  let custom_id = interaction.customId;
+  let user = interaction.user;
+
+  //airdropclaim-${currency}-${airdrop_id}
+  //make sure no - in the currency name
+  if (custom_id.startsWith("airdropclaim-")) {
+    await interaction.deferReply({ ephemeral: true });
+    const currency = custom_id.split("-")[1];
+    const airdrop_id = Number(custom_id.split("-")[2]);
+    const currency_info = songbird.SUPPORTED_INFO[currency]
+    const tx = await songbird.claim_airdrop(user.id, currency, airdrop_id);
+    if (!tx) {
+      //failed
+      return await interaction.editReply(`Airdrop claim failed - has the airdrop ended? If not, you probably **don't have enough ${songbird.full_to_abbr(currency_info.chain)} to pay for gas**. Deposit more or try again in a second`);
+    }
+    //tx.hash
+    return await interaction.editReply(`Claimed ${await songbird.from_raw((await songbird.get_airdrop(user.id, currency_info.chain, airdrop_id)).amount_each, currency_info.decimal_places ?? 18)} ${currency}\n[tx](https://songbird-explorer.flare.network/tx/${tx.hash})`);
+  } else if (custom_id.startsWith("airdroprefund-")) {
+    await interaction.deferReply({ ephemeral: true });
+    const currency = custom_id.split("-")[1];
+    const airdrop_id = Number(custom_id.split("-")[2]);
+    const currency_info = songbird.SUPPORTED_INFO[currency]
+    const tx = await songbird.refund_airdrop(user.id, currency_info.chain, airdrop_id);
+    if (!tx) {
+      //failed
+      return await interaction.editReply(`Airdrop refund failed - you probably **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. Deposit more or try again in a second`);
+    }
+    //tx.hash
+    //
   }
 });
 

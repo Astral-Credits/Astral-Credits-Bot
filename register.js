@@ -556,6 +556,38 @@ const tipbot_commands = [
     contexts: [0] //guild only
   },
   {
+    name: "airdrop",
+    description: "DO NOT USE. UNDERGOING TESTING.",
+    options: [
+      {
+        type: 10,
+        name: "amount_each",
+        description: "Amount to give each participant",
+        required: true
+      },
+      {
+        type: 4,
+        name: "max_participants",
+        description: "Max amount of participants to airdrop to",
+        required: true
+      },
+      {
+        type: 3,
+        name: "currency",
+        description: "Coin/token to send",
+        required: true,
+        autocomplete: true
+      },
+      {
+        type: 10,
+        name: "end_minutes",
+        description: "Amount of minutes until airdrop end",
+        required: true
+      },
+    ],
+    contexts: [0] //guild only
+  },
+  {
     name: "prices",
     description: "Get the prices of supported currencies from coingecko",
     options: []
