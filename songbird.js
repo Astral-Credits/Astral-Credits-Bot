@@ -248,7 +248,7 @@ const flr_domain_contract_address = "0x2919f0bE09549814ADF72fb0387D1981699fc6D4"
 const sgb_multisend_contract_address = "0x6bDA41F88aDadF96F3149F75dc6ADB0351D4fa1b";
 const flr_multisend_contract_address = "0x93CA88Ee506096816414078664641C07aF731026";
 
-const sgb_airdrop_contract_address = "0x705220C7BE65dB9F3Bf3eA4B910431D374A0d8b3";
+const sgb_airdrop_contract_address = "0xFbdc400E3878A00Aa50b80E2970521862549fddE";
 //
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
@@ -694,7 +694,7 @@ async function start_airdrop(user_id, currency, amount_each, max, end_timestamp)
       let receipt = await (await derived_generic_token.approve(currency_info.chain === "songbird" ? sgb_airdrop_contract_address : "placeholder", amount)).wait();
       //wait for approval to go through, ofc
       if (receipt?.status === 1) {
-        return await (await airdrop_contract.token_start(end_timestamp, max, amount_each_raw, currency_info.token_address)).wait();
+        return await (await airdrop_contract.token_start(end_timestamp, amount_each_raw, max, currency_info.token_address)).wait();
       } else {
         return false;
       }
@@ -722,8 +722,7 @@ async function claim_airdrop(user_id, currency, airdrop_id) {
 }
 
 async function refund_airdrop(user_id, chain, airdrop_id) {
-  const currency_info = SUPPORTED_INFO[currency];
-  const airdrop_contract = get_airdrop_contract(user_id, currency_info.chain);
+  const airdrop_contract = get_airdrop_contract(user_id, chain);
   try {
     return await airdrop_contract.refund(airdrop_id);
   } catch (e) {
@@ -735,6 +734,18 @@ async function refund_airdrop(user_id, chain, airdrop_id) {
 async function get_airdrop(user_id, chain, airdrop_id) {
   const airdrop_contract = get_airdrop_contract(user_id, chain);
   return await airdrop_contract.airdrops(airdrop_id);
+}
+
+async function get_airdrop_participants(user_id, chain, airdrop_id) {
+  const airdrop_contract = get_airdrop_contract(user_id, chain);
+  return await airdrop_contract.get_participants(airdrop_id);
+}
+
+function get_airdrop_id(chain, logs) {
+  const filtered_logs = logs.filter((log) => log.address === (chain === "songbird" ? sgb_airdrop_contract_address : "placeholder"));
+  const airdrop_log_data = filtered_logs[filtered_logs.length - 1].data;
+  const airdrop_id = Number(airdrop_log_data);
+  return airdrop_id;
 }
 
 /*
@@ -782,6 +793,7 @@ module.exports = {
   claim_airdrop,
   refund_airdrop,
   get_airdrop,
+  get_airdrop_participants,
   is_valid: ethers.utils.isAddress,
   to_raw: ethers.utils.parseUnits,
   from_raw: ethers.utils.formatUnits,

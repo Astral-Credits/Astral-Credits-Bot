@@ -29,6 +29,10 @@ contract AstralCreditsAirdrop {
     signer_address = _signer_address;
   }
 
+  function get_participants(uint256 id) external view returns (address[] memory) {
+    return airdrops[id].participants;
+  }
+
   function native_start(uint64 end_timestamp, uint256 amount_each, uint256 max) external payable returns (uint256) {
     require(amount_each * max == msg.value, "Sent too much or too little");
     counter++;

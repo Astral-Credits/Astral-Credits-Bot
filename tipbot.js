@@ -6,6 +6,8 @@ const db = require("./db.js");
 const songbird = require("./songbird.js");
 const { add_achievement, TEAM } = require("./bot.js");
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 let price_cache = [];
 songbird.get_all_prices().then((p) => price_cache = p);
 
@@ -773,13 +775,14 @@ tipbot_client.on("interactionCreate", async interaction => {
         return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [active_tip_embed] });
       }
     }
-  } else if (command === "airdrop") {
+  } else if (command === "_beta_airdrop") {
     const amount_each = Number((await params.get("amount_each")).value.toFixed(songbird.MAX_DECIMALS));
     if (amount_each <= 0) {
       return await interaction.reply({ content: "Failed, cannot send 0 or negative coin/token.", ephemeral: true});
     }
     const currency = (await params.get("currency")).value.toLowerCase().trim();
     if (!songbird.SUPPORTED.includes(currency)) return await interaction.reply({ content: "Currency must be one of the following: "+songbird.SUPPORTED.join(", "), ephemeral: true});
+    const supported_info = songbird.SUPPORTED_INFO[currency];
     const max_participants = (await params.get("max_participants")).value;
     if (max_participants < 1) return await interaction.reply({ content: "Max users cannot be 0 or negative", ephemeral: true });
     if (max_participants > 30) {
@@ -794,15 +797,25 @@ tipbot_client.on("interactionCreate", async interaction => {
     const end_timestamp = Math.ceil(Date.now() / 1000 + minutes * 60);
     await interaction.deferReply();
     const airdrop_receipt = await songbird.start_airdrop(user.id, currency, amount_each, max_participants, end_timestamp);
-    const airdrop_log_data = airdrop_receipt.logs[0].data;
+    const airdrop_log_data = airdrop_receipt.logs[airdrop_receipt.logs.length - 1].data;
     const airdrop_id = Number(airdrop_log_data);
     if (!airdrop_id) {
       return await interaction.editReply(`Onchain airdrop starting failed - common reasons why are because you are airdropping more than your balance, or **don't have enough ${songbird.full_to_abbr(songbird.SUPPORTED_INFO[currency].chain)} to pay for gas**. You may also be creating transactions too quickly.`);
     }
     //make embed
     let airdrop_embed = new discord.EmbedBuilder();
-    airdrop_embed.setTitle("Airdrop!");
-    airdrop_embed.setDescription(`<@${user.id}> started an airdrop! Every participant will receive ${amount_each} ${currency}. Limit of ${max_participants} participant(s). Ends <t:${end_timestamp}:R>`);
+    airdrop_embed.setTitle("Airdrop 🪂");
+    airdrop_embed.setDescription(`<@${user.id}> started an airdrop! Every participant will receive ${supported_info.emoji} ${amount_each} ${currency.toUpperCase()}. Limit of ${max_participants} participant(s).`);
+    airdrop_embed.addFields([
+      {
+        name: "Ends",
+        value: `<t:${end_timestamp}:R>`,
+      },
+      {
+        name: "Participants",
+        value: `0/${max_participants}`,
+      },
+    ]);
     airdrop_embed.setFooter({ text: "Click the 'Claim Airdrop' button below! Quick!" });
     //make buttons
     let action_row = new discord.ActionRowBuilder();
@@ -882,26 +895,53 @@ tipbot_client.on("interactionCreate", async interaction => {
     await interaction.deferReply({ ephemeral: true });
     const currency = custom_id.split("-")[1];
     const airdrop_id = Number(custom_id.split("-")[2]);
-    const currency_info = songbird.SUPPORTED_INFO[currency]
+    const supported_info = songbird.SUPPORTED_INFO[currency];
+    let airdrop_info = await songbird.get_airdrop(user.id, supported_info.chain, airdrop_id);
+    //make sure airdrop hasn't ended already
+    if ((Date.now() / 1000) > airdrop_info.end_timestamp) return await interaction.editReply("Airdrop claim failed - airdrop already over!");
     const tx = await songbird.claim_airdrop(user.id, currency, airdrop_id);
     if (!tx) {
       //failed
-      return await interaction.editReply(`Airdrop claim failed - has the airdrop ended? If not, you probably **don't have enough ${songbird.full_to_abbr(currency_info.chain)} to pay for gas**. Deposit more or try again in a second`);
+      return await interaction.editReply(`Airdrop claim failed - has the airdrop ended? Have you already claimed from this airdrop? If not, you probably **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. Deposit more or try again in a second`);
     }
-    //tx.hash
-    return await interaction.editReply(`Claimed ${await songbird.from_raw((await songbird.get_airdrop(user.id, currency_info.chain, airdrop_id)).amount_each, currency_info.decimal_places ?? 18)} ${currency}\n[tx](https://songbird-explorer.flare.network/tx/${tx.hash})`);
+    //edit original embed with new # of participants
+    (async () => {
+      await sleep(2000);
+      let airdrop_participants = await songbird.get_airdrop_participants(user.id, supported_info.chain, airdrop_id);
+      let airdrop_embed = interaction.message.embeds[0];
+      airdrop_embed = discord.EmbedBuilder.from(airdrop_embed);
+      airdrop_embed.setFields([
+        {
+          name: "Ends",
+          value: `<t:${airdrop_info.end_timestamp}:R>`,
+        },
+        {
+          name: "Participants",
+          value: `${airdrop_participants.length}/${airdrop_info.max_participants}`,
+        },
+      ]);
+      let buttons = interaction.message.components[0].components;
+      let action_row = new discord.ActionRowBuilder();
+      let claim_button = discord.ButtonBuilder.from(buttons[0]);
+      if (airdrop_participants.length == airdrop_info.max_participants) {
+        claim_button.setDisabled(true);
+      }
+      action_row.addComponents(claim_button, buttons[1]);
+      await interaction.message.edit({ embeds: [airdrop_embed], components: [action_row] });
+    })();
+    return await interaction.editReply(`**Success! 🪂**\nAirdrop of ${supported_info.emoji} ${await songbird.from_raw((await songbird.get_airdrop(user.id, supported_info.chain, airdrop_id)).amount_each, supported_info.decimal_places ?? 18)} ${currency.toUpperCase()} received!\n[View Tx](https://songbird-explorer.flare.network/tx/${tx.hash})`);
   } else if (custom_id.startsWith("airdroprefund-")) {
     await interaction.deferReply({ ephemeral: true });
     const currency = custom_id.split("-")[1];
     const airdrop_id = Number(custom_id.split("-")[2]);
-    const currency_info = songbird.SUPPORTED_INFO[currency]
-    const tx = await songbird.refund_airdrop(user.id, currency_info.chain, airdrop_id);
+    const supported_info = songbird.SUPPORTED_INFO[currency]
+    const tx = await songbird.refund_airdrop(user.id, supported_info.chain, airdrop_id);
     if (!tx) {
       //failed
-      return await interaction.editReply(`Airdrop refund failed - you probably **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. Deposit more or try again in a second`);
+      return await interaction.editReply(`Airdrop refund failed - you probably **don't have enough ${songbird.full_to_abbr(supported_info.chain)} to pay for gas**. Alternatively, nothing to refund, or airdrop has not finished yet. Deposit more or try again in a second`);
     }
     //tx.hash
-    //
+    return await interaction.editReply(`Refunded remaining amount from airdrop back to creator.\n[View Tx](https://songbird-explorer.flare.network/tx/${tx.hash})`);
   }
 });
 

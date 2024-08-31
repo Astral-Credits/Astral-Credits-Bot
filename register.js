@@ -556,7 +556,7 @@ const tipbot_commands = [
     contexts: [0] //guild only
   },
   {
-    name: "airdrop",
+    name: "_beta_airdrop",
     description: "DO NOT USE. UNDERGOING TESTING.",
     options: [
       {
