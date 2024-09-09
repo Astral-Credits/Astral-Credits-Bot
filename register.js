@@ -584,6 +584,12 @@ const tipbot_commands = [
         description: "Amount of minutes until airdrop end",
         required: true
       },
+      {
+        type: 8,
+        name: "required_role",
+        description: "Must have this role to join the airdrop",
+        required: false
+      },
     ],
     contexts: [0] //guild only
   },

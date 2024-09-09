@@ -25,15 +25,16 @@ mod_client.on("messageCreate", async (message) => {
     //if unverified (and not self [todo: not bot?]), delete invite
     if (!message.member.roles.cache.has("1100582916871958578") && message.member.id !== "1224934300244512789") {
       await message.reply(`<@${message.member.id}> <a:siren:1105674561829228626> **Possible UNREGISTERED SECURITY (||scam/spam||) detected, message deleted** <a:siren:1105674561829228626>`);
+      const mod_channel = "1127793284195041372";//"1070194353768775761";
       try {
         await message.delete();
       } catch (e) {
         console.log(e);
-        await mod_client.channels.cache.get("1070194353768775761").send(`Missing delete perms in <#${message.channel.id}>?\n${message.url}`);
+        await mod_client.channels.cache.get(mod_channel).send(`Missing delete perms in <#${message.channel.id}>?\n${message.url}`);
       }
       try {
         //await mod_client.channels.fetch();
-        await mod_client.channels.cache.get("1070194353768775761").send(`__Log: Deleted Likely Spam__\nUser: <@${message.member.id}>\nChannel: <#${message.channel.id}>\nContent: ${ message.length > 1000 ? message.slice(0, 1000) + "..." : message }`);
+        await mod_client.channels.cache.get(mod_channel).send(`__Log: Deleted Likely Spam__\nUser: <@${message.member.id}>\nChannel: <#${message.channel.id}>\nContent: ${ message.length > 1000 ? message.slice(0, 1000) + "..." : message }`);
       } catch (e) {
         console.log(e);
       }
