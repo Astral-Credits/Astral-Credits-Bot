@@ -10,6 +10,6 @@ const { tipbot_client } = require("./tipbot.js");
 setTimeout(() => {
   client.login(process.env.token);
   tipbot_client.login(process.env.tipbot_token);
-}, 3000);
+}, 4000);
 
 mod_client.login(process.env.mod_token);

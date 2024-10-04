@@ -74,7 +74,7 @@ client.once("ready", async (info) => {
   setInterval(set_price_status, 25 * 60 * 1000);
   //start milestone check
   async function send_announcement(text) {
-    client.channels.cache.get("1000985458374873150").send(text);
+    client.channels.cache.get("1103087597875634257").send(text);
   }
   setTimeout(async () => {
     await db.milestone_check(send_announcement);

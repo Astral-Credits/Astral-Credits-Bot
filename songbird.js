@@ -2,7 +2,7 @@ const { ethers } = require('ethers');
 const { fetch } = require('cross-fetch');
 
 const { hash, hex_to_bigint, bigint_to_hex, pad_hex } = require('./util.js');
-const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi, multisend_abi } = require('./abi.js');
+const { erc20_abi, erc20_and_ftso_abi, erc1155_abi, domains_abi, sgb_domain_abi, multisend_abi, airdrop2_abi } = require('./abi.js');
 
 const MAX_DECIMALS = 6; //astral credits has 18 but not the point
 
@@ -247,6 +247,9 @@ const flr_domain_contract_address = "0x2919f0bE09549814ADF72fb0387D1981699fc6D4"
 
 const sgb_multisend_contract_address = "0x6bDA41F88aDadF96F3149F75dc6ADB0351D4fa1b";
 const flr_multisend_contract_address = "0x93CA88Ee506096816414078664641C07aF731026";
+
+const sgb_airdrop_contract_address = "0xFbdc400E3878A00Aa50b80E2970521862549fddE";
+const flr_airdrop_contract_address = "0x185EF07440e64EC0515C26C0304fdFC875571AC6";
 
 let astral_token = new ethers.Contract(token_contract_address, erc20_abi, wallet);
 let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_wallet);
@@ -667,6 +670,84 @@ async function ftso_delegates_of(address) {
   return await wrapped_songbird_token.delegatesOf(address);
 }
 
+function get_airdrop_contract(user_id, chain) {
+  let derived_wallet = derive_wallet(user_id, chain);
+  return new ethers.Contract(chain === "songbird" ? sgb_airdrop_contract_address : flr_airdrop_contract_address, airdrop2_abi, derived_wallet);
+}
+
+async function start_airdrop(user_id, currency, amount_each, max, end_timestamp) {
+  const currency_info = SUPPORTED_INFO[currency];
+  const airdrop_contract = get_airdrop_contract(user_id, currency_info.chain);
+  const decimal_places = isNaN(currency_info.decimal_places) ? 18 : currency_info.decimal_places;
+  const amount_each_raw = ethers.utils.parseUnits(String(amount_each), decimal_places);
+  const amount = (BigInt(amount_each_raw) * BigInt(max)).toString();
+  if (currency === "sgb" || currency === "flr") {
+    return await (await airdrop_contract.native_start(end_timestamp, amount_each_raw, max, {
+      value: amount,
+    })).wait();
+  } else {
+    //token
+    let derived_wallet = derive_wallet(user_id, currency_info.chain);
+    let derived_generic_token = new ethers.Contract(currency_info.token_address, erc20_abi, derived_wallet);
+    //approval
+    try {
+      let receipt = await (await derived_generic_token.approve(currency_info.chain === "songbird" ? sgb_airdrop_contract_address : flr_airdrop_contract_address, amount)).wait();
+      //wait for approval to go through, ofc
+      if (receipt?.status === 1) {
+        return await (await airdrop_contract.token_start(end_timestamp, amount_each_raw, max, currency_info.token_address)).wait();
+      } else {
+        return false;
+      }
+    } catch (e) {
+      console.log(e)
+      return false;
+    }
+  }
+}
+
+async function claim_airdrop(user_id, currency, airdrop_id) {
+  const currency_info = SUPPORTED_INFO[currency];
+  const airdrop_contract = get_airdrop_contract(user_id, currency_info.chain);
+  //gen signed message
+  //todo: prefix not needed
+  const message_hash = ethers.utils.solidityKeccak256(["bytes"], [ethers.utils.solidityPack(["address", "string", "uint256"], [derive_wallet(user_id).address, " is approved for ", airdrop_id])]);
+  const signature = await wallet.signMessage(ethers.utils.arrayify(message_hash));
+  const {v, r, s} = ethers.utils.splitSignature(signature);
+  try {
+    return await airdrop_contract.claim(airdrop_id, v, r, s);
+  } catch (e) {
+    //console.log(e);
+    return false;
+  }
+}
+
+async function refund_airdrop(user_id, chain, airdrop_id) {
+  const airdrop_contract = get_airdrop_contract(user_id, chain);
+  try {
+    return await airdrop_contract.refund(airdrop_id);
+  } catch (e) {
+    //console.log(e);
+    return false;
+  }
+}
+
+async function get_airdrop(user_id, chain, airdrop_id) {
+  const airdrop_contract = get_airdrop_contract(user_id, chain);
+  return await airdrop_contract.airdrops(airdrop_id);
+}
+
+async function get_airdrop_participants(user_id, chain, airdrop_id) {
+  const airdrop_contract = get_airdrop_contract(user_id, chain);
+  return await airdrop_contract.get_participants(airdrop_id);
+}
+
+function get_airdrop_id(chain, logs) {
+  const filtered_logs = logs.filter((log) => log.address === (chain === "songbird" ? sgb_airdrop_contract_address : flr_airdrop_contract_address));
+  const airdrop_log_data = filtered_logs[filtered_logs.length - 1].data;
+  const airdrop_id = Number(airdrop_log_data);
+  return airdrop_id;
+}
+
 /*
 const rand_wallet = ethers.Wallet.createRandom();
 console.log(rand_wallet.privateKey);
@@ -708,8 +789,15 @@ module.exports = {
   get_block_number,
   ftso_delegates_of,
   calc_amount_each,
+  start_airdrop,
+  claim_airdrop,
+  refund_airdrop,
+  get_airdrop,
+  get_airdrop_id,
+  get_airdrop_participants,
   is_valid: ethers.utils.isAddress,
   to_raw: ethers.utils.parseUnits,
+  from_raw: ethers.utils.formatUnits,
   faucet_address: faucet_wallet.address,
   admin_address: wallet.address,
 };
