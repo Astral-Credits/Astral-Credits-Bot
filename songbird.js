@@ -188,7 +188,7 @@ const SUPPORTED_INFO = {
   "nishi": {
     "id": "nishi",
     "name": "NishiCoin",
-    "emoji": "<:NISHI:1291208524373954711>",
+    "emoji": "<a:NISHI:1291208524373954711>",
     "token_address": "0xCa80B7557aDbc98426C0B921f8d80c3A5c20729F",
     "chain": "songbird",
     "website": "https://www.astralcredits.xyz/nishi",
