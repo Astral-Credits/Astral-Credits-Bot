@@ -90,6 +90,14 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://kinetic.market/",
   },
+  "xvn": {
+    "id": "xvn",
+    "name": "xHaven",
+    "emoji": "<:XVN:1318676924725198928>",
+    "token_address": "0xaFBdD875858Dd48EE32A68Ac1349A5017095B161",
+    "chain": "flare",
+    "website": "https://xhaven.io/",
+  },
   "bnz": {
     "id": "bnz",
     "name": "BonezCoin",
