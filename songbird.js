@@ -114,6 +114,14 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.thephoenixproject.xyz/",
   },
+  "billy": {
+    "id": "billy",
+    "name": "Billy",
+    "emoji": "<:BILLY:1325661227703337041>",
+    "token_address": "0xAfe1B71eCaB62F31cA6e30fCA8C21C9D3e997E90",
+    "chain": "flare",
+    "website": "https://www.billyflr.com/",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
