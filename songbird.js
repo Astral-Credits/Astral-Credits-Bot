@@ -172,7 +172,7 @@ const SUPPORTED_INFO = {
     "id": "wbbx",
     "name": "Wrapped BlueBirdX",
     "emoji": "<:WBBX:1267689434749472830>",
-    "token_address": "0x1005dF5400EE5f4C1378becF513833cBc4A6EF53",
+    "token_address": "0xE99F00eC8D25bFbe9d684231B04Fb5Bc5243B028",
     "chain": "songbird",
     "website": "https://bluebirdx.xyz/",
   },
