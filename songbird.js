@@ -122,6 +122,14 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.billyflr.com/",
   },
+  "billidabear": {
+    "id": "billi",
+    "name": "BilliDaBear",
+    "emoji": "<:BILLI:1331134219606294538>",
+    "token_address": "0x01E396a10080eC2838D615162B17940b45D5E227",
+    "chain": "flare",
+    "website": "https://billidabear.vercel.app/",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
