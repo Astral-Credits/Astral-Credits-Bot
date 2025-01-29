@@ -288,7 +288,7 @@ tipbot_client.on("interactionCreate", async interaction => {
       },
       {
         name: "/airdrop",
-        value: "Airdrop tokens to participating users"
+        value: "Airdrop tokens to users in the channel who click"
       },
       {
         name: "/prices",
@@ -775,7 +775,7 @@ tipbot_client.on("interactionCreate", async interaction => {
         return await interaction.editReply({ content: `<@${user.id}> sent ${supported_info.emoji} ${String(split_amount)} ${currency.toUpperCase()} to ${target_ids_stringfied}!\n[View tx](<https://${supported_info.chain}-explorer.flare.network/tx/${tx}>)`, embeds: [active_tip_embed] });
       }
     }
-  } else if (command === "_beta_airdrop") {
+  } else if (command === "airdrop") {
     const amount_each = Number((await params.get("amount_each")).value.toFixed(songbird.MAX_DECIMALS));
     if (amount_each <= 0) {
       return await interaction.reply({ content: "Failed, cannot send 0 or negative coin/token.", ephemeral: true});
@@ -837,9 +837,13 @@ tipbot_client.on("interactionCreate", async interaction => {
       .setDisabled(false)
       .setStyle("Secondary");
     action_row.addComponents(action_claim, action_refund);
-    return await interaction.editReply({
+    await interaction.editReply({
       embeds: [airdrop_embed],
       components: [action_row],
+    });
+    return await interaction.followUp({
+      ephemeral: true,
+      content: "After the airdrop is done, make sure to click the Refund button! This will give you back any coins/tokens that were not claimed. For example, if you made an airdrop of 1 XAC each to 10 users, but only 5 users claimed, you will be refunded 5 XAC.",
     });
   } else if (command === "prices") {
     let embeds = [];

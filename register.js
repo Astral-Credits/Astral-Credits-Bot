@@ -321,6 +321,11 @@ const commands = [
       },
     ]
   },
+  {
+    name: "santa",
+    description: "Santa is here to deliver a present for the 12 days leading up to Christmas, and Christmas day.",
+    options: []
+  },
 ];
 
 const tipbot_commands = [
@@ -556,8 +561,8 @@ const tipbot_commands = [
     contexts: [0] //guild only
   },
   {
-    name: "_beta_airdrop",
-    description: "DO NOT USE. UNDERGOING TESTING.",
+    name: "airdrop",
+    description: "Airdrop tokens to users in the channel who click",
     options: [
       {
         type: 10,

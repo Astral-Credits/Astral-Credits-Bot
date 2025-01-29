@@ -254,6 +254,10 @@ client.on("interactionCreate", async interaction => {
         name: "/leaderboard",
         value: "See the users with the most achievements"
       },
+      {
+        name: "/santa",
+        value: "Get a little gift from Santa on Christmas and the 12 days leading up to it"
+      },
     ]);
     help_embed.setFooter({ text: "Made by prussia.dev" });
     await interaction.member.fetch();
@@ -1199,6 +1203,60 @@ client.on("interactionCreate", async interaction => {
         return;
       }
     }
+  } else if (command === "santa") {
+    await interaction.deferReply();
+    let date = new Date();
+    let day = date.getUTCDate();
+    let month = date.getUTCMonth();
+    if (month === 11 && (day >= 13 && day <= 25)) {
+      let user_info = await db.get_user(user.id);
+      if (!user_info) {
+        return await interaction.editReply("Failed, /register first!");
+      }
+      const end_timestamp = Math.ceil((new Date(date.getUTCFullYear(), date.getUTCMonth(), day + 1)).getTime() / 1000);
+      if (await db.find_santa(user.id, day)) {
+        return await interaction.editReply(`Already claimed today!${ day < 25 ? ` Come back in <t:${end_timestamp}:R>` : ""}`);
+      }
+      let rand = Math.random();
+      let amount;
+      if (rand <= 0.05) {
+        amount = 100;
+      } else if (rand <= 0.20) {
+        amount = 200;
+      } else if (rand <= 0.50) {
+        amount = 500;
+      } else if (rand <= 0.80) {
+        amount = 1000;
+      } else if (rand <= 0.95) {
+        amount = 3000;
+      } else if (rand <= 1) {
+        amount = 5000;
+      }
+      let tx;
+      try {
+        tx = await songbird.send_astral(user_info.address, amount);
+      } catch (e) {
+        return await interaction.editReply("Failed to send, try again");
+      }
+      if (!tx) {
+        return await interaction.editReply("Failed to send, try again");
+      } else {
+        await db.add_santa(user.id, day);
+        let santa_embed = new discord.EmbedBuilder();
+        santa_embed.setTitle("Merry Christmas! 🎅");
+        santa_embed.setColor(["#ff0000", "#00ff00", "#ffffff"][Math.floor(Math.random() * 3)]);
+        santa_embed.setDescription(`${amount} XAC sent to your registered address! Ho ho ho.${ day < 25 ? ` Santa will be back with another gift soon: <t:${end_timestamp}:R>` : ""}.\n[View TX](https://songbird-explorer.flare.network/tx/${tx})`);
+        if (amount === 100 || amount === 200) {
+          santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/flosssanta.gif");
+        } else if (amount === 500 || amount === 1000) {
+          santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/djsanta.gif");
+        } else if (amount === 3000 || amount === 5000) {
+          santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/rocketsanta.gif");
+        }
+        return await interaction.editReply({ embeds: [santa_embed] });
+      }
+    }
+    return await interaction.editReply("Santa's on vacation when it isn't December 13-25");
   }
 
   //admin command
@@ -1275,6 +1333,11 @@ client.on("interactionCreate", async interaction => {
           if (amount >= 7500) {
             let g = await add_achievement(target.id, "gatcha-jackpot", user_info, target.member);
             if (g) await sleep(1000);
+          }
+          if (user_info.achievement_data.gatcha_wins + 1 == 10) {
+            await add_achievement(target.id, "gatcha-wins-1", user_info, target.member);
+          } else if (user_info.achievement_data.gatcha_wins + 1 == 25) {
+            await add_achievement(target.id, "gatcha-wins-2", user_info, target.member);
           }
           if (user_info.achievement_data.gatcha_won_xac_amount + amount >= 1000) {
             let g1 = await add_achievement(target.id, "gatcha-1", user_info, target.member);
@@ -1498,7 +1561,8 @@ client.on("interactionCreate", async interaction => {
     //songbird enough balance
     let current_block = await songbird.get_block_number();
     let enough_balance = await songbird.enough_balance(address, HOLDING_REQUIREMENT);
-    let token_tx_resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=${address}&start_block=${String(current_block-songbird.HOLDING_BLOCK_TIME)}`);
+    //those bastards changed start_block to startblock
+    let token_tx_resp = await fetch(`https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=${address}&startblock=${String(current_block-songbird.HOLDING_BLOCK_TIME)}`);
     token_tx_resp = await token_tx_resp.json();
     let aged_enough = await songbird.aged_enough(address, HOLDING_REQUIREMENT, token_tx_resp, enough_balance.wrapped_sgb_bal);
     //let aged_enough = true;
@@ -1514,6 +1578,7 @@ client.on("interactionCreate", async interaction => {
       }
     }
     let send_amount = db.get_amount();
+    //disabling
     if (token_tx_resp.result) {
       for (const t of token_tx_resp.result) {
         //If they got a faucet claim transaction in the last 23.5 hours it means it is too soon for them to claim again

@@ -122,7 +122,7 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.billyflr.com/",
   },
-  "billidabear": {
+  "billi": {
     "id": "billi",
     "name": "BilliDaBear",
     "emoji": "<:BILLI:1331134219606294538>",

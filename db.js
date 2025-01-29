@@ -5,7 +5,7 @@ const songbird = require("./songbird.js");
 
 let db_wait = mongo.getDb();
 
-let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings, month_claim_count;
+let claims, month_end, milestones, users, linked_websites, domains, coinflip_pvp, coinflip_pvh, airdrop_one, tip_stats, user_settings, month_claim_count, santa;
 
 let ready = false;
 
@@ -26,6 +26,7 @@ db_wait.then(([db, tipbot_db]) => {
   tip_stats = tipbot_db.collection("tip_stats");
   user_settings = tipbot_db.collection("user_settings");
   month_claim_count = db.collection("month_claim_count");
+  santa = db.collection("santa");
 });
 
 const INITIAL_ACHIEVEMENT_DATA = {
@@ -42,6 +43,7 @@ const INITIAL_ACHIEVEMENT_DATA = {
     wins: 0
   },
   gatcha_won_xac_amount: 0,
+  gatcha_wins: 0,
 };
 
 setTimeout(async function() {
@@ -578,8 +580,29 @@ const ACHIEVEMENTS = {
   },
   "gatcha-3": {
     id: "gatcha-3",
+    name: "One More Coin",
+    description: "Win 30000 XAC total through captcha gatcha",
+    prize: 2500,
+    role: false,
+  },
+  "gatcha-4": {
+    id: "gatcha-4",
     name: "Gotta Keep Pulling",
     description: "Win 50000 XAC total through captcha gatcha",
+    prize: 5000,
+    role: false,
+  },
+  "gatcha-wins-1": {
+    id: "gatcha-wins-1",
+    name: "A Gatcha A Day...",
+    description: "Win 10 captcha gatchas",
+    prize: 2000,
+    role: false,
+  },
+  "gatcha-wins-2": {
+    id: "gatcha-wins-2",
+    name: "...Keeps The Nishi At Bay",
+    description: "Win 25 captcha gatchas",
     prize: 5000,
     role: false,
   },
@@ -725,6 +748,7 @@ async function increase_gatcha_achievement_info(user_id, amount) {
   }, {
     $inc: {
       "achievement_data.gatcha_won_xac_amount": amount,
+      "achievement_data.gatcha_wins": 1,
     }
   });
 }
@@ -1093,6 +1117,18 @@ async function change_user_settings(user, settings, field_name, new_value) {
   return await user_settings.updateOne({ user }, { $set: { ...settings } }, { upsert: true });
 }
 
+async function find_santa(user, day) {
+  return await santa.findOne({ user, day, year: (new Date()).getUTCFullYear() });
+}
+
+async function add_santa(user, day) {
+  await santa.insertOne({
+    user,
+    day,
+    year: (new Date()).getUTCFullYear(),
+  });
+}
+
 module.exports = {
   ACHIEVEMENTS,
   CLAIM_FREQ,
@@ -1147,4 +1183,6 @@ module.exports = {
   get_user_settings,
   bulk_get_user_settings,
   change_user_settings,
+  find_santa,
+  add_santa,
 };
