@@ -112,7 +112,6 @@ const SUPPORTED_INFO = {
     "emoji": "<:PHX:1241907517819191307>",
     "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
     "chain": "flare",
-    "website": "https://www.thephoenixproject.xyz/",
   },
   "billy": {
     "id": "billy",
@@ -128,7 +127,6 @@ const SUPPORTED_INFO = {
     "emoji": "<:BILLI:1331134219606294538>",
     "token_address": "0x01E396a10080eC2838D615162B17940b45D5E227",
     "chain": "flare",
-    "website": "https://billidabear.vercel.app/",
   },
   //songbird
   "sgb": {
@@ -231,7 +229,6 @@ const SUPPORTED_INFO = {
     "emoji": "<:sPHX:1130346027497558126>",
     "token_address": "0x7afDe1497da4AeDecFaf6CC32FB0D83572C10426",
     "chain": "songbird",
-    "website": "https://www.thephoenixproject.xyz/",
   },
   "fthr": {
     "id": "fthr",
@@ -239,7 +236,6 @@ const SUPPORTED_INFO = {
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
     "chain": "songbird",
-    "website": "https://fthrswap.xyz/swap/",
   },
 };
 
