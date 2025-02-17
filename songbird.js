@@ -122,13 +122,6 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://linktr.ee/philitoken",
   },
-  "phx": {
-    "id": "phx",
-    "name": "Phoenix Token",
-    "emoji": "<:PHX:1241907517819191307>",
-    "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
-    "chain": "flare",
-  },
   "billi": {
     "id": "billi",
     "name": "BilliDaBear",
