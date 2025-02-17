@@ -120,6 +120,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:PHIL:1340852473862164550>",
     "token_address": "0x932E691aA8c8306C4bB0b19F3f00a284371be8Ba",
     "chain": "flare",
+    "coingecko": "phili-inu",
     "website": "https://linktr.ee/philitoken",
   },
   "billi": {
