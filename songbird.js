@@ -106,13 +106,6 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.blockbonez.com/bnz",
   },
-  "phx": {
-    "id": "phx",
-    "name": "Phoenix Token",
-    "emoji": "<:PHX:1241907517819191307>",
-    "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
-    "chain": "flare",
-  },
   "billy": {
     "id": "billy",
     "name": "Billy",
@@ -120,6 +113,14 @@ const SUPPORTED_INFO = {
     "token_address": "0xAfe1B71eCaB62F31cA6e30fCA8C21C9D3e997E90",
     "chain": "flare",
     "website": "https://www.billyflr.com/",
+  },
+  "phil": {
+    "id": "phil",
+    "name": "Phili Inu",
+    "emoji": "<:PHIL:1340852473862164550>",
+    "token_address": "0x932E691aA8c8306C4bB0b19F3f00a284371be8Ba",
+    "chain": "flare",
+    "website": "https://linktr.ee/philitoken",
   },
   "billi": {
     "id": "billi",
@@ -222,6 +223,14 @@ const SUPPORTED_INFO = {
     "token_address": "0x2d2b39a036c3C02D50e2353061898E04433dd8Fa",
     "chain": "songbird",
     "website": "https://discord.gg/a4X7YpxguS",
+  },
+  "marthy": {
+    "id": "marthy",
+    "name": "marthy",
+    "emoji": "<:MARTHY:1340852469760135238>",
+    "token_address": "0xd5c5Aa1bf97507B12D6E03ca1Dd6ff5A7ff4bBE7",
+    "chain": "songbird",
+    "website": "https://linktr.ee/Marthytoken",
   },
   "sphx": {
     "id": "sphx",
