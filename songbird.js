@@ -120,6 +120,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:PHIL:1340852473862164550>",
     "token_address": "0x932E691aA8c8306C4bB0b19F3f00a284371be8Ba",
     "chain": "flare",
+    "coingecko": "phili-inu",
     "website": "https://linktr.ee/philitoken",
   },
   "billi": {
@@ -245,6 +246,13 @@ const SUPPORTED_INFO = {
     "emoji": "<:FTHR:1152030938793005076>",
     "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
     "chain": "songbird",
+  },
+    "phx": {
+    "id": "phx",
+    "name": "Phoenix Token",
+    "emoji": "<:PHX:1241907517819191307>",
+    "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
+    "chain": "flare",
   },
 };
 
