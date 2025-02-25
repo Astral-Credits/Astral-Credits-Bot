@@ -1,5 +1,6 @@
 const http = require("http");
 const db = require("./db.js");
+const songbird = require("./songbird.js");
 
 const MAX_CLAIMS_PER_MONTH = 11111;
 //1678190400 is Tues 07MAR2023 12:00:00
@@ -46,6 +47,26 @@ http.createServer(async function (req, res) {
       };
     }
     res.write(uses_left);
+  } else if (req.url.startsWith("/bridge/sign")) {
+    res.setHeader("Content-Type", "application/json");
+    //we CANNOT allow non-lowercase tx hashes to be signed, cause other the same tx hash could be used to claim from bridge multiple times, if the case is different
+    let burn_tx_hash = (new URL(`https://doesntmatter.com${req.url}`)).searchParams.get("tx_hash")?.toLowerCase();
+    let success = false;
+    if (burn_tx_hash) {
+      try {
+        let signature = await songbird.verify_and_sign_burn(burn_tx_hash);
+        if (signature) {
+          res.write(JSON.stringify({
+            error: false,
+            ...signature,
+          }));
+          success = true;
+        }
+      } catch (e) {
+        console.log(e);
+      }
+    }
+    if (!success) res.write(JSON.stringify({ error: true }));
   } else {
     res.write("Starting...");
     res.write("I'm alive. Nice!");
