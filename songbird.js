@@ -123,13 +123,6 @@ const SUPPORTED_INFO = {
     "coingecko": "phili-inu",
     "website": "https://linktr.ee/philitoken",
   },
-  "billi": {
-    "id": "billi",
-    "name": "BilliDaBear",
-    "emoji": "<:BILLI:1331134219606294538>",
-    "token_address": "0x01E396a10080eC2838D615162B17940b45D5E227",
-    "chain": "flare",
-  },
   //songbird
   "sgb": {
     //no token address, ofc
@@ -232,27 +225,6 @@ const SUPPORTED_INFO = {
     "token_address": "0xd5c5Aa1bf97507B12D6E03ca1Dd6ff5A7ff4bBE7",
     "chain": "songbird",
     "website": "https://linktr.ee/Marthytoken",
-  },
-  "sphx": {
-    "id": "sphx",
-    "name": "Songbird Phoenix",
-    "emoji": "<:sPHX:1130346027497558126>",
-    "token_address": "0x7afDe1497da4AeDecFaf6CC32FB0D83572C10426",
-    "chain": "songbird",
-  },
-  "fthr": {
-    "id": "fthr",
-    "name": "FeatherSwap",
-    "emoji": "<:FTHR:1152030938793005076>",
-    "token_address": "0x19eA65E3f8fc8F61743d137B5107172f849d8Eb3",
-    "chain": "songbird",
-  },
-    "phx": {
-    "id": "phx",
-    "name": "Phoenix Token",
-    "emoji": "<:PHX:1241907517819191307>",
-    "token_address": "0x06fb7579e28E1ca55AFA52272296a89a879d690a",
-    "chain": "flare",
   },
 };
 
