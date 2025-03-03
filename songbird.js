@@ -785,6 +785,33 @@ function get_airdrop_id(chain, logs) {
   return airdrop_id;
 }
 
+const BRIDGE_BURN_ADDRESS = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+async function verify_and_sign_burn(tx_hash) {
+  //we already toLowerCase() upstream, but just in case...
+  tx_hash = tx_hash.toLowerCase();
+  let tx_info = await (await fetch(`https://songbird-explorer.flare.network/api?module=transaction&action=gettxinfo&txhash=${tx_hash}`)).json();
+  if (tx_info.status !== "1") return false;
+  tx_info = tx_info.result;
+  //also handles if no "result"
+  if (!tx_info?.success) return false;
+  let sender = tx_info.from;
+  if (tx_info.to.toLowerCase() !== token_contract_address.toLowerCase()) return false;
+  //only supports token transfers using the contract's transfer() function
+  //ie, doesn't support transferFrom. it could, just not implemented
+  //parse tx_info.input
+  let input = tx_info.input;
+  if (input.length !== 138) return false;
+  if (!input.startsWith("0xa9059cbb")) return false;
+  let receiver = "0x" + input.slice(34, 74);
+  if (receiver !== BRIDGE_BURN_ADDRESS) return false;
+  let amount = BigInt("0x" + input.slice(74)) / 10n;
+  const message_hash = ethers.utils.solidityKeccak256(["bytes"], [ethers.utils.solidityPack(["address", "string", "string", "string", "uint256"], [sender, " is approved for tx ", tx_hash, " for amount ", amount])]);
+  const signature = await wallet.signMessage(ethers.utils.arrayify(message_hash));
+  const {v, r, s} = ethers.utils.splitSignature(signature);
+  return { v, r, s };
+}
+
 /*
 const rand_wallet = ethers.Wallet.createRandom();
 console.log(rand_wallet.privateKey);
@@ -832,6 +859,7 @@ module.exports = {
   get_airdrop,
   get_airdrop_id,
   get_airdrop_participants,
+  verify_and_sign_burn,
   is_valid: ethers.utils.isAddress,
   to_raw: ethers.utils.parseUnits,
   from_raw: ethers.utils.formatUnits,
