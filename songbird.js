@@ -781,7 +781,7 @@ async function verify_and_sign_burn(tx_hash) {
   const message_hash = ethers.utils.solidityKeccak256(["bytes"], [ethers.utils.solidityPack(["address", "string", "string", "string", "uint256"], [sender, " is approved for tx ", tx_hash, " for amount ", amount])]);
   const signature = await wallet.signMessage(ethers.utils.arrayify(message_hash));
   const {v, r, s} = ethers.utils.splitSignature(signature);
-  return { v, r, s };
+  return { v, r, s, amount: String(amount) };
 }
 
 /*

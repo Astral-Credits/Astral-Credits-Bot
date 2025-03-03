@@ -1,5 +1,6 @@
 const http = require("http");
 const db = require("./db.js");
+//require("dotenv").config()
 const songbird = require("./songbird.js");
 
 const MAX_CLAIMS_PER_MONTH = 11111;
@@ -48,7 +49,10 @@ http.createServer(async function (req, res) {
     }
     res.write(uses_left);
   } else if (req.url.startsWith("/bridge/sign")) {
-    res.setHeader("Content-Type", "application/json");
+    res.writeHead(200, {
+      'Content-Type': "application/json",
+      'Access-Control-Allow-Origin': req.headers.origin === "http://localhost:8000" ? "http://localhost:8000" : "https://www.astralcredits.xyz",
+    });
     //we CANNOT allow non-lowercase tx hashes to be signed, cause other the same tx hash could be used to claim from bridge multiple times, if the case is different
     let burn_tx_hash = (new URL(`https://doesntmatter.com${req.url}`)).searchParams.get("tx_hash")?.toLowerCase();
     let success = false;
@@ -56,6 +60,7 @@ http.createServer(async function (req, res) {
       try {
         let signature = await songbird.verify_and_sign_burn(burn_tx_hash);
         if (signature) {
+          //well, signature var includes amount
           res.write(JSON.stringify({
             error: false,
             ...signature,
