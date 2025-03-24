@@ -106,6 +106,14 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.blockbonez.com/bnz",
   },
+  "pico": {
+    "id": "pico",
+    "name": "PiCO Coin",
+    "emoji": "<:PiCO:1353512472434446437>",
+    "token_address": "0x5Ef135F575d215AE5A09E7B30885E866db138aF6",
+    "chain": "flare",
+    "website": "https://pixelchainolympics.com/",
+  },
   "billy": {
     "id": "billy",
     "name": "Billy",
