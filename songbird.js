@@ -112,7 +112,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:PiCO:1353512472434446437>",
     "token_address": "0x5Ef135F575d215AE5A09E7B30885E866db138aF6",
     "chain": "flare",
-    "website": "https://pixelchainolympics.com/",
+    "website": "https://pixelchain.games/",
   },
   "billy": {
     "id": "billy",
@@ -192,7 +192,7 @@ const SUPPORTED_INFO = {
     "token_address": "0x9E2E6c16803878C18E54Ed74F05AeafCCe464626",
     "chain": "songbird",
     "coingecko": "sfortuna-token",
-    "website": "https://pixelchainolympics.com/",
+    "website": "https://pixelchain.games/",
   },
   "chirp": {
     "id": "chirp",
