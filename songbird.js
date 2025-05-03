@@ -72,6 +72,16 @@ const SUPPORTED_INFO = {
     "coingecko": "tether", //temporary
     "website": "https://stargate.finance/",
   },
+  "usdt0": {
+    "id": "usdt0",
+    "name": "USD₮0",
+    "emoji": "<:USDT0:1367305586751832197>",
+    "token_address": "0xe7cd86e13AC4309349F30B3435a9d337750fC82D",
+    "chain": "flare",
+    "decimal_places": 6,
+    "coingecko": "tether", //temporary
+    "website": "https://usdt0.to/",
+  },
   "usdc.e": {
     "id": "usdc.e",
     "name": "Bridged USDC (Flare)",
