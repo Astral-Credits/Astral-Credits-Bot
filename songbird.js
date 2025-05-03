@@ -76,7 +76,7 @@ const SUPPORTED_INFO = {
     "id": "usdt0",
     "name": "USD₮0",
     "emoji": "<:USDT0:1367305586751832197>",
-    "token_address": "00xe7cd86e13AC4309349F30B3435a9d337750fC82D",
+    "token_address": "0xe7cd86e13AC4309349F30B3435a9d337750fC82D",
     "chain": "flare",
     "decimal_places": 6,
     "coingecko": "tether", //temporary
