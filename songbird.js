@@ -141,6 +141,14 @@ const SUPPORTED_INFO = {
     "coingecko": "phili-inu",
     "website": "https://linktr.ee/philitoken",
   },
+  "bugo": {
+    "id": "bugo",
+    "name": "Bugo (Unofficial)",
+    "emoji": "<:BUGO:1375329714662805635>",
+    "token_address": "0x6c1490729ce19E809Cf9F7e3e223c0490833DE02",
+    "chain": "flare",
+    "website": "https://linktr.ee/BugoFLR",
+  },
   //songbird
   "sgb": {
     //no token address, ofc
