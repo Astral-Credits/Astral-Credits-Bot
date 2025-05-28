@@ -144,7 +144,7 @@ const SUPPORTED_INFO = {
   "bugo": {
     "id": "bugo",
     "name": "Bugo (Unofficial)",
-    "emoji": "<:BUGO:1375329714662805635>",
+    "emoji": "<:BUGO1:1377418443585880104>",
     "token_address": "0x6c1490729ce19E809Cf9F7e3e223c0490833DE02",
     "chain": "flare",
     "website": "https://linktr.ee/BugoFLR",
