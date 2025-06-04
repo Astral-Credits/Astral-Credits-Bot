@@ -147,6 +147,7 @@ const SUPPORTED_INFO = {
     "emoji": "<:BUGO1:1377418443585880104>",
     "token_address": "0x6c1490729ce19E809Cf9F7e3e223c0490833DE02",
     "chain": "flare",
+    "coingecko": "bugo",
     "website": "https://linktr.ee/BugoFLR",
   },
   //songbird
