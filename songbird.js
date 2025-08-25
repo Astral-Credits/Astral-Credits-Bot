@@ -116,6 +116,14 @@ const SUPPORTED_INFO = {
     "chain": "flare",
     "website": "https://www.blockbonez.com/bnz",
   },
+  "bank": {
+    "id": "bank",
+    "name": "Bank",
+    "emoji": "<:BANK:1409318854127128636>",
+    "token_address": "0x194726F6C2aE988f1Ab5e1C943c17e591a6f6059",
+    "chain": "flare",
+    "website": "https://www.flrbank.com/",
+  },
   "pico": {
     "id": "pico",
     "name": "PiCO Coin",
