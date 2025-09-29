@@ -79,7 +79,7 @@ const SUPPORTED_INFO = {
     "token_address": "0xe7cd86e13AC4309349F30B3435a9d337750fC82D",
     "chain": "flare",
     "decimal_places": 6,
-    "coingecko": "tether", //temporary
+    "coingecko": "tether",
     "website": "https://usdt0.to/",
   },
   "usdc.e": {
@@ -91,6 +91,16 @@ const SUPPORTED_INFO = {
     "decimal_places": 6,
     "coingecko": "usd-coin", //temporary
     "website": "https://stargate.finance/",
+  },
+  "fxrp": {
+    "id": "fxrp",
+    "name": "Flare XRP",
+    "emoji": "<:FXRP:1420933621547536584>",
+    "token_address": "0xAd552A648C74D49E10027AB8a618A3ad4901c5bE",
+    "chain": "flare",
+    "decimal_places": 6,
+    "coingecko": "ripple", //temporary
+    "website": "https://flare.network/products/fassets",
   },
   "joule": {
     "id": "joule",
