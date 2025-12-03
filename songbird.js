@@ -43,14 +43,13 @@ const SUPPORTED_INFO = {
     "coingecko": "wrapped-flare",
     "website": "https://flare.network/",
   },
-  "sflr": {
-    "id": "sflr",
-    "name": "Staked Flare",
-    "emoji": "<:sFLR:1267680772869849171>",
-    "token_address": "0x12e605bc104e93B45e1aD99F9e555f659051c2BB",
+  "fxac": {
+    "id": "fxac",
+    "name": "Flare Astral Credits",
+    "emoji": "<:FXAC:1353515544699080785>",
+    "token_address": "0x525Cf2895907d65b6AF8cD2c44007fB7C7ACa8dF",
     "chain": "flare",
-    "coingecko": "sceptre-staked-flr",
-    "website": "https://www.sceptre.fi/",
+    "website": "https://www.astralcredits.xyz/bridge/",
   },
   "eusdt": {
     "id": "eusdt",
@@ -101,6 +100,15 @@ const SUPPORTED_INFO = {
     "decimal_places": 6,
     "coingecko": "ripple", //temporary
     "website": "https://flare.network/products/fassets",
+  },
+  "sflr": {
+    "id": "sflr",
+    "name": "Staked Flare",
+    "emoji": "<:sFLR:1267680772869849171>",
+    "token_address": "0x12e605bc104e93B45e1aD99F9e555f659051c2BB",
+    "chain": "flare",
+    "coingecko": "sceptre-staked-flr",
+    "website": "https://www.sceptre.fi/",
   },
   "joule": {
     "id": "joule",
