@@ -83,8 +83,12 @@ client.once("ready", async (info) => {
     await db.milestone_check(send_announcement);
   }, 30 * 60 * 1000);
   async function set_pptr_cache() {
-    let token_resp = await (await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=0x93CA88Ee506096816414078664641C07aF731026")).json();
-    pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
+    try {
+      let token_resp = await (await fetch("https://songbird-explorer.flare.network/api?module=account&action=tokentx&address=0x93CA88Ee506096816414078664641C07aF731026")).json();
+      pptr_cache = token_resp.result.filter((t) => t.input.startsWith("0xd2b7f857")); //setPixel (todo: support setPixelBatch)
+    } catch (_) {
+      pptr_cache = [];
+    }
   }
   set_pptr_cache();
   setInterval(set_pptr_cache, 4 * 60 * 1000);
@@ -813,7 +817,7 @@ client.on("interactionCreate", async interaction => {
       return await interaction.editReply("Please do `/register` first!");
     }
     const all_achievements = Object.keys(db.ACHIEVEMENTS).length;
-    let unlocked_infos = user_info.achievements.map((a) => db.ACHIEVEMENTS[a]);
+    let unlocked_infos = user_info.achievements.map((a) => db.ACHIEVEMENTS[a]).filter((a) => a !== undefined);
     let unlocked_num = unlocked_infos.length;
     //todo: pagination and stuff (if more than 25 achievements)
     if (unlocked_num > 10) {
@@ -1049,16 +1053,24 @@ client.on("interactionCreate", async interaction => {
         await sleep(2500);
       }
     }
+    //check for fxac millionaire
+    if (await songbird.get_bal_flr_astral(user_info.address) >= 1_000_000) {
+      let g = await add_achievement(user.id, "fxac-millionaire", user_info, interaction.member);
+      if (g) {
+        given.push(db.ACHIEVEMENTS["fxac-millionaire"].name);
+        await sleep(2500);
+      }
+    }
     //check for triforceone delegator
     let ftso_resp = await songbird.ftso_delegates_of(user_info.address);
     //console.log(ftso_resp);
     //[0] is the addresses, [1] is the delegation % in bips
-    let found_index = ftso_resp[0].map((address) => address.toLowerCase()).indexOf(songbird.TRIFORCE_ADDRESS.toLowerCase()); //returns -1 if not found, array[-1] returns undefined
+    let found_index = ftso_resp[0].map((address) => address.toLowerCase()).indexOf(songbird.MANA_ADDRESS.toLowerCase()); //returns -1 if not found, array[-1] returns undefined
     //10000 bips is 100%
     if (ftso_resp[1][found_index]?.gte(5_000)) {
-      let g = await add_achievement(user.id, "triforce-delegator", user_info, interaction.member);
+      let g = await add_achievement(user.id, "mana-delegator", user_info, interaction.member);
       if (g) {
-        given.push(db.ACHIEVEMENTS["triforce-delegator"].name);
+        given.push(db.ACHIEVEMENTS["mana-delegator"].name);
         await sleep(2500);
       }
     }
@@ -1220,17 +1232,17 @@ client.on("interactionCreate", async interaction => {
       let rand = Math.random();
       let amount;
       if (rand <= 0.05) {
-        amount = 100;
+        amount = 50;
       } else if (rand <= 0.20) {
-        amount = 200;
+        amount = 100;
       } else if (rand <= 0.50) {
-        amount = 500;
+        amount = 250;
       } else if (rand <= 0.80) {
-        amount = 1000;
+        amount = 500;
       } else if (rand <= 0.95) {
-        amount = 3000;
+        amount = 1500;
       } else if (rand <= 1) {
-        amount = 5000;
+        amount = 2500;
       }
       let tx;
       try {
@@ -1246,11 +1258,11 @@ client.on("interactionCreate", async interaction => {
         santa_embed.setTitle("Merry Christmas! 🎅");
         santa_embed.setColor(["#ff0000", "#00ff00", "#ffffff"][Math.floor(Math.random() * 3)]);
         santa_embed.setDescription(`${amount} XAC sent to your registered address! Ho ho ho.${ day < 25 ? ` Santa will be back with another gift soon: <t:${end_timestamp}:R>` : ""}.\n[View TX](https://songbird-explorer.flare.network/tx/${tx})`);
-        if (amount === 100 || amount === 200) {
+        if (amount === 50 || amount === 100) {
           santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/flosssanta.gif");
-        } else if (amount === 500 || amount === 1000) {
+        } else if (amount === 250 || amount === 500) {
           santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/djsanta.gif");
-        } else if (amount === 3000 || amount === 5000) {
+        } else if (amount === 1500 || amount === 2500) {
           santa_embed.setImage("https://raw.githubusercontent.com/Astral-Credits/Astral-Credits-Bot/refs/heads/master/assets_compressed/rocketsanta.gif");
         }
         return await interaction.editReply({ embeds: [santa_embed] });

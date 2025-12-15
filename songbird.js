@@ -303,6 +303,7 @@ let faucet_wallet = new ethers.Wallet(process.env.faucet_privkey);
 faucet_wallet = faucet_wallet.connect(songbird_provider);
 
 const token_contract_address = "0x61b64c643fCCd6ff34Fc58C8ddff4579A89E2723";
+const flr_token_contract_address = "0x525Cf2895907d65b6AF8cD2c44007fB7C7ACa8dF";
 const nft_contract_address = "0x288F45e46aD434808c65880dCc2F21938b7Da23d";
 const sgb_domain_contract_address = "0x7e8aB50697C7Abe63Bdab6B155C2FB8D285458cB";
 const flr_domain_contract_address = "0x2919f0bE09549814ADF72fb0387D1981699fc6D4";
@@ -318,6 +319,9 @@ let astral_nft = new ethers.Contract(nft_contract_address, erc1155_abi, faucet_w
 let wrapped_songbird_token = new ethers.Contract("0x02f0826ef6aD107Cfc861152B32B52fD11BaB9ED", erc20_and_ftso_abi, faucet_wallet); //also includes FTSO functions!
 let faucet_astral_token = new ethers.Contract(token_contract_address, erc20_abi, faucet_wallet);
 
+let flr_astral_token = new ethers.Contract(flr_token_contract_address, erc20_abi, flare_provider);
+let wrapped_flare_token = new ethers.Contract("0x1D80c49BbBCd1C0911346656B529DF9E5c2F783d", erc20_and_ftso_abi, flare_provider);
+
 let sgb_domain_contract = new ethers.Contract(sgb_domain_contract_address, sgb_domain_abi, songbird_provider);
 let flr_domain_contract = new ethers.Contract(flr_domain_contract_address, sgb_domain_abi, flare_provider);
 let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb8021949a", domains_abi, songbird_provider);
@@ -326,7 +330,8 @@ let domains_contract = new ethers.Contract("0xBDACF94dDCAB51c39c2dD50BffEe60Bb80
 //how many blocks sgb/nft has to be held for. 43200 is 24 hours, since block time is 2 seconds so 43200 blocks is around 24 hours - 1800 blocks is around 1 Hour
 const HOLDING_BLOCK_TIME = 43200;
 
-const TRIFORCE_ADDRESS = "0x86fBF03CCF0FE152B2aBE2B43bA82662c59Ac1B4";
+//const TRIFORCE_ADDRESS = "0x86fBF03CCF0FE152B2aBE2B43bA82662c59Ac1B4";
+const MANA_ADDRESS = "0xF61B94dEdC5f23398997D73B7701D67556eaaD6F";
 
 //do a sanity check to make sure the tipbot derive privkey can never exceed 32 bytes (this would be bad :tm:), as priv key would be invalid
 //priv keys are 32 bytes, meaning 256**32-1 is the max
@@ -347,6 +352,11 @@ async function get_bal(address, chain="songbird") {
 
 async function get_bal_astral(address) {
   let astral_bal = await astral_token.balanceOf(address);
+  return Number(ethers.utils.formatUnits(astral_bal.toString(), 18));
+}
+
+async function get_bal_flr_astral(address) {
+  let astral_bal = await flr_astral_token.balanceOf(address);
   return Number(ethers.utils.formatUnits(astral_bal.toString(), 18));
 }
 
@@ -729,7 +739,7 @@ async function lookup_domain_owner(domain) {
 }
 
 async function ftso_delegates_of(address) {
-  return await wrapped_songbird_token.delegatesOf(address);
+  return await wrapped_flare_token.delegatesOf(address);
 }
 
 function get_airdrop_contract(user_id, chain) {
@@ -848,7 +858,8 @@ module.exports = {
   SUPPORTED,
   SPECIAL_KNOWN,
   HOLDING_BLOCK_TIME,
-  TRIFORCE_ADDRESS,
+  //TRIFORCE_ADDRESS,
+  MANA_ADDRESS,
   MAX_DECIMALS,
   nft_values,
   full_to_abbr,
@@ -856,6 +867,7 @@ module.exports = {
   enough_balance,
   get_bal,
   get_bal_astral,
+  get_bal_flr_astral,
   get_bal_generic_tokens,
   aged_enough,
   get_held_nfts,
