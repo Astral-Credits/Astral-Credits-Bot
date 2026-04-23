@@ -19,6 +19,10 @@ const tipbot_client = new discord.Client({
 
 tipbot_client.once("ready", async (info) => {
   console.log('Ready! as ' + info.user.tag);
+  /*
+  await tipbot_client.guilds.fetch();
+  console.log(tipbot_client.guilds.cache.map(guild => guild.name));
+  */
   tipbot_client.user.setPresence({
     activities: [
       {

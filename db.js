@@ -26,7 +26,7 @@ db_wait.then(([db, tipbot_db]) => {
   tip_stats = tipbot_db.collection("tip_stats");
   user_settings = tipbot_db.collection("user_settings");
   month_claim_count = db.collection("month_claim_count");
-  santa = db.collection("santa");
+  santa = db.collection("santa2025");
 });
 
 const INITIAL_ACHIEVEMENT_DATA = {
@@ -637,12 +637,26 @@ const ACHIEVEMENTS = {
     prize: 0,
     role: "1222007670199029800",
   },
-  "triforce-delegator": {
+  "fxac-millionaire": {
+    id: "fxac-millionaire",
+    name: "FXAC Millionaire",
+    description: "Hold 1 million FXAC!",
+    prize: 0,
+    role: "1447773809716498506",
+  },
+  /*"triforce-delegator": {
     id: "triforce-delegator",
     name: "Triforce Delegator",
     description: "Delegate at least 50% of your WSGB to the Triforce FTSO.", //currently doesn't require a minimum wsgb amount
     prize: 1500,
     role: "1222008917739962522",
+  },*/
+  "mana-delegator": {
+    id: "mana-delegator",
+    name: "HP/Mana Delegator",
+    description: "Delegate at least 50% of your WFLR to the HP/Mana FTSO.", //currently doesn't require a minimum wsgb amount
+    prize: 1500,
+    role: "1447775269149474847",
   },
   //
 }
